@@ -3,11 +3,11 @@ export default function AdminSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-4xl font-bold mb-2">Settings</h1>
-        <p className="text-text-secondary">Configure your site</p>
+        <p className="text-zinc-400">Configure your site</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="border border-border rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <h3 className="text-xl font-bold mb-4">Site Information</h3>
           <div className="space-y-4">
             <div>
@@ -15,7 +15,7 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 defaultValue="47 Industries"
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                className="w-full px-4 py-2 bg-black border border-zinc-700 rounded-lg focus:border-blue-600 focus:outline-none"
               />
             </div>
             <div>
@@ -23,41 +23,41 @@ export default function AdminSettingsPage() {
               <input
                 type="email"
                 defaultValue="contact@47industries.com"
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                className="w-full px-4 py-2 bg-black border border-zinc-700 rounded-lg focus:border-blue-600 focus:outline-none"
               />
             </div>
-            <button className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent/90">
+            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               Save Changes
             </button>
           </div>
         </div>
 
-        <div className="border border-border rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <h3 className="text-xl font-bold mb-4">Users</h3>
-          <p className="text-text-secondary text-sm mb-4">
+          <p className="text-zinc-500 text-sm mb-4">
             Manage admin users and permissions
           </p>
-          <button className="px-6 py-2 border border-border rounded-lg hover:bg-surface">
+          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
             Manage Users
           </button>
         </div>
 
-        <div className="border border-border rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <h3 className="text-xl font-bold mb-4">Email Settings</h3>
-          <p className="text-text-secondary text-sm mb-4">
+          <p className="text-zinc-500 text-sm mb-4">
             Configure email notifications and templates
           </p>
-          <button className="px-6 py-2 border border-border rounded-lg hover:bg-surface">
+          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
             Configure Email
           </button>
         </div>
 
-        <div className="border border-border rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
           <h3 className="text-xl font-bold mb-4">Stripe Integration</h3>
-          <p className="text-text-secondary text-sm mb-4">
+          <p className="text-zinc-500 text-sm mb-4">
             Payment processing configuration
           </p>
-          <button className="px-6 py-2 border border-border rounded-lg hover:bg-surface">
+          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
             Configure Stripe
           </button>
         </div>
