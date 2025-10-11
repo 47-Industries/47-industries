@@ -1,15 +1,11 @@
 import { ReactNode } from 'react'
 import Link from 'next/link'
-import { Inter } from 'next/font/google'
-import '../globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   // TODO: Add authentication check here
 
   return (
-    <div className={`min-h-screen bg-background ${inter.className}`}>
+    <div className="min-h-screen bg-background">
       {/* Admin Sidebar */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-surface border-r border-border">
         <div className="p-6">
