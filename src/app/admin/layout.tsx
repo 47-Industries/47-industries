@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import Link from 'next/link'
+import '../globals.css'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   // TODO: Add authentication check here
