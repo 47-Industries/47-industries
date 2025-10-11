@@ -1,63 +1,63 @@
 export default function AdminSettingsPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Settings</h1>
-        <p className="text-zinc-400">Configure your site</p>
+    <div>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Settings</h1>
+        <p className="admin-page-subtitle">Configure your site</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h3 className="text-xl font-bold mb-4">Site Information</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Site Name</label>
+      <div className="admin-settings-grid">
+        <div className="admin-card">
+          <h3 className="admin-section-title">Site Information</h3>
+          <div>
+            <div className="admin-form-group">
+              <label className="admin-form-label">Site Name</label>
               <input
                 type="text"
                 defaultValue="47 Industries"
-                className="w-full px-4 py-2 bg-black border border-zinc-700 rounded-lg focus:border-blue-600 focus:outline-none"
+                className="admin-form-input"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Contact Email</label>
+            <div className="admin-form-group">
+              <label className="admin-form-label">Contact Email</label>
               <input
                 type="email"
                 defaultValue="contact@47industries.com"
-                className="w-full px-4 py-2 bg-black border border-zinc-700 rounded-lg focus:border-blue-600 focus:outline-none"
+                className="admin-form-input"
               />
             </div>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button className="admin-btn admin-btn-primary">
               Save Changes
             </button>
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h3 className="text-xl font-bold mb-4">Users</h3>
-          <p className="text-zinc-500 text-sm mb-4">
+        <div className="admin-card">
+          <h3 className="admin-section-title">Users</h3>
+          <p className="admin-card-description">
             Manage admin users and permissions
           </p>
-          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
+          <button className="admin-btn admin-btn-secondary">
             Manage Users
           </button>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h3 className="text-xl font-bold mb-4">Email Settings</h3>
-          <p className="text-zinc-500 text-sm mb-4">
+        <div className="admin-card">
+          <h3 className="admin-section-title">Email Settings</h3>
+          <p className="admin-card-description">
             Configure email notifications and templates
           </p>
-          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
+          <button className="admin-btn admin-btn-secondary">
             Configure Email
           </button>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h3 className="text-xl font-bold mb-4">Stripe Integration</h3>
-          <p className="text-zinc-500 text-sm mb-4">
+        <div className="admin-card">
+          <h3 className="admin-section-title">Stripe Integration</h3>
+          <p className="admin-card-description">
             Payment processing configuration
           </p>
-          <button className="px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
+          <button className="admin-btn admin-btn-secondary">
             Configure Stripe
           </button>
         </div>

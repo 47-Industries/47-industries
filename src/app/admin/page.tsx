@@ -1,9 +1,9 @@
 export default function AdminDashboard() {
   const stats = [
-    { label: 'Total Orders', value: '0', icon: '🛒', color: 'blue' },
-    { label: 'Revenue', value: '$0', icon: '💰', color: 'green' },
-    { label: '3D Print Requests', value: '0', icon: '🖨️', color: 'purple' },
-    { label: 'Service Inquiries', value: '0', icon: '💬', color: 'orange' },
+    { label: 'Total Orders', value: '0', icon: '🛒', colorClass: '' },
+    { label: 'Revenue', value: '$0', icon: '💰', colorClass: 'green' },
+    { label: '3D Print Requests', value: '0', icon: '🖨️', colorClass: 'purple' },
+    { label: 'Service Inquiries', value: '0', icon: '💬', colorClass: 'orange' },
   ]
 
   const quickActions = [
@@ -14,55 +14,43 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div>
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-        <p className="text-zinc-400">Welcome to 47 Industries Admin</p>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Dashboard</h1>
+        <p className="admin-page-subtitle">Welcome to 47 Industries Admin</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="admin-stats-grid">
         {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all"
-          >
-            <div className="flex items-start justify-between mb-4">
+          <div key={stat.label} className="admin-stat-card">
+            <div className="admin-stat-header">
               <div>
-                <p className="text-sm text-zinc-500 mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold">{stat.value}</p>
+                <p className="admin-stat-label">{stat.label}</p>
+                <p className="admin-stat-value">{stat.value}</p>
               </div>
-              <div className="text-4xl">{stat.icon}</div>
+              <div className="admin-stat-icon">{stat.icon}</div>
             </div>
-            <div className={`h-1 rounded-full bg-gradient-to-r ${
-              stat.color === 'blue' ? 'from-blue-600 to-blue-400' :
-              stat.color === 'green' ? 'from-green-600 to-green-400' :
-              stat.color === 'purple' ? 'from-purple-600 to-purple-400' :
-              'from-orange-600 to-orange-400'
-            }`} />
+            <div className={`admin-stat-bar ${stat.colorClass}`} />
           </div>
         ))}
       </div>
 
       {/* Quick Actions */}
-      <div>
-        <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="admin-section">
+        <h2 className="admin-section-title">Quick Actions</h2>
+        <div className="admin-actions-grid">
           {quickActions.map((action) => (
             <a
               key={action.title}
               href={action.href}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-blue-600 hover:bg-zinc-800/50 transition-all group"
+              className="admin-action-card"
             >
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">{action.icon}</div>
-                <div>
-                  <h3 className="text-lg font-bold mb-1 group-hover:text-blue-500 transition-colors">
-                    {action.title}
-                  </h3>
-                  <p className="text-sm text-zinc-500">{action.description}</p>
-                </div>
+              <div className="admin-action-icon">{action.icon}</div>
+              <div>
+                <h3 className="admin-action-title">{action.title}</h3>
+                <p className="admin-action-description">{action.description}</p>
               </div>
             </a>
           ))}
@@ -70,12 +58,12 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div>
-        <h2 className="text-2xl font-bold mb-6">Recent Activity</h2>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <h3 className="text-xl font-bold mb-2">No recent activity</h3>
-          <p className="text-zinc-500">
+      <div className="admin-section">
+        <h2 className="admin-section-title">Recent Activity</h2>
+        <div className="admin-card admin-card-empty">
+          <div className="admin-card-icon">📊</div>
+          <h3 className="admin-card-title">No recent activity</h3>
+          <p className="admin-card-description">
             Your recent orders, requests, and updates will appear here
           </p>
         </div>
@@ -85,6 +73,5 @@ export default function AdminDashboard() {
 }
 
 export const metadata = {
-  title: 'Admin Dashboard - 47 Industries',
-  description: 'Admin control panel for 47 Industries',
+  title: 'Dashboard - Admin - 47 Industries',
 }

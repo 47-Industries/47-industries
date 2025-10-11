@@ -1,33 +1,32 @@
 export default function AdminOrdersPage() {
-  // TODO: Fetch from database
   const orders = []
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Orders</h1>
-        <p className="text-zinc-400">View and manage customer orders</p>
+    <div>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Orders</h1>
+        <p className="admin-page-subtitle">View and manage customer orders</p>
       </div>
 
       {orders.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-12 text-center">
-          <div className="text-6xl mb-4">🛒</div>
-          <h3 className="text-2xl font-bold mb-2">No orders yet</h3>
-          <p className="text-zinc-500">
+        <div className="admin-card admin-card-empty">
+          <div className="admin-card-icon">🛒</div>
+          <h3 className="admin-card-title">No orders yet</h3>
+          <p className="admin-card-description">
             Orders will appear here when customers make purchases
           </p>
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-zinc-800/50">
+        <div className="admin-table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Order #</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Customer</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Total</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold">Actions</th>
+                <th>Order #</th>
+                <th>Customer</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
