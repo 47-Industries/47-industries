@@ -19,6 +19,11 @@ export async function GET(request: Request) {
     connection = await mysql.createConnection(process.env.DATABASE_URL!)
     results.push('✅ Connected to MySQL')
 
+    // Select the database
+    results.push('📂 Selecting database...')
+    await connection.execute('USE railway')
+    results.push('✅ Database selected')
+
     // Create User table
     results.push('📋 Creating User table...')
     await connection.execute(`
