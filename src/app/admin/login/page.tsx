@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        usernameOrEmail,
         password,
         redirect: false,
       })
@@ -107,12 +107,12 @@ export default function AdminLoginPage() {
                 marginBottom: '8px',
                 color: '#a1a1aa'
               }}>
-                Email
+                Username or Email
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
                 required
                 style={{
                   width: '100%',
@@ -125,7 +125,7 @@ export default function AdminLoginPage() {
                   outline: 'none',
                   boxSizing: 'border-box'
                 }}
-                placeholder="admin@47industries.com"
+                placeholder="47industries or admin@47industries.com"
               />
             </div>
 

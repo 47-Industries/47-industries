@@ -7,24 +7,25 @@ async function main() {
   console.log('Starting database seeding...')
 
   // Create admin user if doesn't exist
-  const adminEmail = 'admin@47industries.com'
+  const adminUsername = '47industries'
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail },
+    where: { username: adminUsername },
   })
 
   if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('admin123', 10)
+    const hashedPassword = await bcrypt.hash('Balance47420', 10)
     await prisma.user.create({
       data: {
-        email: adminEmail,
-        name: 'Admin User',
+        username: adminUsername,
+        email: 'admin@47industries.com',
+        name: '47 Industries',
         password: hashedPassword,
         role: 'ADMIN',
       },
     })
-    console.log('✅ Created admin user')
+    console.log('✅ Created admin user: 47industries')
   } else {
-    console.log('✅ Admin user already exists')
+    console.log('✅ Admin user already exists: 47industries')
   }
 
   // Create categories
