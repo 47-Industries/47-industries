@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
@@ -10,6 +10,14 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,10 +62,10 @@ export default function AdminLoginPage() {
         {/* Logo/Title */}
         <div style={{
           textAlign: 'center',
-          marginBottom: '48px'
+          marginBottom: isMobile ? '32px' : '48px'
         }}>
           <h1 style={{
-            fontSize: '36px',
+            fontSize: isMobile ? '28px' : '36px',
             fontWeight: 700,
             marginBottom: '8px',
             margin: 0
@@ -75,7 +83,7 @@ export default function AdminLoginPage() {
             background: '#18181b',
             border: '1px solid #27272a',
             borderRadius: '16px',
-            padding: '32px'
+            padding: isMobile ? '24px' : '32px'
           }}>
             {error && (
               <div style={{

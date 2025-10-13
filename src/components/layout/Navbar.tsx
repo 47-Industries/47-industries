@@ -63,26 +63,26 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-6 space-y-4 border-t border-border">
-            <Link href="/shop" className="block text-text-secondary hover:text-text-primary transition-colors">
+          <div className="md:hidden py-6 space-y-4 border-t border-border animate-fadeIn">
+            <Link href="/shop" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               Shop
             </Link>
-            <Link href="/custom-3d-printing" className="block text-text-secondary hover:text-text-primary transition-colors">
+            <Link href="/custom-3d-printing" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               Custom Manufacturing
             </Link>
-            <Link href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors">
+            <Link href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               Services
             </Link>
-            <Link href="/motorev" className="block text-text-secondary hover:text-text-primary transition-colors">
+            <Link href="/motorev" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               MotoRev
             </Link>
-            <Link href="/about" className="block text-text-secondary hover:text-text-primary transition-colors">
+            <Link href="/about" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               About
             </Link>
-            <Link href="/contact" className="block text-text-secondary hover:text-text-primary transition-colors">
+            <Link href="/contact" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               Contact
             </Link>
-            <Link href="/cart" className="block text-text-secondary hover:text-text-primary transition-colors pt-4 border-t border-border">
+            <Link href="/cart" className="block text-text-secondary hover:text-text-primary transition-colors py-2 pt-6 mt-4 border-t border-border" onClick={() => setMobileMenuOpen(false)}>
               Cart
             </Link>
           </div>

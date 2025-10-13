@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -8,7 +8,24 @@ import { useSession } from 'next-auth/react'
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
   const isActive = (path: string) => pathname === path
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: '📊' },
@@ -19,6 +36,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
   ]
 
+  const closeMobileMenu = () => {
+    if (isMobile) {
+      setIsMobileMenuOpen(false)
+    }
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -28,34 +51,74 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       margin: 0,
       padding: 0
     }}>
+      {/* Mobile Overlay */}
+      {isMobile && isMobileMenuOpen && (
+        <div
+          onClick={() => setIsMobileMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 40,
+            backdropFilter: 'blur(4px)'
+          }}
+        />
+      )}
+
       {/* Sidebar */}
       <aside style={{
         position: 'fixed',
-        left: 0,
+        left: isMobile && !isMobileMenuOpen ? '-256px' : 0,
         top: 0,
         width: '256px',
         height: '100vh',
         background: '#0a0a0a',
         borderRight: '1px solid #27272a',
-        zIndex: 50
+        zIndex: 50,
+        transition: 'left 0.3s ease-in-out',
+        overflowY: 'auto'
       }}>
         <div style={{
           padding: '24px',
-          borderBottom: '1px solid #27272a'
+          borderBottom: '1px solid #27272a',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <Link href="/admin" style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            color: '#ffffff',
-            textDecoration: 'none'
-          }}>
-            47 Admin
-          </Link>
-          <div style={{
-            fontSize: '14px',
-            color: '#71717a',
-            marginTop: '4px'
-          }}>Industries Dashboard</div>
+          <div>
+            <Link
+              href="/admin"
+              onClick={closeMobileMenu}
+              style={{
+                fontSize: '24px',
+                fontWeight: 700,
+                color: '#ffffff',
+                textDecoration: 'none'
+              }}
+            >
+              47 Admin
+            </Link>
+            <div style={{
+              fontSize: '14px',
+              color: '#71717a',
+              marginTop: '4px'
+            }}>Industries Dashboard</div>
+          </div>
+          {isMobile && (
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '4px'
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         <nav style={{ padding: '16px' }}>
@@ -63,6 +126,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={closeMobileMenu}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -88,18 +152,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             margin: '16px 0'
           }} />
 
-          <Link href="/" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#a1a1aa',
-            textDecoration: 'none',
-            transition: 'all 0.2s'
-          }}>
+          <Link
+            href="/"
+            onClick={closeMobileMenu}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#a1a1aa',
+              textDecoration: 'none',
+              transition: 'all 0.2s'
+            }}
+          >
             <span>←</span>
             Back to Site
           </Link>
@@ -107,7 +175,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <div style={{ marginLeft: '256px' }}>
+      <div style={{
+        marginLeft: isMobile ? 0 : '256px',
+        transition: 'margin-left 0.3s ease-in-out'
+      }}>
         {/* Top Header */}
         <header style={{
           position: 'sticky',
@@ -118,48 +189,80 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           borderBottom: '1px solid #27272a'
         }}>
           <div style={{
-            padding: '16px 32px',
+            padding: isMobile ? '12px 16px' : '16px 32px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            gap: '16px'
           }}>
-            <div>
+            {/* Hamburger Menu Button (Mobile Only) */}
+            {isMobile && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: 0
+                }}
+              >
+                ☰
+              </button>
+            )}
+
+            <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{
-                fontSize: '24px',
+                fontSize: isMobile ? '18px' : '24px',
                 fontWeight: 700,
-                margin: 0
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}>Admin Panel</h1>
-              <p style={{
-                fontSize: '14px',
-                color: '#71717a',
-                marginTop: '4px',
-                margin: 0
-              }}>Manage your 47 Industries platform</p>
+              {!isMobile && (
+                <p style={{
+                  fontSize: '14px',
+                  color: '#71717a',
+                  marginTop: '4px',
+                  margin: 0
+                }}>Manage your 47 Industries platform</p>
+              )}
             </div>
+
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '16px'
+              gap: isMobile ? '8px' : '16px',
+              flexShrink: 0
             }}>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  margin: 0
-                }}>{session?.user?.name || 'Admin User'}</p>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#71717a',
-                  margin: 0
-                }}>{session?.user?.email || 'admin@47industries.com'}</p>
-              </div>
+              {!isMobile && (
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    margin: 0,
+                    whiteSpace: 'nowrap'
+                  }}>{session?.user?.name || 'Admin User'}</p>
+                  <p style={{
+                    fontSize: '12px',
+                    color: '#71717a',
+                    margin: 0,
+                    whiteSpace: 'nowrap'
+                  }}>{session?.user?.email || 'admin@47industries.com'}</p>
+                </div>
+              )}
               <button
                 onClick={async () => {
                   const { signOut } = await import('next-auth/react')
                   signOut({ callbackUrl: '/admin/login' })
                 }}
                 style={{
-                  padding: '10px 24px',
+                  padding: isMobile ? '8px 16px' : '10px 24px',
                   fontSize: '14px',
                   fontWeight: 500,
                   background: '#18181b',
@@ -167,15 +270,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   border: '1px solid #3f3f46',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
                 }}
-              >Logout</button>
+              >{isMobile ? '↗' : 'Logout'}</button>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main style={{ padding: '32px' }}>
+        <main style={{
+          padding: isMobile ? '16px' : '32px'
+        }}>
           {children}
         </main>
       </div>

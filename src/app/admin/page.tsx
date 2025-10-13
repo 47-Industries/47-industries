@@ -1,4 +1,17 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+
 export default function AdminDashboard() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   const stats = [
     { label: 'Total Orders', value: '0', icon: '🛒', gradient: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
     { label: 'Revenue', value: '$0', icon: '💰', gradient: 'linear-gradient(90deg, #10b981, #34d399)' },
@@ -16,25 +29,26 @@ export default function AdminDashboard() {
   return (
     <div>
       {/* Welcome Section */}
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
         <h1 style={{
-          fontSize: '36px',
+          fontSize: isMobile ? '28px' : '36px',
           fontWeight: 700,
           marginBottom: '8px',
           margin: 0
         }}>Dashboard</h1>
         <p style={{
           color: '#a1a1aa',
-          margin: 0
+          margin: 0,
+          fontSize: isMobile ? '14px' : '16px'
         }}>Welcome to 47 Industries Admin</p>
       </div>
 
       {/* Stats Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '24px',
-        marginBottom: '32px'
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: isMobile ? '16px' : '24px',
+        marginBottom: isMobile ? '24px' : '32px'
       }}>
         {stats.map((stat) => (
           <div
@@ -76,16 +90,16 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
         <h2 style={{
-          fontSize: '24px',
+          fontSize: isMobile ? '20px' : '24px',
           fontWeight: 700,
-          marginBottom: '24px'
+          marginBottom: isMobile ? '16px' : '24px'
         }}>Quick Actions</h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '24px'
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: isMobile ? '16px' : '24px'
         }}>
           {quickActions.map((action) => (
             <a
@@ -128,29 +142,30 @@ export default function AdminDashboard() {
       {/* Recent Activity */}
       <div>
         <h2 style={{
-          fontSize: '24px',
+          fontSize: isMobile ? '20px' : '24px',
           fontWeight: 700,
-          marginBottom: '24px'
+          marginBottom: isMobile ? '16px' : '24px'
         }}>Recent Activity</h2>
         <div style={{
           background: '#18181b',
           border: '1px solid #27272a',
           borderRadius: '16px',
-          padding: '48px 24px',
+          padding: isMobile ? '32px 16px' : '48px 24px',
           textAlign: 'center'
         }}>
           <div style={{
-            fontSize: '64px',
+            fontSize: isMobile ? '48px' : '64px',
             marginBottom: '16px'
           }}>📊</div>
           <h3 style={{
-            fontSize: '24px',
+            fontSize: isMobile ? '20px' : '24px',
             fontWeight: 700,
             marginBottom: '8px'
           }}>No recent activity</h3>
           <p style={{
             color: '#71717a',
-            margin: 0
+            margin: 0,
+            fontSize: isMobile ? '14px' : '16px'
           }}>
             Your recent orders, requests, and updates will appear here
           </p>
