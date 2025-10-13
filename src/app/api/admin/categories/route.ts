@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+// GET /api/admin/categories - List all categories
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const categories = await prisma.category.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    })
+
+    return NextResponse.json(categories)
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch categories' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST /api/admin/categories - Create a new category
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await req.json()
+
+    // Generate slug from name
+    const slug = body.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+
+    // Check if slug already exists
+    const existingCategory = await prisma.category.findUnique({
+      where: { slug },
+    })
+
+    if (existingCategory) {
+      return NextResponse.json(
+        { error: 'A category with this name already exists' },
+        { status: 400 }
+      )
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        name: body.name,
+        slug,
+        description: body.description || null,
+        image: body.image || null,
+        parentId: body.parentId || null,
+        active: body.active !== false,
+      },
+    })
+
+    return NextResponse.json(category, { status: 201 })
+  } catch (error) {
+    console.error('Error creating category:', error)
+    return NextResponse.json(
+      { error: 'Failed to create category' },
+      { status: 500 }
+    )
+  }
+}
