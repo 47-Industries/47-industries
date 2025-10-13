@@ -28,12 +28,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [])
 
   const navItems = [
-    { href: '/admin', label: 'Dashboard', icon: '📊' },
-    { href: '/admin/products', label: 'Products', icon: '📦' },
-    { href: '/admin/orders', label: 'Orders', icon: '🛒' },
-    { href: '/admin/custom-requests', label: '3D Print Requests', icon: '🖨️' },
-    { href: '/admin/inquiries', label: 'Service Inquiries', icon: '💬' },
-    { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
+    { href: '/admin', label: 'Dashboard' },
+    { href: '/admin/products', label: 'Products' },
+    { href: '/admin/orders', label: 'Orders' },
+    { href: '/admin/custom-requests', label: '3D Print Requests' },
+    { href: '/admin/inquiries', label: 'Service Inquiries' },
+    { href: '/admin/settings', label: 'Settings' },
   ]
 
   const closeMobileMenu = () => {
@@ -128,9 +128,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               href={item.href}
               onClick={closeMobileMenu}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
+                display: 'block',
                 padding: '12px 16px',
                 borderRadius: '12px',
                 fontSize: '14px',
@@ -142,7 +140,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 transition: 'all 0.2s'
               }}
             >
-              <span>{item.icon}</span>
               {item.label}
             </Link>
           ))}
@@ -156,9 +153,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             href="/"
             onClick={closeMobileMenu}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
+              display: 'block',
               padding: '12px 16px',
               borderRadius: '12px',
               fontSize: '14px',
@@ -168,8 +163,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               transition: 'all 0.2s'
             }}
           >
-            <span>←</span>
-            Back to Site
+            ← Back to Site
           </Link>
         </nav>
       </aside>

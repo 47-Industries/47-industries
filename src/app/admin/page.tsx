@@ -13,17 +13,17 @@ export default function AdminDashboard() {
   }, [])
 
   const stats = [
-    { label: 'Total Orders', value: '0', icon: '🛒', gradient: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
-    { label: 'Revenue', value: '$0', icon: '💰', gradient: 'linear-gradient(90deg, #10b981, #34d399)' },
-    { label: '3D Print Requests', value: '0', icon: '🖨️', gradient: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' },
-    { label: 'Service Inquiries', value: '0', icon: '💬', gradient: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
+    { label: 'Total Orders', value: '0', gradient: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
+    { label: 'Revenue', value: '$0', gradient: 'linear-gradient(90deg, #10b981, #34d399)' },
+    { label: '3D Print Requests', value: '0', gradient: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' },
+    { label: 'Service Inquiries', value: '0', gradient: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
   ]
 
   const quickActions = [
-    { title: 'Add Product', description: 'Create a new product listing', icon: '➕', href: '/admin/products' },
-    { title: 'View Orders', description: 'Manage customer orders', icon: '📋', href: '/admin/orders' },
-    { title: '3D Print Requests', description: 'Review custom print quotes', icon: '🖨️', href: '/admin/custom-requests' },
-    { title: 'Settings', description: 'Configure your site', icon: '⚙️', href: '/admin/settings' },
+    { title: 'Add Product', description: 'Create a new product listing', href: '/admin/products' },
+    { title: 'View Orders', description: 'Manage customer orders', href: '/admin/orders' },
+    { title: '3D Print Requests', description: 'Review custom print quotes', href: '/admin/custom-requests' },
+    { title: 'Settings', description: 'Configure your site', href: '/admin/settings' },
   ]
 
   return (
@@ -57,31 +57,27 @@ export default function AdminDashboard() {
               background: '#18181b',
               border: '1px solid #27272a',
               borderRadius: '16px',
-              padding: '24px'
+              padding: '24px',
+              transition: 'border-color 0.2s'
             }}
           >
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+            <p style={{
+              fontSize: '14px',
+              color: '#71717a',
+              marginBottom: '12px',
+              margin: 0,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              fontWeight: 500
+            }}>{stat.label}</p>
+            <p style={{
+              fontSize: isMobile ? '28px' : '32px',
+              fontWeight: 700,
+              margin: 0,
               marginBottom: '16px'
-            }}>
-              <div>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#71717a',
-                  marginBottom: '4px',
-                  margin: 0
-                }}>{stat.label}</p>
-                <p style={{
-                  fontSize: '32px',
-                  fontWeight: 700,
-                  margin: 0
-                }}>{stat.value}</p>
-              </div>
-              <div style={{ fontSize: '36px' }}>{stat.icon}</div>
-            </div>
+            }}>{stat.value}</p>
             <div style={{
-              height: '4px',
+              height: '3px',
               borderRadius: '2px',
               background: stat.gradient
             }} />
@@ -112,28 +108,29 @@ export default function AdminDashboard() {
                 padding: '24px',
                 textDecoration: 'none',
                 color: 'inherit',
-                display: 'flex',
-                gap: '16px',
+                display: 'block',
                 transition: 'all 0.2s'
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#3b82f6'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#27272a'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
             >
-              <div style={{
-                fontSize: '36px',
-                flexShrink: 0
-              }}>{action.icon}</div>
-              <div>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  marginBottom: '4px',
-                  margin: 0
-                }}>{action.title}</h3>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#71717a',
-                  margin: 0
-                }}>{action.description}</p>
-              </div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                marginBottom: '8px',
+                margin: 0
+              }}>{action.title}</h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#71717a',
+                margin: 0
+              }}>{action.description}</p>
             </a>
           ))}
         </div>
@@ -154,9 +151,21 @@ export default function AdminDashboard() {
           textAlign: 'center'
         }}>
           <div style={{
-            fontSize: isMobile ? '48px' : '64px',
-            marginBottom: '16px'
-          }}>📊</div>
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            margin: '0 auto 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: 0.2
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 3v18h18" />
+              <path d="M18 17l-5-5-4 4-4-4" />
+            </svg>
+          </div>
           <h3 style={{
             fontSize: isMobile ? '20px' : '24px',
             fontWeight: 700,
