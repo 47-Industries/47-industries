@@ -14,15 +14,22 @@ export async function GET(request: Request) {
   let connection: any = null
 
   try {
-    // Connect directly to MySQL
-    results.push('🔌 Connecting to MySQL...')
-    connection = await mysql.createConnection(process.env.DATABASE_URL!)
-    results.push('✅ Connected to MySQL')
+    // Connect directly to MySQL with database specified
+    results.push('🔌 Connecting to MySQL database...')
+    const dbUrl = process.env.DATABASE_URL!
 
-    // Select the database
-    results.push('📂 Selecting database...')
-    await connection.execute('USE railway')
-    results.push('✅ Database selected')
+    // Ensure URL includes database name
+    const url = new URL(dbUrl.replace('mysql://', 'http://'))
+    const connectionConfig = {
+      host: url.hostname,
+      port: parseInt(url.port) || 3306,
+      user: url.username,
+      password: url.password,
+      database: url.pathname.replace('/', '') || 'railway'
+    }
+
+    connection = await mysql.createConnection(connectionConfig)
+    results.push(`✅ Connected to database: ${connectionConfig.database}`)
 
     // Create User table
     results.push('📋 Creating User table...')
