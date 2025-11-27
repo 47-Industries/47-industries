@@ -44,14 +44,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#000000',
-      color: '#ffffff',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-      margin: 0,
-      padding: 0
-    }}>
+    <>
+      <head>
+        <link rel="icon" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+      </head>
+      <div style={{
+        minHeight: '100vh',
+        background: '#000000',
+        color: '#ffffff',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        margin: 0,
+        padding: 0
+      }}>
       {/* Mobile Overlay */}
       {isMobile && isMobileMenuOpen && (
         <div
@@ -98,10 +103,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           >
             <img
               src="/logo.png"
-              alt="47 Industries"
+              alt=""
               width={40}
               height={40}
               style={{ borderRadius: '10px' }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
             />
             <div>
               <div style={{
@@ -293,5 +301,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </main>
       </div>
     </div>
+    </>
   )
 }
