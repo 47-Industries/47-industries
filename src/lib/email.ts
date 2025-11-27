@@ -1,6 +1,17 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Initialize Resend lazily to avoid build-time errors
+let resendClient: Resend | null = null
+
+function getResend(): Resend {
+  if (!resendClient) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY environment variable is not set')
+    }
+    resendClient = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resendClient
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || 'noreply@47industries.com'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@47industries.com'
@@ -28,7 +39,7 @@ export async function sendCustomRequestConfirmation(data: {
   quantity?: number
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: data.to,
       subject: `3D Print Request Received - ${data.requestNumber}`,
@@ -104,7 +115,7 @@ export async function sendContactConfirmation(data: {
   subject: string
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: data.to,
       subject: `We received your message - ${data.inquiryNumber}`,
@@ -168,7 +179,7 @@ export async function sendAdminNotification(data: {
   link: string
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
       subject: `[47 Industries] New ${data.type.replace('_', ' ')} - ${data.title}`,
@@ -218,7 +229,7 @@ export async function sendReplyEmail(data: {
     const fromEmail = data.fromAddress || FROM_EMAIL
     const from = data.senderName ? `${data.senderName} <${fromEmail}>` : fromEmail
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from,
       to: data.to,
       subject: data.referenceNumber ? `Re: ${data.subject} [${data.referenceNumber}]` : `Re: ${data.subject}`,
@@ -283,7 +294,7 @@ export async function sendOrderConfirmation(data: {
       </tr>
     `).join('')
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Order Confirmed - ${data.orderNumber}`,
@@ -374,7 +385,7 @@ export async function sendQuoteEmail(data: {
   notes?: string
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: data.to,
       subject: `Your 3D Print Quote is Ready - ${data.requestNumber}`,
