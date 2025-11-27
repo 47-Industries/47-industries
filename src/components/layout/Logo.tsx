@@ -4,33 +4,31 @@ import Image from 'next/image'
 interface LogoProps {
   className?: string
   size?: 'sm' | 'md' | 'lg'
+  showText?: boolean
 }
 
-export default function Logo({ className = '', size = 'md' }: LogoProps) {
-  const heights = {
-    sm: 24,
-    md: 32,
-    lg: 40,
+export default function Logo({ className = '', size = 'md', showText = true }: LogoProps) {
+  const sizes = {
+    sm: { width: 28, height: 28 },
+    md: { width: 36, height: 36 },
+    lg: { width: 48, height: 48 },
   }
 
-  // To use your own logo:
-  // 1. Add your logo image to /public/logo.png (or logo.svg)
-  // 2. Uncomment the Image component below
-  // 3. Comment out the text fallback
+  const { width, height } = sizes[size]
 
   return (
-    <Link href="/" className={`flex items-center ${className}`}>
-      {/* Logo Image - Uncomment and add your logo to /public/logo.png */}
-      {/* <Image
-        src="/logo.png"
+    <Link href="/" className={`flex items-center gap-2 ${className}`}>
+      <Image
+        src="/logo.svg"
         alt="47 Industries"
-        width={heights[size] * 3}
-        height={heights[size]}
-        className="h-auto"
-      /> */}
-
-      {/* Text Fallback */}
-      <span className="text-xl font-bold">47 Industries</span>
+        width={width}
+        height={height}
+        className="rounded-lg"
+        priority
+      />
+      {showText && (
+        <span className="text-xl font-bold">47 Industries</span>
+      )}
     </Link>
   )
 }

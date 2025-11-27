@@ -3,20 +3,25 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
 // GET /api/admin/inquiries/[id] - Get single inquiry
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const inquiry = await prisma.serviceInquiry.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!inquiry) {
@@ -36,10 +41,11 @@ export async function GET(
 // PUT /api/admin/inquiries/[id] - Update inquiry
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -48,7 +54,7 @@ export async function PUT(
     const body = await req.json()
 
     const inquiry = await prisma.serviceInquiry.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: body.status,
         assignedTo: body.assignedTo,
@@ -71,17 +77,18 @@ export async function PUT(
 // DELETE /api/admin/inquiries/[id] - Delete inquiry
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await prisma.serviceInquiry.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })

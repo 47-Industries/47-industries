@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="64" fill="black"/>
+  <!-- 47 Industries Logo - Stylized interlocking 4 and 7 -->
+  <g transform="translate(80, 80)">
+    <!-- Left "4" shape - vertical bar with arrow pointing up-right -->
+    <path d="M0 272 L0 192 L96 96 L96 160 L48 208 L48 272 L144 272 L144 160 L96 160 L192 64 L192 352 L144 352 L144 320 L0 320 L0 272Z" fill="white"/>
+    <!-- Right "7" shape - horizontal bar with diagonal going down -->
+    <path d="M160 64 L352 64 L352 112 L272 112 L176 272 L176 352 L128 352 L128 272 L208 128 L160 128 L160 64Z" fill="white"/>
+  </g>
+</svg>

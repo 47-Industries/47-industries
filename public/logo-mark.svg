@@ -1,0 +1,9 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 47 Industries Logo Mark - White on transparent -->
+  <g transform="translate(56, 56)">
+    <!-- Left "4" shape -->
+    <path d="M0 320 L0 224 L112 112 L112 192 L56 248 L56 320 L168 320 L168 192 L112 192 L224 80 L224 400 L168 400 L168 376 L0 376 L0 320Z" fill="currentColor"/>
+    <!-- Right "7" shape -->
+    <path d="M184 80 L400 80 L400 136 L304 136 L192 320 L192 400 L136 400 L136 320 L232 152 L184 152 L184 80Z" fill="currentColor"/>
+  </g>
+</svg>

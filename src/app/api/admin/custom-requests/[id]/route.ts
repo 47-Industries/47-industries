@@ -3,20 +3,25 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
 // GET /api/admin/custom-requests/[id] - Get single custom request
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const request = await prisma.customRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!request) {
@@ -36,10 +41,11 @@ export async function GET(
 // PUT /api/admin/custom-requests/[id] - Update custom request
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -62,7 +68,7 @@ export async function PUT(
     }
 
     const request = await prisma.customRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
@@ -79,17 +85,18 @@ export async function PUT(
 // DELETE /api/admin/custom-requests/[id] - Delete custom request
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await prisma.customRequest.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })

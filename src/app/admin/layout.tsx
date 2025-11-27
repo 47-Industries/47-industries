@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
@@ -85,25 +86,37 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div>
-            <Link
-              href="/admin"
-              onClick={closeMobileMenu}
-              style={{
-                fontSize: '24px',
+          <Link
+            href="/admin"
+            onClick={closeMobileMenu}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              textDecoration: 'none'
+            }}
+          >
+            <Image
+              src="/logo.svg"
+              alt="47 Industries"
+              width={40}
+              height={40}
+              style={{ borderRadius: '10px' }}
+            />
+            <div>
+              <div style={{
+                fontSize: '20px',
                 fontWeight: 700,
                 color: '#ffffff',
-                textDecoration: 'none'
-              }}
-            >
-              47 Admin
-            </Link>
-            <div style={{
-              fontSize: '14px',
-              color: '#71717a',
-              marginTop: '4px'
-            }}>Industries Dashboard</div>
-          </div>
+              }}>
+                47 Admin
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: '#71717a',
+              }}>Industries Dashboard</div>
+            </div>
+          </Link>
           {isMobile && (
             <button
               onClick={() => setIsMobileMenuOpen(false)}

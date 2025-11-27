@@ -3,20 +3,25 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
 // GET /api/admin/orders/[id] - Get single order
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         items: {
           include: {
@@ -58,10 +63,11 @@ export async function GET(
 // PUT /api/admin/orders/[id] - Update order
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await context.params
 
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -70,7 +76,7 @@ export async function PUT(
     const body = await req.json()
 
     const order = await prisma.order.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: body.status,
         paymentStatus: body.paymentStatus,
