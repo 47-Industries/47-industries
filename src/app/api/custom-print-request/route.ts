@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { CustomRequestStatus } from '@prisma/client'
 
 // POST /api/custom-print-request - Submit a 3D printing quote request
 export async function POST(req: NextRequest) {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         scale: body.scale || null,
         notes: body.notes || null,
         deadline: body.deadline ? new Date(body.deadline) : null,
-        status: 'PENDING',
+        status: CustomRequestStatus.PENDING,
       },
     })
 

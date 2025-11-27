@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { ServiceType, InquiryStatus } from '@prisma/client'
 
 // POST /api/contact - Submit a contact/service inquiry
 export async function POST(req: NextRequest) {
@@ -24,16 +25,16 @@ export async function POST(req: NextRequest) {
     const inquiryNumber = `${prefix}-${timestamp}-${random}`
 
     // Determine service type from subject
-    let serviceType = 'OTHER'
+    let serviceType: ServiceType = ServiceType.OTHER
     const subjectLower = body.subject.toLowerCase()
     if (subjectLower.includes('web') || subjectLower.includes('website')) {
-      serviceType = 'WEB_DEVELOPMENT'
+      serviceType = ServiceType.WEB_DEVELOPMENT
     } else if (subjectLower.includes('app') || subjectLower.includes('mobile')) {
-      serviceType = 'APP_DEVELOPMENT'
+      serviceType = ServiceType.APP_DEVELOPMENT
     } else if (subjectLower.includes('ai') || subjectLower.includes('machine learning')) {
-      serviceType = 'AI_SOLUTIONS'
+      serviceType = ServiceType.AI_SOLUTIONS
     } else if (subjectLower.includes('consult')) {
-      serviceType = 'CONSULTATION'
+      serviceType = ServiceType.CONSULTATION
     }
 
     const inquiry = await prisma.serviceInquiry.create({
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         budget: body.budget || null,
         timeline: body.timeline || null,
         description: `Subject: ${body.subject}\n\n${body.message}`,
-        status: 'NEW',
+        status: InquiryStatus.NEW,
       },
     })
 
