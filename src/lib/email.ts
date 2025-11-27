@@ -22,6 +22,10 @@ export async function sendCustomRequestConfirmation(data: {
   to: string
   name: string
   requestNumber: string
+  material?: string
+  finish?: string
+  color?: string
+  quantity?: number
 }) {
   try {
     await resend.emails.send({
@@ -38,6 +42,7 @@ export async function sendCustomRequestConfirmation(data: {
             .header { background: #000; color: #fff; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .highlight { background: #3b82f6; color: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .details { background: #fff; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e5e5; }
             .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
           </style>
         </head>
@@ -55,6 +60,16 @@ export async function sendCustomRequestConfirmation(data: {
                 <p style="margin: 0; font-size: 14px;">Your Request Number</p>
                 <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold;">${data.requestNumber}</p>
               </div>
+
+              ${data.material ? `
+              <div class="details">
+                <p style="margin: 0 0 10px 0; font-weight: bold;">Your Request Details:</p>
+                <p style="margin: 5px 0;"><strong>Material:</strong> ${data.material}</p>
+                <p style="margin: 5px 0;"><strong>Finish:</strong> ${data.finish || 'Standard'}</p>
+                <p style="margin: 5px 0;"><strong>Color:</strong> ${data.color || 'Default'}</p>
+                <p style="margin: 5px 0;"><strong>Quantity:</strong> ${data.quantity || 1}</p>
+              </div>
+              ` : ''}
 
               <p><strong>What happens next?</strong></p>
               <ol>
