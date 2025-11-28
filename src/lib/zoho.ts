@@ -142,16 +142,6 @@ export class ZohoMailClient {
     return data.data || []
   }
 
-  // Get folder ID by name
-  async getFolderIdByName(folderName: string, accountId?: string): Promise<string | null> {
-    const folders = await this.getFolders(accountId)
-    const folder = folders.find((f: any) =>
-      f.folderName?.toLowerCase() === folderName.toLowerCase() ||
-      f.path?.toLowerCase() === folderName.toLowerCase()
-    )
-    return folder?.folderId || null
-  }
-
   // Get emails from a folder
   async getEmails(options: {
     accountId?: string
@@ -163,26 +153,18 @@ export class ZohoMailClient {
   } = {}): Promise<any[]> {
     const accId = options.accountId || await this.getAccountId()
 
-    // Map common folder names to get actual folder ID
-    let folderId = options.folderId
-    if (folderId && ['inbox', 'sent', 'drafts', 'trash', 'spam', 'outbox'].includes(folderId.toLowerCase())) {
-      const actualFolderId = await this.getFolderIdByName(folderId, accId)
-      if (actualFolderId) {
-        folderId = actualFolderId
-      }
-    }
-
     const params = new URLSearchParams()
     if (options.limit) params.append('limit', options.limit.toString())
     if (options.start) params.append('start', options.start.toString())
     if (options.sortBy) params.append('sortBy', options.sortBy)
     if (options.sortOrder) params.append('sortOrder', options.sortOrder)
 
-    // Use folder-specific endpoint if folderId provided
-    const endpoint = folderId
-      ? `/accounts/${accId}/folders/${folderId}/messages?${params.toString()}`
-      : `/accounts/${accId}/messages/view?${params.toString()}`
+    // Add foldername parameter for filtering
+    if (options.folderId) {
+      params.append('foldername', options.folderId)
+    }
 
+    const endpoint = `/accounts/${accId}/messages/view?${params.toString()}`
     const data = await this.request(endpoint)
     return data.data || []
   }

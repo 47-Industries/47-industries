@@ -73,11 +73,17 @@ export async function GET(req: NextRequest) {
 
     const client = new ZohoMailClient(accessToken)
 
-    let emails
-    if (search) {
-      emails = await client.searchEmails(search, { limit, start })
-    } else {
-      emails = await client.getEmails({ folderId, limit, start })
+    let emails = []
+    try {
+      if (search) {
+        emails = await client.searchEmails(search, { limit, start })
+      } else {
+        emails = await client.getEmails({ folderId, limit, start })
+      }
+    } catch (apiError) {
+      console.error('Zoho API error:', apiError)
+      // Return empty array instead of crashing
+      emails = []
     }
 
     // Filter by mailbox (email address) if specified
@@ -99,7 +105,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching emails:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch emails' },
+      { error: 'Failed to fetch emails', emails: [] },
       { status: 500 }
     )
   }
