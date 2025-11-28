@@ -704,14 +704,23 @@ function EmailPageContent() {
                 <div
                   className="email-content"
                   style={{
-                    color: '#d4d4d8',
+                    color: '#1a1a1a',
                     lineHeight: 1.6,
-                    backgroundColor: '#fff',
+                    backgroundColor: '#ffffff',
                     padding: '20px',
                     borderRadius: '8px',
                   }}
-                  dangerouslySetInnerHTML={{ __html: emailContent }}
-                />
+                >
+                  <style>{`
+                    .email-content * {
+                      color: #1a1a1a !important;
+                    }
+                    .email-content a {
+                      color: #3b82f6 !important;
+                    }
+                  `}</style>
+                  <div dangerouslySetInnerHTML={{ __html: emailContent }} />
+                </div>
               ) : (
                 <p style={{ color: '#d4d4d8', lineHeight: 1.6 }}>
                   {selectedEmail.summary}
