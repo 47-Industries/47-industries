@@ -59,12 +59,14 @@ export async function GET(req: NextRequest) {
 
     // Get the main account first
     const accounts = await client.getAccounts()
+    console.log('Zoho accounts:', JSON.stringify(accounts, null, 2))
 
     // Get all "from" addresses (includes group emails like support@, info@, etc.)
     const fromAddresses = await client.getFromAddresses()
+    console.log('Zoho fromAddresses:', JSON.stringify(fromAddresses, null, 2))
 
     // Format from addresses for the frontend
-    const mailboxes = fromAddresses.map((addr: any) => ({
+    let mailboxes = fromAddresses.map((addr: any) => ({
       id: addr.sendMailId || addr.fromAddress,
       label: addr.displayName || addr.fromAddress?.split('@')[0] || 'Unknown',
       email: addr.fromAddress,
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    console.log('Final mailboxes:', JSON.stringify(mailboxes, null, 2))
     return NextResponse.json({ mailboxes })
   } catch (error) {
     console.error('Error fetching accounts:', error)
