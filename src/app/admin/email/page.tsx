@@ -901,6 +901,7 @@ function EmailPageContent() {
               <div
                 id="email-editor"
                 contentEditable
+                dir="ltr"
                 onInput={(e) => setComposeData({ ...composeData, content: (e.target as HTMLDivElement).innerHTML })}
                 style={{
                   flex: 1,
@@ -913,6 +914,9 @@ function EmailPageContent() {
                   minHeight: '200px',
                   overflowY: 'auto',
                   outline: 'none',
+                  direction: 'ltr',
+                  textAlign: 'left',
+                  unicodeBidi: 'plaintext',
                 }}
                 dangerouslySetInnerHTML={{ __html: composeData.content }}
               />
