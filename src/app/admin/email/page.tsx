@@ -704,16 +704,14 @@ function EmailPageContent() {
                 <div
                   className="email-content"
                   style={{
-                    color: '#1a1a1a',
+                    color: '#e4e4e7',
                     lineHeight: 1.6,
-                    backgroundColor: '#ffffff',
-                    padding: '20px',
-                    borderRadius: '8px',
                   }}
                 >
                   <style>{`
-                    .email-content * {
-                      color: #1a1a1a !important;
+                    .email-content, .email-content * {
+                      color: #e4e4e7 !important;
+                      background-color: transparent !important;
                     }
                     .email-content a {
                       color: #3b82f6 !important;
