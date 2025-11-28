@@ -148,23 +148,39 @@ export class ZohoMailClient {
     folderId?: string
     limit?: number
     start?: number
-    sortBy?: 'date' | 'subject' | 'from'
-    sortOrder?: 'asc' | 'desc'
   } = {}): Promise<any[]> {
     const accId = options.accountId || await this.getAccountId()
+
+    // First get all folders to find the folder ID
+    const folders = await this.getFolders(accId)
+
+    // Find folder by name (inbox, sent, drafts, trash, etc)
+    let targetFolderId: string | null = null
+    if (options.folderId) {
+      const folder = folders.find((f: any) =>
+        f.folderName?.toLowerCase() === options.folderId?.toLowerCase() ||
+        f.path?.toLowerCase() === options.folderId?.toLowerCase()
+      )
+      targetFolderId = folder?.folderId
+    }
+
+    // If no folder found, use inbox by default
+    if (!targetFolderId) {
+      const inboxFolder = folders.find((f: any) =>
+        f.folderName?.toLowerCase() === 'inbox'
+      )
+      targetFolderId = inboxFolder?.folderId
+    }
+
+    if (!targetFolderId) {
+      return []
+    }
 
     const params = new URLSearchParams()
     if (options.limit) params.append('limit', options.limit.toString())
     if (options.start) params.append('start', options.start.toString())
-    if (options.sortBy) params.append('sortBy', options.sortBy)
-    if (options.sortOrder) params.append('sortOrder', options.sortOrder)
 
-    // Add foldername parameter for filtering
-    if (options.folderId) {
-      params.append('foldername', options.folderId)
-    }
-
-    const endpoint = `/accounts/${accId}/messages/view?${params.toString()}`
+    const endpoint = `/accounts/${accId}/folders/${targetFolderId}/messages?${params.toString()}`
     const data = await this.request(endpoint)
     return data.data || []
   }
