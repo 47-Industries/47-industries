@@ -38,8 +38,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Check authentication for admin routes (except login page)
-  if (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/login')) {
+  // Block direct access to /admin routes on main domain - redirect to admin subdomain
+  // This ensures admin is ONLY accessible via admin.47industries.com
+  if (url.pathname.startsWith('/admin') && !hostname.startsWith('admin.') && !hostname.startsWith('localhost')) {
+    // Redirect to admin subdomain
+    const adminUrl = new URL(request.url)
+    // Replace main domain with admin subdomain
+    const adminHost = hostname.replace(/^(www\.)?/, 'admin.')
+    adminUrl.host = adminHost
+    // Remove /admin prefix since subdomain will add it via rewrite
+    adminUrl.pathname = url.pathname.replace(/^\/admin/, '') || '/'
+    return NextResponse.redirect(adminUrl)
+  }
+
+  // Check authentication for admin routes (except login page) - only for localhost dev
+  if (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/login') && hostname.startsWith('localhost')) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET
