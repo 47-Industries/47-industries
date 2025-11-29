@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { stripe, formatAmountFromStripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+import { sendOrderConfirmation } from '@/lib/email'
 import Stripe from 'stripe'
 
 export async function POST(req: NextRequest) {
@@ -189,5 +190,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   console.log('Order created:', order.orderNumber)
 
-  // TODO: Send order confirmation email via Resend
+  // Send order confirmation email
+  if (customerEmail) {
+    try {
+      await sendOrderConfirmation({
+        to: customerEmail,
+        name: customerName,
+        orderNumber,
+        items: order.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: Number(item.price),
+        })),
+        subtotal: amountSubtotal,
+        shipping,
+        tax,
+        total: amountTotal,
+      })
+      console.log('Order confirmation email sent to:', customerEmail)
+    } catch (emailError) {
+      console.error('Failed to send order confirmation email:', emailError)
+    }
+  }
 }

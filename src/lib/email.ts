@@ -376,6 +376,98 @@ export async function sendOrderConfirmation(data: {
   }
 }
 
+export async function sendShippingNotification(data: {
+  to: string
+  name: string
+  orderNumber: string
+  trackingNumber: string
+  carrier: string
+}) {
+  try {
+    const trackingUrl = getCarrierTrackingUrl(data.carrier, data.trackingNumber)
+
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: `Your Order Has Shipped - ${data.orderNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #000; color: #fff; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .highlight { background: #10b981; color: #fff; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .tracking-box { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e5e5; }
+            .button { display: inline-block; background: #3b82f6; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">47 Industries</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.8;">Shipping Notification</p>
+            </div>
+            <div class="content">
+              <div class="highlight">
+                <p style="margin: 0; font-size: 32px;">📦</p>
+                <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: bold;">Your Order is On Its Way!</p>
+              </div>
+
+              <h2>Hello ${data.name}!</h2>
+              <p>Great news! Your order has been shipped and is on its way to you.</p>
+
+              <div class="tracking-box">
+                <p style="margin: 0 0 10px 0;"><strong>Order Number:</strong> ${data.orderNumber}</p>
+                <p style="margin: 0 0 10px 0;"><strong>Carrier:</strong> ${data.carrier}</p>
+                <p style="margin: 0;"><strong>Tracking Number:</strong> ${data.trackingNumber}</p>
+              </div>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${trackingUrl}" class="button">Track Your Package</a>
+              </div>
+
+              <p style="color: #666; font-size: 14px;">Delivery times vary based on your location and shipping method selected. Most orders arrive within 5-10 business days.</p>
+
+              <div class="footer">
+                <p>47 Industries</p>
+                <p><a href="https://47industries.com">47industries.com</a></p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send shipping notification:', error)
+    return { success: false, error }
+  }
+}
+
+function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
+  const carrierLower = carrier.toLowerCase()
+
+  if (carrierLower.includes('usps')) {
+    return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`
+  }
+  if (carrierLower.includes('ups')) {
+    return `https://www.ups.com/track?tracknum=${trackingNumber}`
+  }
+  if (carrierLower.includes('fedex')) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`
+  }
+  if (carrierLower.includes('dhl')) {
+    return `https://www.dhl.com/us-en/home/tracking.html?tracking-id=${trackingNumber}`
+  }
+
+  return `https://www.google.com/search?q=${carrier}+tracking+${trackingNumber}`
+}
+
 export async function sendQuoteEmail(data: {
   to: string
   name: string

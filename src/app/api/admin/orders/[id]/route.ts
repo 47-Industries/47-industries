@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sendShippingNotification } from '@/lib/email'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -75,6 +76,12 @@ export async function PUT(
 
     const body = await req.json()
 
+    // Get previous order state to check if shipping status changed
+    const previousOrder = await prisma.order.findUnique({
+      where: { id },
+      select: { status: true, trackingNumber: true },
+    })
+
     const order = await prisma.order.update({
       where: { id },
       data: {
@@ -106,6 +113,25 @@ export async function PUT(
         shippingAddress: true,
       },
     })
+
+    // Send shipping notification if status changed to SHIPPED and tracking was added
+    const isNewlyShipped = body.status === 'SHIPPED' && previousOrder?.status !== 'SHIPPED'
+    const hasTracking = body.trackingNumber && body.carrier
+
+    if (isNewlyShipped && hasTracking && order.customerEmail) {
+      try {
+        await sendShippingNotification({
+          to: order.customerEmail,
+          name: order.customerName,
+          orderNumber: order.orderNumber,
+          trackingNumber: body.trackingNumber,
+          carrier: body.carrier,
+        })
+        console.log('Shipping notification sent to:', order.customerEmail)
+      } catch (emailError) {
+        console.error('Failed to send shipping notification:', emailError)
+      }
+    }
 
     return NextResponse.json(order)
   } catch (error) {
