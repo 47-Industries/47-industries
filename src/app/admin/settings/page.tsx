@@ -3,7 +3,22 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTruck, faPercent, faCheckCircle, faTimesCircle, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons'
+import {
+  faTruck,
+  faPercent,
+  faCheckCircle,
+  faTimesCircle,
+  faExternalLinkAlt,
+  faStore,
+  faCube,
+  faEnvelope,
+  faCreditCard,
+  faCloud,
+  faBell,
+  faGlobe,
+  faCode,
+  faMobileAlt,
+} from '@fortawesome/free-solid-svg-icons'
 
 interface Settings {
   siteName: string
@@ -15,6 +30,20 @@ interface Settings {
   socialFacebook: string
   socialInstagram: string
   socialLinkedin: string
+  // Store settings
+  shopEnabled: boolean
+  custom3DPrintingEnabled: boolean
+  webDevServicesEnabled: boolean
+  appDevServicesEnabled: boolean
+  // Notification settings
+  orderNotificationEmail: string
+  inquiryNotificationEmail: string
+  lowStockThreshold: number
+  // MotoRev settings
+  motorevEnabled: boolean
+  motorevWebsiteUrl: string
+  motorevAppStoreUrl: string
+  motorevLaunchDate: string
 }
 
 interface ShippoStatus {
@@ -36,6 +65,20 @@ export default function AdminSettingsPage() {
     socialFacebook: '',
     socialInstagram: '',
     socialLinkedin: '',
+    // Store settings
+    shopEnabled: true,
+    custom3DPrintingEnabled: true,
+    webDevServicesEnabled: true,
+    appDevServicesEnabled: true,
+    // Notification settings
+    orderNotificationEmail: '',
+    inquiryNotificationEmail: '',
+    lowStockThreshold: 5,
+    // MotoRev settings
+    motorevEnabled: true,
+    motorevWebsiteUrl: 'https://motorevapp.com',
+    motorevAppStoreUrl: '',
+    motorevLaunchDate: '2025-10-17',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -44,6 +87,9 @@ export default function AdminSettingsPage() {
   const [shippoStatus, setShippoStatus] = useState<ShippoStatus>({ configured: false })
   const [taxRateCount, setTaxRateCount] = useState(0)
   const [hasBusinessAddress, setHasBusinessAddress] = useState(false)
+  const [stripeConfigured, setStripeConfigured] = useState(false)
+  const [zohoConnected, setZohoConnected] = useState(false)
+  const [r2Configured, setR2Configured] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -57,7 +103,41 @@ export default function AdminSettingsPage() {
     checkShippoStatus()
     fetchTaxRates()
     checkBusinessAddress()
+    checkIntegrations()
   }, [])
+
+  const checkIntegrations = async () => {
+    // Check Stripe
+    try {
+      const stripeRes = await fetch('/api/admin/integrations/stripe')
+      if (stripeRes.ok) {
+        const data = await stripeRes.json()
+        setStripeConfigured(data.configured)
+      }
+    } catch (e) {
+      console.error('Error checking Stripe:', e)
+    }
+
+    // Check Zoho
+    try {
+      const zohoRes = await fetch('/api/admin/email/inbox')
+      const zohoData = await zohoRes.json()
+      setZohoConnected(!zohoData.needsAuth)
+    } catch (e) {
+      console.error('Error checking Zoho:', e)
+    }
+
+    // Check R2
+    try {
+      const r2Res = await fetch('/api/admin/integrations/r2')
+      if (r2Res.ok) {
+        const data = await r2Res.json()
+        setR2Configured(data.configured)
+      }
+    } catch (e) {
+      console.error('Error checking R2:', e)
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -132,9 +212,12 @@ export default function AdminSettingsPage() {
 
   const tabs = [
     { id: 'general', label: 'General' },
+    { id: 'services', label: 'Services' },
     { id: 'contact', label: 'Contact' },
     { id: 'social', label: 'Social' },
+    { id: 'notifications', label: 'Notifications' },
     { id: 'shipping', label: 'Shipping & Tax' },
+    { id: 'integrations', label: 'Integrations' },
   ]
 
   const inputStyle = {
@@ -245,6 +328,337 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
+        {activeTab === 'services' && (
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px', margin: '0 0 8px 0' }}>
+              Services & Features
+            </h2>
+            <p style={{ color: '#71717a', marginBottom: '24px', margin: '0 0 24px 0', fontSize: '14px' }}>
+              Enable or disable different sections of your website
+            </p>
+
+            {/* Shop */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#3b82f620',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FontAwesomeIcon icon={faStore} style={{ color: '#3b82f6', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Shop / E-Commerce</h3>
+                  <p style={{ color: '#71717a', margin: 0, fontSize: '13px' }}>Product catalog and checkout</p>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.shopEnabled}
+                  onChange={(e) => setSettings({ ...settings, shopEnabled: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  background: settings.shopEnabled ? '#3b82f6' : '#27272a',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: settings.shopEnabled ? '22px' : '2px',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
+
+            {/* Custom 3D Printing */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#8b5cf620',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FontAwesomeIcon icon={faCube} style={{ color: '#8b5cf6', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Custom 3D Printing</h3>
+                  <p style={{ color: '#71717a', margin: 0, fontSize: '13px' }}>Quote request form for custom prints</p>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.custom3DPrintingEnabled}
+                  onChange={(e) => setSettings({ ...settings, custom3DPrintingEnabled: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  background: settings.custom3DPrintingEnabled ? '#3b82f6' : '#27272a',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: settings.custom3DPrintingEnabled ? '22px' : '2px',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
+
+            {/* Web Development */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#10b98120',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FontAwesomeIcon icon={faCode} style={{ color: '#10b981', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>Web Development Services</h3>
+                  <p style={{ color: '#71717a', margin: 0, fontSize: '13px' }}>Web dev consultation and projects</p>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.webDevServicesEnabled}
+                  onChange={(e) => setSettings({ ...settings, webDevServicesEnabled: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  background: settings.webDevServicesEnabled ? '#3b82f6' : '#27272a',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: settings.webDevServicesEnabled ? '22px' : '2px',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
+
+            {/* App Development */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#f59e0b20',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FontAwesomeIcon icon={faMobileAlt} style={{ color: '#f59e0b', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>App Development Services</h3>
+                  <p style={{ color: '#71717a', margin: 0, fontSize: '13px' }}>Mobile & desktop app development</p>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.appDevServicesEnabled}
+                  onChange={(e) => setSettings({ ...settings, appDevServicesEnabled: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  background: settings.appDevServicesEnabled ? '#3b82f6' : '#27272a',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: settings.appDevServicesEnabled ? '22px' : '2px',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
+
+            {/* MotoRev */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: '#ef444420',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FontAwesomeIcon icon={faGlobe} style={{ color: '#ef4444', fontSize: '18px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 600, margin: 0 }}>MotoRev Page</h3>
+                  <p style={{ color: '#71717a', margin: 0, fontSize: '13px' }}>Motorcycle app showcase page</p>
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.motorevEnabled}
+                  onChange={(e) => setSettings({ ...settings, motorevEnabled: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{
+                  width: '44px',
+                  height: '24px',
+                  background: settings.motorevEnabled ? '#3b82f6' : '#27272a',
+                  borderRadius: '12px',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    position: 'absolute',
+                    top: '2px',
+                    left: settings.motorevEnabled ? '22px' : '2px',
+                    transition: 'left 0.2s',
+                  }} />
+                </div>
+              </label>
+            </div>
+
+            {/* MotoRev Settings */}
+            {settings.motorevEnabled && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #27272a' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>MotoRev Settings</h3>
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Website URL</label>
+                  <input
+                    type="url"
+                    value={settings.motorevWebsiteUrl}
+                    onChange={(e) => setSettings({ ...settings, motorevWebsiteUrl: e.target.value })}
+                    placeholder="https://motorevapp.com"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>App Store URL</label>
+                  <input
+                    type="url"
+                    value={settings.motorevAppStoreUrl}
+                    onChange={(e) => setSettings({ ...settings, motorevAppStoreUrl: e.target.value })}
+                    placeholder="https://apps.apple.com/..."
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Launch Date</label>
+                  <input
+                    type="date"
+                    value={settings.motorevLaunchDate}
+                    onChange={(e) => setSettings({ ...settings, motorevLaunchDate: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'contact' && (
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '24px', margin: '0 0 24px 0' }}>
@@ -324,6 +738,59 @@ export default function AdminSettingsPage() {
                 placeholder="https://linkedin.com/company/47industries"
                 style={inputStyle}
               />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px', margin: '0 0 8px 0' }}>
+              Notification Settings
+            </h2>
+            <p style={{ color: '#71717a', marginBottom: '24px', margin: '0 0 24px 0', fontSize: '14px' }}>
+              Configure where notifications are sent for different events
+            </p>
+
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Order Notification Email</label>
+              <input
+                type="email"
+                value={settings.orderNotificationEmail}
+                onChange={(e) => setSettings({ ...settings, orderNotificationEmail: e.target.value })}
+                placeholder="orders@47industries.com"
+                style={inputStyle}
+              />
+              <p style={{ color: '#71717a', marginTop: '6px', fontSize: '13px' }}>
+                Receive notifications when new orders are placed
+              </p>
+            </div>
+
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Inquiry Notification Email</label>
+              <input
+                type="email"
+                value={settings.inquiryNotificationEmail}
+                onChange={(e) => setSettings({ ...settings, inquiryNotificationEmail: e.target.value })}
+                placeholder="inquiries@47industries.com"
+                style={inputStyle}
+              />
+              <p style={{ color: '#71717a', marginTop: '6px', fontSize: '13px' }}>
+                Receive notifications for custom 3D printing quotes and service inquiries
+              </p>
+            </div>
+
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Low Stock Alert Threshold</label>
+              <input
+                type="number"
+                min="1"
+                value={settings.lowStockThreshold}
+                onChange={(e) => setSettings({ ...settings, lowStockThreshold: parseInt(e.target.value) || 5 })}
+                style={{ ...inputStyle, maxWidth: '150px' }}
+              />
+              <p style={{ color: '#71717a', marginTop: '6px', fontSize: '13px' }}>
+                Get notified when product stock falls below this number
+              </p>
             </div>
           </div>
         )}
@@ -486,8 +953,177 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
-        {/* Save Button - only show for non-shipping tabs */}
-        {activeTab !== 'shipping' && (
+        {activeTab === 'integrations' && (
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px', margin: '0 0 8px 0' }}>
+              Integrations
+            </h2>
+            <p style={{ color: '#71717a', marginBottom: '24px', margin: '0 0 24px 0', fontSize: '14px' }}>
+              Third-party services connected to your website
+            </p>
+
+            {/* Stripe */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: stripeConfigured ? '#10b98120' : '#f59e0b20',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <FontAwesomeIcon icon={faCreditCard} style={{ fontSize: '20px', color: stripeConfigured ? '#10b981' : '#f59e0b' }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Stripe Payments</h3>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: stripeConfigured ? '#10b98120' : '#f59e0b20',
+                        color: stripeConfigured ? '#10b981' : '#f59e0b',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}>
+                        <FontAwesomeIcon icon={stripeConfigured ? faCheckCircle : faTimesCircle} style={{ fontSize: '10px' }} />
+                        {stripeConfigured ? 'Connected' : 'Not Configured'}
+                      </span>
+                    </div>
+                    <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+                      {stripeConfigured ? 'Accept credit card payments via Stripe' : 'Add STRIPE_SECRET_KEY to enable payments'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Zoho Mail */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: zohoConnected ? '#10b98120' : '#f59e0b20',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <FontAwesomeIcon icon={faEnvelope} style={{ fontSize: '20px', color: zohoConnected ? '#10b981' : '#f59e0b' }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Zoho Mail</h3>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: zohoConnected ? '#10b98120' : '#f59e0b20',
+                        color: zohoConnected ? '#10b981' : '#f59e0b',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}>
+                        <FontAwesomeIcon icon={zohoConnected ? faCheckCircle : faTimesCircle} style={{ fontSize: '10px' }} />
+                        {zohoConnected ? 'Connected' : 'Not Connected'}
+                      </span>
+                    </div>
+                    <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+                      {zohoConnected ? 'Send and receive emails from admin console' : 'Connect Zoho to manage email'}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/admin/email"
+                  style={{
+                    padding: '10px 20px',
+                    background: '#3b82f6',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {zohoConnected ? 'Go to Email' : 'Connect'}
+                  <FontAwesomeIcon icon={faExternalLinkAlt} style={{ fontSize: '12px' }} />
+                </Link>
+              </div>
+            </div>
+
+            {/* Cloudflare R2 */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: r2Configured ? '#10b98120' : '#71717a20',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <FontAwesomeIcon icon={faCloud} style={{ fontSize: '20px', color: r2Configured ? '#10b981' : '#71717a' }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Cloudflare R2 Storage</h3>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: r2Configured ? '#10b98120' : '#71717a20',
+                        color: r2Configured ? '#10b981' : '#71717a',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}>
+                        <FontAwesomeIcon icon={r2Configured ? faCheckCircle : faTimesCircle} style={{ fontSize: '10px' }} />
+                        {r2Configured ? 'Connected' : 'Not Configured'}
+                      </span>
+                    </div>
+                    <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+                      {r2Configured ? 'File uploads stored in Cloudflare R2' : 'Add R2 credentials in environment variables'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save Button - only show for editable tabs */}
+        {!['shipping', 'integrations'].includes(activeTab) && (
           <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #27272a' }}>
             <button
               onClick={saveSettings}
