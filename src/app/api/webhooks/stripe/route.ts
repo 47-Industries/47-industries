@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { stripe, formatAmountFromStripe } from '@/lib/stripe'
+import { stripe, formatAmountFromStripe, isStripeConfigured } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { sendOrderConfirmation } from '@/lib/email'
 import Stripe from 'stripe'
 
 export async function POST(req: NextRequest) {
+  if (!isStripeConfigured) {
+    return NextResponse.json(
+      { error: 'Stripe is not configured' },
+      { status: 500 }
+    )
+  }
+
   const body = await req.text()
   const headersList = await headers()
   const signature = headersList.get('stripe-signature')
@@ -139,10 +146,21 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const sessionWithShipping = session as any
   const shippingDetails = sessionWithShipping.shipping_details
 
+  // Try to find existing user by email to link order
+  let userId: string | null = null
+  if (customerEmail) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: customerEmail },
+      select: { id: true },
+    })
+    userId = existingUser?.id || null
+  }
+
   // Create order with items
   const order = await prisma.order.create({
     data: {
       orderNumber,
+      userId,
       customerName,
       customerEmail: customerEmail || '',
       customerPhone: metadata.customerPhone || null,

@@ -1,17 +1,29 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Stats {
-  totalOrders: number
+  ordersCount: number
   revenue: number
-  customRequests: number
-  serviceInquiries: number
+  customRequestsCount: number
+  serviceInquiriesCount: number
+}
+
+interface ActivityItem {
+  type: 'order' | 'request' | 'inquiry'
+  id: string
+  number: string
+  name: string
+  detail: string
+  status: string
+  createdAt: string
 }
 
 export default function AdminDashboard() {
   const [isMobile, setIsMobile] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,7 +39,8 @@ export default function AdminDashboard() {
         const res = await fetch('/api/admin/stats')
         if (res.ok) {
           const data = await res.json()
-          setStats(data)
+          setStats(data.stats)
+          setRecentActivity(data.recentActivity || [])
         }
       } catch (error) {
         console.error('Failed to fetch stats:', error)
@@ -39,11 +52,84 @@ export default function AdminDashboard() {
   }, [])
 
   const statsDisplay = [
-    { label: 'Total Orders', value: loading ? '...' : (stats?.totalOrders ?? 0).toString(), gradient: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
+    { label: 'Total Orders', value: loading ? '...' : (stats?.ordersCount ?? 0).toString(), gradient: 'linear-gradient(90deg, #3b82f6, #60a5fa)' },
     { label: 'Revenue', value: loading ? '...' : `$${(stats?.revenue ?? 0).toLocaleString()}`, gradient: 'linear-gradient(90deg, #10b981, #34d399)' },
-    { label: '3D Print Requests', value: loading ? '...' : (stats?.customRequests ?? 0).toString(), gradient: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' },
-    { label: 'Service Inquiries', value: loading ? '...' : (stats?.serviceInquiries ?? 0).toString(), gradient: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
+    { label: '3D Print Requests', value: loading ? '...' : (stats?.customRequestsCount ?? 0).toString(), gradient: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' },
+    { label: 'Service Inquiries', value: loading ? '...' : (stats?.serviceInquiriesCount ?? 0).toString(), gradient: 'linear-gradient(90deg, #f59e0b, #fbbf24)' },
   ]
+
+  const getActivityIcon = (type: 'order' | 'request' | 'inquiry') => {
+    switch (type) {
+      case 'order':
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <path d="M16 10a4 4 0 01-8 0" />
+          </svg>
+        )
+      case 'request':
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+          </svg>
+        )
+      case 'inquiry':
+        return (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
+        )
+    }
+  }
+
+  const getActivityColor = (type: 'order' | 'request' | 'inquiry') => {
+    switch (type) {
+      case 'order': return '#3b82f6'
+      case 'request': return '#8b5cf6'
+      case 'inquiry': return '#f59e0b'
+    }
+  }
+
+  const getActivityLink = (item: ActivityItem) => {
+    switch (item.type) {
+      case 'order': return `/admin/orders/${item.id}`
+      case 'request': return `/admin/custom-requests/${item.id}`
+      case 'inquiry': return `/admin/inquiries/${item.id}`
+    }
+  }
+
+  const getActivityLabel = (type: 'order' | 'request' | 'inquiry') => {
+    switch (type) {
+      case 'order': return 'Order'
+      case 'request': return '3D Print'
+      case 'inquiry': return 'Inquiry'
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    const s = status.toLowerCase()
+    if (s === 'paid' || s === 'completed' || s === 'delivered') return '#10b981'
+    if (s === 'pending' || s === 'new') return '#f59e0b'
+    if (s === 'cancelled' || s === 'rejected') return '#ef4444'
+    if (s === 'shipped' || s === 'processing' || s === 'quoted') return '#3b82f6'
+    return '#71717a'
+  }
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
 
   const quickActions = [
     { title: 'Add Product', description: 'Create a new product listing', href: '/admin/products' },
@@ -173,37 +259,150 @@ export default function AdminDashboard() {
           background: '#18181b',
           border: '1px solid #27272a',
           borderRadius: '16px',
-          padding: isMobile ? '32px 16px' : '48px 24px',
-          textAlign: 'center'
+          overflow: 'hidden'
         }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            margin: '0 auto 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0.2
-          }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 3v18h18" />
-              <path d="M18 17l-5-5-4 4-4-4" />
-            </svg>
-          </div>
-          <h3 style={{
-            fontSize: isMobile ? '20px' : '24px',
-            fontWeight: 700,
-            marginBottom: '8px'
-          }}>No recent activity</h3>
-          <p style={{
-            color: '#71717a',
-            margin: 0,
-            fontSize: isMobile ? '14px' : '16px'
-          }}>
-            Your recent orders, requests, and updates will appear here
-          </p>
+          {loading ? (
+            <div style={{ padding: isMobile ? '32px 16px' : '48px 24px', textAlign: 'center' }}>
+              <p style={{ color: '#71717a', margin: 0 }}>Loading activity...</p>
+            </div>
+          ) : recentActivity.length === 0 ? (
+            <div style={{ padding: isMobile ? '32px 16px' : '48px 24px', textAlign: 'center' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                margin: '0 auto 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.2
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 3v18h18" />
+                  <path d="M18 17l-5-5-4 4-4-4" />
+                </svg>
+              </div>
+              <h3 style={{
+                fontSize: isMobile ? '20px' : '24px',
+                fontWeight: 700,
+                marginBottom: '8px'
+              }}>No recent activity</h3>
+              <p style={{
+                color: '#71717a',
+                margin: 0,
+                fontSize: isMobile ? '14px' : '16px'
+              }}>
+                Your recent orders, requests, and updates will appear here
+              </p>
+            </div>
+          ) : (
+            <div>
+              {recentActivity.map((item, index) => (
+                <Link
+                  key={`${item.type}-${item.id}`}
+                  href={getActivityLink(item)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: isMobile ? '16px' : '20px 24px',
+                    borderBottom: index < recentActivity.length - 1 ? '1px solid #27272a' : 'none',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#27272a'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  {/* Icon */}
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: `${getActivityColor(item.type)}20`,
+                    color: getActivityColor(item.type),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {getActivityIcon(item.type)}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '4px'
+                    }}>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: getActivityColor(item.type),
+                        background: `${getActivityColor(item.type)}20`,
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {getActivityLabel(item.type)}
+                      </span>
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#ffffff'
+                      }}>
+                        {item.number}
+                      </span>
+                    </div>
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#a1a1aa',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {item.name} • {item.detail}
+                    </div>
+                  </div>
+
+                  {/* Status & Time */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '4px',
+                    flexShrink: 0
+                  }}>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      color: getStatusColor(item.status),
+                      background: `${getStatusColor(item.status)}20`,
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      {item.status}
+                    </span>
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#71717a'
+                    }}>
+                      {formatTimeAgo(item.createdAt)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

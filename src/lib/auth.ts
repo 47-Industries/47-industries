@@ -47,11 +47,6 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials')
         }
 
-        // Only allow ADMIN users to access admin panel
-        if (user.role !== 'ADMIN') {
-          throw new Error('Unauthorized - Admin access only')
-        }
-
         return {
           id: user.id,
           email: user.email,

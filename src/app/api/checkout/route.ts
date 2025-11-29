@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, formatAmountForStripe } from '@/lib/stripe'
+import { stripe, formatAmountForStripe, isStripeConfigured } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 
 interface CheckoutItem {
@@ -31,6 +31,13 @@ function generateOrderNumber(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!isStripeConfigured) {
+      return NextResponse.json(
+        { error: 'Payment processing is not configured' },
+        { status: 500 }
+      )
+    }
+
     const body = await req.json()
     const { items, shipping } = body as {
       items: CheckoutItem[]

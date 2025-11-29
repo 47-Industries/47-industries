@@ -1,13 +1,17 @@
 import Stripe from 'stripe'
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing STRIPE_SECRET_KEY environment variable')
-}
+// Only initialize Stripe client if the key is available
+// This allows the app to build even without the key (Railway build phase)
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-09-30.clover',
-  typescript: true,
-})
+export const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, {
+      apiVersion: '2025-09-30.clover',
+      typescript: true,
+    })
+  : (null as unknown as Stripe)
+
+export const isStripeConfigured = !!stripeSecretKey
 
 /**
  * Format amount for Stripe (convert dollars to cents)

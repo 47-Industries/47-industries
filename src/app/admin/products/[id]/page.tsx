@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ImageUploader from '@/components/admin/ImageUploader'
 
 interface Category {
   id: string
@@ -39,7 +40,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [imageUrls, setImageUrls] = useState<string[]>([''])
+  const [images, setImages] = useState<string[]>([])
   const [product, setProduct] = useState<Product | null>(null)
 
   const [formData, setFormData] = useState({
@@ -114,7 +115,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         infill: data.infill?.toString() || '',
       })
 
-      setImageUrls(data.images.length > 0 ? data.images : [''])
+      setImages(data.images || [])
     } catch (error) {
       console.error('Failed to fetch product:', error)
       router.push('/admin/products')
@@ -128,14 +129,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setSaving(true)
 
     try {
-      const filteredImages = imageUrls.filter(url => url.trim() !== '')
-
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          images: filteredImages,
+          images,
           price: parseFloat(formData.price),
           comparePrice: formData.comparePrice ? parseFloat(formData.comparePrice) : null,
           costPrice: formData.costPrice ? parseFloat(formData.costPrice) : null,
@@ -159,20 +158,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     } finally {
       setSaving(false)
     }
-  }
-
-  const addImageUrl = () => {
-    setImageUrls([...imageUrls, ''])
-  }
-
-  const updateImageUrl = (index: number, value: string) => {
-    const newUrls = [...imageUrls]
-    newUrls[index] = value
-    setImageUrls(newUrls)
-  }
-
-  const removeImageUrl = (index: number) => {
-    setImageUrls(imageUrls.filter((_, i) => i !== index))
   }
 
   const inputStyle = {
@@ -373,53 +358,12 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 margin: 0
               }}>Images</h2>
 
-              {imageUrls.map((url, index) => (
-                <div key={index} style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => updateImageUrl(index, e.target.value)}
-                    style={{ ...inputStyle, flex: 1 }}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                  {imageUrls.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeImageUrl(index)}
-                      style={{
-                        padding: '12px 16px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        color: '#ef4444',
-                        border: 'none',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={addImageUrl}
-                style={{
-                  padding: '10px 16px',
-                  background: '#27272a',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  marginTop: '8px'
-                }}
-              >
-                + Add Image URL
-              </button>
+              <ImageUploader
+                images={images}
+                onChange={setImages}
+                maxImages={10}
+                folder="products"
+              />
             </div>
 
             {/* 3D Printing Specs */}

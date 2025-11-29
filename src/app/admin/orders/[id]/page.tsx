@@ -73,6 +73,12 @@ export default function OrderDetailPage() {
   const [carrier, setCarrier] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
 
+  // Refund state
+  const [showRefundModal, setShowRefundModal] = useState(false)
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('requested_by_customer')
+  const [refunding, setRefunding] = useState(false)
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
@@ -104,6 +110,43 @@ export default function OrderDetailPage() {
       router.push('/admin/orders')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRefund = async () => {
+    if (!confirm(`Are you sure you want to refund $${refundAmount || Number(order?.total).toFixed(2)}?`)) {
+      return
+    }
+
+    try {
+      setRefunding(true)
+      const res = await fetch(`/api/admin/orders/${params.id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: refundAmount || null,
+          reason: refundReason,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setOrder(data.order)
+        setStatus(data.order.status)
+        setPaymentStatus(data.order.paymentStatus)
+        setAdminNotes(data.order.adminNotes || '')
+        setShowRefundModal(false)
+        setRefundAmount('')
+        alert(`Refund of $${data.amount.toFixed(2)} processed successfully!`)
+      } else {
+        alert(data.error || 'Failed to process refund')
+      }
+    } catch (error) {
+      console.error('Error processing refund:', error)
+      alert('Failed to process refund')
+    } finally {
+      setRefunding(false)
     }
   }
 
@@ -249,7 +292,7 @@ export default function OrderDetailPage() {
             {formatDate(order.createdAt)}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{
             display: 'inline-block',
             padding: '6px 12px',
@@ -272,6 +315,54 @@ export default function OrderDetailPage() {
           }}>
             {order.paymentStatus}
           </span>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: '8px' }}>
+            <Link
+              href={`/admin/orders/${order.id}/invoice`}
+              target="_blank"
+              style={{
+                padding: '6px 12px',
+                background: '#27272a',
+                color: 'white',
+                borderRadius: '8px',
+                fontSize: '13px',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              Invoice
+            </Link>
+            <Link
+              href={`/admin/orders/${order.id}/invoice?type=packing`}
+              target="_blank"
+              style={{
+                padding: '6px 12px',
+                background: '#27272a',
+                color: 'white',
+                borderRadius: '8px',
+                fontSize: '13px',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+              Packing Slip
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -599,11 +690,172 @@ export default function OrderDetailPage() {
                 Payment Info
               </h2>
               <p style={{ fontSize: '14px', color: '#71717a', margin: '0 0 4px 0' }}>Stripe Payment ID</p>
-              <p style={{ fontSize: '14px', margin: 0, wordBreak: 'break-all' }}>{order.stripePaymentId}</p>
+              <p style={{ fontSize: '14px', margin: '0 0 16px 0', wordBreak: 'break-all' }}>{order.stripePaymentId}</p>
+
+              {order.paymentStatus === 'SUCCEEDED' && (
+                <button
+                  onClick={() => {
+                    setRefundAmount(Number(order.total).toFixed(2))
+                    setShowRefundModal(true)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: '#ef444420',
+                    color: '#ef4444',
+                    border: '1px solid #ef4444',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Process Refund
+                </button>
+              )}
+
+              {order.paymentStatus === 'REFUNDED' && (
+                <div style={{
+                  padding: '10px',
+                  background: '#6b728020',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  color: '#6b7280',
+                  fontSize: '14px',
+                }}>
+                  Order has been refunded
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Refund Modal */}
+      {showRefundModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '400px',
+          }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px', margin: '0 0 20px 0' }}>
+              Process Refund
+            </h2>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                Refund Amount
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#71717a',
+                }}>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={Number(order.total)}
+                  value={refundAmount}
+                  onChange={(e) => setRefundAmount(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px 10px 24px',
+                    background: '#09090b',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <p style={{ fontSize: '12px', color: '#71717a', marginTop: '4px', margin: '4px 0 0 0' }}>
+                Order total: ${Number(order.total).toFixed(2)}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                Reason
+              </label>
+              <select
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#09090b',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              >
+                <option value="requested_by_customer">Customer Request</option>
+                <option value="duplicate">Duplicate Payment</option>
+                <option value="fraudulent">Fraudulent</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowRefundModal(false)}
+                disabled={refunding}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={refunding || !refundAmount || parseFloat(refundAmount) <= 0}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: refunding ? 'not-allowed' : 'pointer',
+                  opacity: refunding ? 0.7 : 1,
+                }}
+              >
+                {refunding ? 'Processing...' : 'Refund'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
