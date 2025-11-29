@@ -575,6 +575,145 @@ model EmailSignature {
 }
 
 // ============================================
+// SHIPPING CONFIGURATION
+// ============================================
+
+model ShippingZone {
+  id          String         @id @default(cuid())
+  name        String
+  countries   Json           // Array of country codes ["US", "CA"]
+  states      Json?          // Array of state codes for US/CA ["CA", "NY"]
+  zipCodes    String?        @db.Text // Comma-separated or range "90000-90999,91000"
+  active      Boolean        @default(true)
+  priority    Int            @default(0) // Higher = checked first
+
+  rates       ShippingRate[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([active])
+}
+
+model ShippingRate {
+  id              String       @id @default(cuid())
+  zoneId          String
+  zone            ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  name            String       // "Standard", "Express", "Overnight"
+  description     String?
+  minOrderValue   Decimal?     @db.Decimal(10, 2) // Min cart value for this rate
+  maxOrderValue   Decimal?     @db.Decimal(10, 2) // Max cart value for this rate
+  minWeight       Decimal?     @db.Decimal(10, 2) // Min weight in lbs
+  maxWeight       Decimal?     @db.Decimal(10, 2) // Max weight in lbs
+
+  // Pricing
+  baseRate        Decimal      @db.Decimal(10, 2) // Base shipping cost
+  perItemRate     Decimal      @db.Decimal(10, 2) @default(0) // Additional per item
+  perPoundRate    Decimal      @db.Decimal(10, 2) @default(0) // Additional per lb
+  freeShippingMin Decimal?     @db.Decimal(10, 2) // Free shipping threshold
+
+  // Delivery estimate
+  minDays         Int          @default(3)
+  maxDays         Int          @default(7)
+
+  // Carrier info (for label purchasing)
+  carrier         String?      // USPS, UPS, FedEx, DHL
+  serviceCode     String?      // e.g., "usps_priority", "ups_ground"
+
+  active          Boolean      @default(true)
+  sortOrder       Int          @default(0)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([zoneId])
+  @@index([active])
+}
+
+// ============================================
+// TAX CONFIGURATION
+// ============================================
+
+model TaxRate {
+  id              String   @id @default(cuid())
+  name            String   // "California Sales Tax"
+  country         String   @default("US")
+  state           String?  // State code (e.g., "CA")
+  zipCode         String?  // Specific zip or range
+  city            String?  // Specific city
+
+  rate            Decimal  @db.Decimal(6, 4) // Tax rate as decimal (0.0825 = 8.25%)
+  isCompound      Boolean  @default(false) // Applied on top of other taxes?
+  includeShipping Boolean  @default(false) // Tax shipping?
+
+  priority        Int      @default(0) // Order of application
+  active          Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([country, state])
+  @@index([active])
+}
+
+// ============================================
+// SHIPPING LABELS & TRACKING
+// ============================================
+
+enum LabelStatus {
+  PENDING
+  PURCHASED
+  VOIDED
+  USED
+}
+
+model ShippingLabel {
+  id              String      @id @default(cuid())
+  orderId         String
+
+  // Label details
+  trackingNumber  String?
+  carrier         String      // USPS, UPS, FedEx, DHL
+  service         String      // Service name
+
+  // Costs
+  labelCost       Decimal     @db.Decimal(10, 2)
+  insuranceCost   Decimal     @db.Decimal(10, 2) @default(0)
+  totalCost       Decimal     @db.Decimal(10, 2)
+
+  // Package details
+  weight          Decimal     @db.Decimal(10, 2) // in lbs
+  length          Decimal?    @db.Decimal(10, 2) // inches
+  width           Decimal?    @db.Decimal(10, 2)
+  height          Decimal?    @db.Decimal(10, 2)
+
+  // Label files
+  labelUrl        String?     @db.Text // URL to PDF/PNG
+  labelData       String?     @db.LongText // Base64 encoded label
+
+  // Provider reference
+  providerLabelId String?     // ID from shipping provider (EasyPost, Shippo, etc.)
+  providerData    Json?       // Full response from provider
+
+  // Status
+  status          LabelStatus @default(PENDING)
+  purchasedAt     DateTime?
+  voidedAt        DateTime?
+
+  // From/To addresses (snapshot)
+  fromAddress     Json
+  toAddress       Json
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([orderId])
+  @@index([trackingNumber])
+  @@index([status])
+}
+
+// ============================================
 // EMAIL AUDIT LOG
 // ============================================
 

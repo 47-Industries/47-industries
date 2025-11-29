@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -18,12 +18,43 @@ interface ShippingInfo {
   country: string
 }
 
+interface ShippingRate {
+  id: string
+  carrier: string
+  service: string
+  serviceName: string
+  price: number
+  deliveryDays: number | null
+  minDays?: number
+  maxDays?: number
+  isRealTime: boolean
+  isFreeShipping?: boolean
+  freeShippingMin?: number | null
+}
+
+interface TaxResult {
+  taxAmount: number
+  totalTaxRate: number
+  appliedRates: { name: string; rate: number; amount: number }[]
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, getTotal, clearCart } = useCart()
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Shipping rates state
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([])
+  const [selectedShippingId, setSelectedShippingId] = useState('')
+  const [loadingRates, setLoadingRates] = useState(false)
+  const [ratesError, setRatesError] = useState('')
+  const [shipmentId, setShipmentId] = useState<string | null>(null)
+
+  // Tax state
+  const [taxInfo, setTaxInfo] = useState<TaxResult | null>(null)
+  const [loadingTax, setLoadingTax] = useState(false)
 
   const [shipping, setShipping] = useState<ShippingInfo>({
     email: '',
@@ -48,12 +79,136 @@ export default function CheckoutPage() {
     }))
   }
 
+  // Check if address is complete for rate calculation
+  const isAddressComplete = shipping.address1 && shipping.city && shipping.state && shipping.zipCode
+
+  // Fetch shipping rates when address is complete
+  const fetchShippingRates = useCallback(async () => {
+    if (!isAddressComplete || items.length === 0) return
+
+    setLoadingRates(true)
+    setRatesError('')
+
+    try {
+      const res = await fetch('/api/shipping/rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+          shipping: {
+            address1: shipping.address1,
+            address2: shipping.address2,
+            city: shipping.city,
+            state: shipping.state,
+            zipCode: shipping.zipCode,
+            country: shipping.country,
+          },
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        // Combine real-time and configured rates
+        const allRates = [...(data.rates || []), ...(data.configuredRates || [])]
+        // Remove duplicates by id
+        const uniqueRates = allRates.filter((rate, index, self) =>
+          index === self.findIndex(r => r.id === rate.id)
+        )
+        setShippingRates(uniqueRates)
+        setShipmentId(data.shipmentId)
+
+        // Select first rate by default
+        if (uniqueRates.length > 0 && !selectedShippingId) {
+          setSelectedShippingId(uniqueRates[0].id)
+        }
+      } else {
+        setRatesError(data.error || 'Failed to get shipping rates')
+      }
+    } catch (err) {
+      console.error('Error fetching shipping rates:', err)
+      setRatesError('Failed to connect to shipping service')
+    } finally {
+      setLoadingRates(false)
+    }
+  }, [isAddressComplete, items, shipping, selectedShippingId])
+
+  // Fetch tax when address and shipping are complete
+  const fetchTax = useCallback(async () => {
+    if (!isAddressComplete || !selectedShippingId) return
+
+    setLoadingTax(true)
+
+    try {
+      const selectedRate = shippingRates.find(r => r.id === selectedShippingId)
+      const shippingCost = selectedRate?.price || 0
+
+      const res = await fetch('/api/tax/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtotal: getTotal(),
+          shippingCost,
+          address: {
+            country: shipping.country,
+            state: shipping.state,
+            city: shipping.city,
+            zipCode: shipping.zipCode,
+          },
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setTaxInfo({
+          taxAmount: data.taxAmount || 0,
+          totalTaxRate: data.totalTaxRate || 0,
+          appliedRates: data.appliedRates || [],
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching tax:', err)
+    } finally {
+      setLoadingTax(false)
+    }
+  }, [isAddressComplete, selectedShippingId, shippingRates, getTotal, shipping])
+
+  // Debounced fetch for shipping rates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAddressComplete) {
+        fetchShippingRates()
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [shipping.address1, shipping.city, shipping.state, shipping.zipCode, shipping.country])
+
+  // Fetch tax when shipping rate changes
+  useEffect(() => {
+    if (selectedShippingId && shippingRates.length > 0) {
+      fetchTax()
+    }
+  }, [selectedShippingId, shippingRates])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!selectedShippingId) {
+      setError('Please select a shipping method')
+      return
+    }
+
     setLoading(true)
     setError('')
 
     try {
+      const selectedRate = shippingRates.find(r => r.id === selectedShippingId)
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,6 +221,17 @@ export default function CheckoutPage() {
             image: item.image,
           })),
           shipping,
+          shippingRate: selectedRate ? {
+            id: selectedRate.id,
+            carrier: selectedRate.carrier,
+            service: selectedRate.service,
+            serviceName: selectedRate.serviceName,
+            price: selectedRate.price,
+            deliveryDays: selectedRate.deliveryDays,
+            isRealTime: selectedRate.isRealTime,
+          } : null,
+          shipmentId,
+          tax: taxInfo?.taxAmount || 0,
         }),
       })
 
@@ -118,6 +284,10 @@ export default function CheckoutPage() {
   }
 
   const subtotal = getTotal()
+  const selectedRate = shippingRates.find(r => r.id === selectedShippingId)
+  const shippingCost = selectedRate?.price || 0
+  const taxAmount = taxInfo?.taxAmount || 0
+  const total = subtotal + shippingCost + taxAmount
 
   return (
     <div className="min-h-screen py-20">
@@ -268,6 +438,80 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {/* Shipping Method */}
+              {isAddressComplete && (
+                <div className="pt-4 border-t border-border">
+                  <h3 className="text-lg font-semibold mb-4">Shipping Method</h3>
+
+                  {loadingRates ? (
+                    <div className="flex items-center justify-center py-8 bg-surface rounded-lg">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mr-3"></div>
+                      <span className="text-text-secondary">Calculating shipping rates...</span>
+                    </div>
+                  ) : ratesError ? (
+                    <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">
+                      {ratesError}
+                      <button
+                        type="button"
+                        onClick={fetchShippingRates}
+                        className="ml-2 underline hover:no-underline"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : shippingRates.length > 0 ? (
+                    <div className="space-y-2">
+                      {shippingRates.map((rate) => (
+                        <label
+                          key={rate.id}
+                          className={`flex items-center p-4 bg-surface border rounded-lg cursor-pointer transition-colors ${
+                            selectedShippingId === rate.id
+                              ? 'border-accent bg-accent/10'
+                              : 'border-border hover:border-accent/50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="shippingMethod"
+                            value={rate.id}
+                            checked={selectedShippingId === rate.id}
+                            onChange={(e) => setSelectedShippingId(e.target.value)}
+                            className="mr-4"
+                          />
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{rate.serviceName}</span>
+                              <span className={`font-semibold ${rate.isFreeShipping ? 'text-green-500' : ''}`}>
+                                {rate.isFreeShipping ? 'FREE' : `$${rate.price.toFixed(2)}`}
+                              </span>
+                            </div>
+                            <div className="text-sm text-text-secondary">
+                              {rate.carrier}
+                              {rate.deliveryDays && ` • ${rate.deliveryDays} day${rate.deliveryDays !== 1 ? 's' : ''}`}
+                              {rate.minDays && rate.maxDays && ` • ${rate.minDays}-${rate.maxDays} business days`}
+                              {rate.isRealTime && (
+                                <span className="ml-2 text-xs bg-accent/20 text-accent px-2 py-0.5 rounded">
+                                  Live Rate
+                                </span>
+                              )}
+                            </div>
+                            {rate.isFreeShipping && rate.freeShippingMin && (
+                              <div className="text-xs text-green-500 mt-1">
+                                Free shipping on orders over ${rate.freeShippingMin}
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-surface rounded-lg text-text-secondary text-sm text-center">
+                      Enter your full address to see shipping options
+                    </div>
+                  )}
+                </div>
+              )}
+
               {error && (
                 <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">
                   {error}
@@ -276,14 +520,14 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !selectedShippingId}
                 className="w-full py-4 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Processing...' : 'Continue to Payment'}
               </button>
 
               <p className="text-xs text-text-secondary text-center">
-                You'll be redirected to Stripe to complete your payment securely.
+                You&apos;ll be redirected to Stripe to complete your payment securely.
               </p>
             </form>
           </div>
@@ -335,15 +579,34 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-text-secondary">Shipping</span>
-                  <span className="text-text-secondary">Calculated at payment</span>
+                  {selectedRate ? (
+                    <span className={selectedRate.isFreeShipping ? 'text-green-500' : ''}>
+                      {selectedRate.isFreeShipping ? 'FREE' : `$${shippingCost.toFixed(2)}`}
+                    </span>
+                  ) : (
+                    <span className="text-text-secondary">Select method</span>
+                  )}
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-text-secondary">Tax</span>
-                  <span className="text-text-secondary">Calculated at payment</span>
+                  <span className="text-text-secondary">
+                    Tax
+                    {taxInfo && taxInfo.totalTaxRate > 0 && (
+                      <span className="text-xs ml-1">
+                        ({(taxInfo.totalTaxRate * 100).toFixed(2)}%)
+                      </span>
+                    )}
+                  </span>
+                  {loadingTax ? (
+                    <span className="text-text-secondary">Calculating...</span>
+                  ) : taxInfo ? (
+                    <span>${taxAmount.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-text-secondary">--</span>
+                  )}
                 </div>
                 <div className="flex justify-between text-xl font-bold pt-2 border-t border-border">
                   <span>Total</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>${total.toFixed(2)}</span>
                 </div>
               </div>
 

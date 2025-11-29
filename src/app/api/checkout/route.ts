@@ -22,6 +22,16 @@ interface ShippingInfo {
   country: string
 }
 
+interface ShippingRate {
+  id: string
+  carrier: string
+  service: string
+  serviceName: string
+  price: number
+  deliveryDays: number | null
+  isRealTime: boolean
+}
+
 // Generate order number
 function generateOrderNumber(): string {
   const timestamp = Date.now().toString(36).toUpperCase()
@@ -39,9 +49,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { items, shipping } = body as {
+    const { items, shipping, shippingRate, shipmentId, tax } = body as {
       items: CheckoutItem[]
       shipping: ShippingInfo
+      shippingRate?: ShippingRate | null
+      shipmentId?: string | null
+      tax?: number
     }
 
     if (!items || items.length === 0) {
@@ -110,53 +123,110 @@ export async function POST(req: NextRequest) {
     // Generate order number
     const orderNumber = generateOrderNumber()
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      customer_email: shipping.email,
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA'],
-      },
-      shipping_options: [
+    // Determine shipping cost and options
+    const shippingCost = shippingRate?.price || 0
+    const taxAmount = tax || 0
+
+    // Build shipping options for Stripe
+    const stripeShippingOptions = []
+
+    if (shippingRate) {
+      // Use selected shipping rate
+      const deliveryDays = shippingRate.deliveryDays || 7
+      stripeShippingOptions.push({
+        shipping_rate_data: {
+          type: 'fixed_amount' as const,
+          fixed_amount: {
+            amount: formatAmountForStripe(shippingCost),
+            currency: 'usd',
+          },
+          display_name: shippingRate.serviceName,
+          delivery_estimate: {
+            minimum: { unit: 'business_day' as const, value: Math.max(1, deliveryDays - 2) },
+            maximum: { unit: 'business_day' as const, value: deliveryDays + 2 },
+          },
+          metadata: {
+            carrier: shippingRate.carrier,
+            service: shippingRate.service,
+            rateId: shippingRate.id,
+            isRealTime: shippingRate.isRealTime ? 'true' : 'false',
+          },
+        },
+      })
+    } else {
+      // Fallback shipping options
+      stripeShippingOptions.push(
         {
           shipping_rate_data: {
-            type: 'fixed_amount',
+            type: 'fixed_amount' as const,
             fixed_amount: {
-              amount: subtotal >= 50 ? 0 : 799, // Free shipping over $50
+              amount: subtotal >= 50 ? 0 : 799,
               currency: 'usd',
             },
             display_name: subtotal >= 50 ? 'Free Shipping' : 'Standard Shipping',
             delivery_estimate: {
-              minimum: { unit: 'business_day', value: 5 },
-              maximum: { unit: 'business_day', value: 10 },
+              minimum: { unit: 'business_day' as const, value: 5 },
+              maximum: { unit: 'business_day' as const, value: 10 },
             },
           },
         },
         {
           shipping_rate_data: {
-            type: 'fixed_amount',
+            type: 'fixed_amount' as const,
             fixed_amount: {
               amount: 1499,
               currency: 'usd',
             },
             display_name: 'Express Shipping',
             delivery_estimate: {
-              minimum: { unit: 'business_day', value: 2 },
-              maximum: { unit: 'business_day', value: 3 },
+              minimum: { unit: 'business_day' as const, value: 2 },
+              maximum: { unit: 'business_day' as const, value: 3 },
             },
           },
+        }
+      )
+    }
+
+    // Add tax as a line item if we have pre-calculated tax
+    if (taxAmount > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Sales Tax',
+            images: [],
+            metadata: {
+              productId: 'TAX',
+            },
+          },
+          unit_amount: formatAmountForStripe(taxAmount),
         },
-      ],
-      automatic_tax: {
-        enabled: true,
-      },
+        quantity: 1,
+      })
+    }
+
+    // Create Stripe checkout session
+    const sessionConfig: any = {
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      customer_email: shipping.email,
+      shipping_options: stripeShippingOptions,
       metadata: {
         orderNumber,
         customerName: shipping.name,
         customerEmail: shipping.email,
         customerPhone: shipping.phone || '',
+        shippingAddress1: shipping.address1,
+        shippingAddress2: shipping.address2 || '',
+        shippingCity: shipping.city,
+        shippingState: shipping.state,
+        shippingZipCode: shipping.zipCode,
+        shippingCountry: shipping.country,
+        shippingCarrier: shippingRate?.carrier || '',
+        shippingService: shippingRate?.service || '',
+        shipmentId: shipmentId || '',
+        taxAmount: taxAmount.toString(),
         items: JSON.stringify(
           items.map(item => ({
             productId: item.productId,
@@ -166,7 +236,15 @@ export async function POST(req: NextRequest) {
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,
-    })
+    }
+
+    // Only enable automatic tax if we don't have pre-calculated tax
+    // This allows either our custom tax calculation OR Stripe's automatic tax
+    if (taxAmount === 0) {
+      sessionConfig.automatic_tax = { enabled: true }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig)
 
     return NextResponse.json({ url: session.url })
   } catch (error) {

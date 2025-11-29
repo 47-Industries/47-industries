@@ -33,6 +33,30 @@ interface Address {
   phone?: string
 }
 
+interface ShippingRate {
+  id: string
+  carrier: string
+  service: string
+  serviceName: string
+  rate: number
+  deliveryDays: number | null
+}
+
+interface ShippingLabel {
+  id: string
+  trackingNumber: string | null
+  carrier: string
+  service: string
+  labelCost: number
+  totalCost: number
+  labelUrl: string | null
+  status: string
+  createdAt: string
+  providerData?: {
+    trackingUrl?: string
+  }
+}
+
 interface Order {
   id: string
   orderNumber: string
@@ -79,6 +103,18 @@ export default function OrderDetailPage() {
   const [refundReason, setRefundReason] = useState('requested_by_customer')
   const [refunding, setRefunding] = useState(false)
 
+  // Shipping label state
+  const [showShippingModal, setShowShippingModal] = useState(false)
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([])
+  const [selectedRateId, setSelectedRateId] = useState('')
+  const [shipmentId, setShipmentId] = useState('')
+  const [loadingRates, setLoadingRates] = useState(false)
+  const [purchasingLabel, setPurchasingLabel] = useState(false)
+  const [existingLabel, setExistingLabel] = useState<ShippingLabel | null>(null)
+  const [parcelInfo, setParcelInfo] = useState<any>(null)
+  const [addressInfo, setAddressInfo] = useState<{ fromAddress?: any; toAddress?: any }>({})
+  const [shippingError, setShippingError] = useState('')
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
@@ -88,6 +124,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     fetchOrder()
+    fetchExistingLabel()
   }, [params.id])
 
   const fetchOrder = async () => {
@@ -111,6 +148,118 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchExistingLabel = async () => {
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/shipping/label`)
+      if (res.ok) {
+        const data = await res.json()
+        setExistingLabel(data.label)
+      }
+    } catch (error) {
+      console.error('Error fetching existing label:', error)
+    }
+  }
+
+  const fetchShippingRates = async () => {
+    setLoadingRates(true)
+    setShippingError('')
+    setShippingRates([])
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/shipping/rates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        setShippingRates(data.rates || [])
+        setShipmentId(data.shipmentId)
+        setParcelInfo(data.parcel)
+        setAddressInfo({ fromAddress: data.fromAddress, toAddress: data.toAddress })
+        if (data.rates?.length > 0) {
+          setSelectedRateId(data.rates[0].id)
+        }
+      } else {
+        setShippingError(data.error || 'Failed to get shipping rates')
+      }
+    } catch (error) {
+      console.error('Error fetching shipping rates:', error)
+      setShippingError('Failed to connect to shipping provider')
+    } finally {
+      setLoadingRates(false)
+    }
+  }
+
+  const handlePurchaseLabel = async () => {
+    if (!selectedRateId || !shipmentId) return
+
+    setPurchasingLabel(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/shipping/label`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shipmentId,
+          rateId: selectedRateId,
+          fromAddress: addressInfo.fromAddress,
+          toAddress: addressInfo.toAddress,
+          parcel: parcelInfo,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        setExistingLabel(data.label)
+        setShowShippingModal(false)
+        setTrackingNumber(data.trackingNumber || '')
+        setCarrier(data.label?.carrier || '')
+        fetchOrder()
+        alert(`Label purchased! Tracking: ${data.trackingNumber}`)
+        if (data.labelUrl) {
+          window.open(data.labelUrl, '_blank')
+        }
+      } else {
+        alert(data.error || 'Failed to purchase label')
+      }
+    } catch (error) {
+      console.error('Error purchasing label:', error)
+      alert('Failed to purchase label')
+    } finally {
+      setPurchasingLabel(false)
+    }
+  }
+
+  const handleVoidLabel = async () => {
+    if (!confirm('Are you sure you want to void this shipping label? This may not be refundable depending on the carrier.')) return
+
+    try {
+      const res = await fetch(`/api/admin/orders/${params.id}/shipping/label`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        setExistingLabel(null)
+        setTrackingNumber('')
+        setCarrier('')
+        fetchOrder()
+        alert('Label voided successfully')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to void label')
+      }
+    } catch (error) {
+      console.error('Error voiding label:', error)
+      alert('Failed to void label')
+    }
+  }
+
+  const openShippingModal = () => {
+    setShowShippingModal(true)
+    fetchShippingRates()
   }
 
   const handleRefund = async () => {
@@ -728,6 +877,144 @@ export default function OrderDetailPage() {
               )}
             </div>
           )}
+
+          {/* Shipping Label */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
+              Shipping Label
+            </h2>
+
+            {existingLabel ? (
+              <div>
+                <div style={{
+                  padding: '12px',
+                  background: '#10b98120',
+                  border: '1px solid #10b981',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ color: '#10b981', fontWeight: 500 }}>Label Purchased</span>
+                    <span style={{
+                      fontSize: '12px',
+                      padding: '2px 8px',
+                      background: '#10b98140',
+                      borderRadius: '4px',
+                      color: '#10b981',
+                    }}>
+                      {existingLabel.status}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '14px', margin: '0 0 4px 0' }}>
+                    <strong>Carrier:</strong> {existingLabel.carrier} - {existingLabel.service}
+                  </p>
+                  {existingLabel.trackingNumber && (
+                    <p style={{ fontSize: '14px', margin: '0 0 4px 0' }}>
+                      <strong>Tracking:</strong> {existingLabel.trackingNumber}
+                    </p>
+                  )}
+                  <p style={{ fontSize: '14px', margin: 0 }}>
+                    <strong>Cost:</strong> ${Number(existingLabel.totalCost).toFixed(2)}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {existingLabel.labelUrl && (
+                    <a
+                      href={existingLabel.labelUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      Print Label
+                    </a>
+                  )}
+                  {existingLabel.providerData?.trackingUrl && (
+                    <a
+                      href={existingLabel.providerData.trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#27272a',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      Track Package
+                    </a>
+                  )}
+                </div>
+
+                {existingLabel.status === 'PURCHASED' && (
+                  <button
+                    onClick={handleVoidLabel}
+                    style={{
+                      width: '100%',
+                      marginTop: '12px',
+                      padding: '10px',
+                      background: 'transparent',
+                      color: '#ef4444',
+                      border: '1px solid #ef4444',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Void Label
+                  </button>
+                )}
+              </div>
+            ) : order.shippingAddress ? (
+              <div>
+                <p style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  No shipping label purchased yet. Get real-time rates from USPS, UPS, and FedEx.
+                </p>
+                <button
+                  onClick={openShippingModal}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Buy Shipping Label
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: '14px', color: '#71717a', margin: 0 }}>
+                No shipping address on this order.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -853,6 +1140,192 @@ export default function OrderDetailPage() {
                 {refunding ? 'Processing...' : 'Refund'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Modal */}
+      {showShippingModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>
+                Buy Shipping Label
+              </h2>
+              <button
+                onClick={() => setShowShippingModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#71717a',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Package Info */}
+            {parcelInfo && (
+              <div style={{
+                padding: '12px',
+                background: '#09090b',
+                borderRadius: '8px',
+                marginBottom: '16px',
+              }}>
+                <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0' }}>Package Dimensions</p>
+                <p style={{ fontSize: '14px', margin: 0 }}>
+                  {parcelInfo.length}" × {parcelInfo.width}" × {parcelInfo.height}" • {(parcelInfo.weight / 16).toFixed(2)} lbs
+                </p>
+              </div>
+            )}
+
+            {/* Error */}
+            {shippingError && (
+              <div style={{
+                padding: '12px',
+                background: '#ef444420',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                color: '#ef4444',
+                fontSize: '14px',
+              }}>
+                {shippingError}
+              </div>
+            )}
+
+            {/* Loading */}
+            {loadingRates && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid #27272a',
+                  borderTopColor: '#8b5cf6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 12px',
+                }} />
+                <p style={{ color: '#a1a1aa', margin: 0 }}>Getting shipping rates...</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </div>
+            )}
+
+            {/* Rates */}
+            {!loadingRates && shippingRates.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, marginBottom: '12px', margin: '0 0 12px 0' }}>
+                  Select a shipping rate:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {shippingRates.map((rate) => (
+                    <label
+                      key={rate.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '12px',
+                        background: selectedRateId === rate.id ? '#8b5cf620' : '#09090b',
+                        border: `1px solid ${selectedRateId === rate.id ? '#8b5cf6' : '#27272a'}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="shippingRate"
+                        value={rate.id}
+                        checked={selectedRateId === rate.id}
+                        onChange={(e) => setSelectedRateId(e.target.value)}
+                        style={{ marginRight: '12px' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 500 }}>{rate.serviceName}</span>
+                          <span style={{ fontWeight: 600, color: '#8b5cf6' }}>${rate.rate.toFixed(2)}</span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#71717a', marginTop: '2px' }}>
+                          {rate.carrier}
+                          {rate.deliveryDays && ` • ${rate.deliveryDays} day${rate.deliveryDays !== 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            {!loadingRates && shippingRates.length > 0 && (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowShippingModal(false)}
+                  disabled={purchasingLabel}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: '#27272a',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePurchaseLabel}
+                  disabled={purchasingLabel || !selectedRateId}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: purchasingLabel ? 'not-allowed' : 'pointer',
+                    opacity: purchasingLabel ? 0.7 : 1,
+                  }}
+                >
+                  {purchasingLabel ? 'Purchasing...' : `Purchase Label ($${shippingRates.find(r => r.id === selectedRateId)?.rate.toFixed(2) || '0.00'})`}
+                </button>
+              </div>
+            )}
+
+            {/* No rates */}
+            {!loadingRates && !shippingError && shippingRates.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#71717a' }}>
+                <p style={{ margin: 0 }}>No shipping rates available. Please check your EasyPost configuration and business address.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
