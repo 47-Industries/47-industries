@@ -1323,7 +1323,7 @@ export default function OrderDetailPage() {
             {/* No rates */}
             {!loadingRates && !shippingError && shippingRates.length === 0 && (
               <div style={{ textAlign: 'center', padding: '20px 0', color: '#71717a' }}>
-                <p style={{ margin: 0 }}>No shipping rates available. Please check your EasyPost configuration and business address.</p>
+                <p style={{ margin: 0 }}>No shipping rates available. Please check your Shippo configuration and business address.</p>
               </div>
             )}
           </div>

@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma'
 import {
   getShippingRates,
   calculatePackageDimensions,
-  isEasyPostConfigured,
+  isShippoConfigured,
   ShippingAddress,
-} from '@/lib/easypost'
+} from '@/lib/shippo'
 
 interface CartItem {
   productId: string
@@ -133,8 +133,8 @@ export async function POST(req: NextRequest) {
       country: shipping.country || 'US',
     }
 
-    // Check if EasyPost is configured for real rates
-    if (isEasyPostConfigured) {
+    // Check if Shippo is configured for real rates
+    if (isShippoConfigured) {
       try {
         const shipment = await getShippingRates(fromAddress, toAddress, parcel)
 
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
           totalWeight: totalWeightOz / 16, // in lbs
         })
       } catch (error) {
-        console.error('EasyPost error, falling back to configured rates:', error)
+        console.error('Shippo error, falling back to configured rates:', error)
         // Fall through to configured rates
       }
     }

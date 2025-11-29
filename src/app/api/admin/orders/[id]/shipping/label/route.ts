@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { purchaseLabel, isEasyPostConfigured } from '@/lib/easypost'
+import { purchaseLabel, refundLabel, isShippoConfigured } from '@/lib/shippo'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (!isEasyPostConfigured) {
+    if (!isShippoConfigured) {
       return NextResponse.json(
         { error: 'Shipping provider not configured' },
         { status: 400 }
@@ -59,8 +59,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Purchase label via EasyPost
-    const labelResult = await purchaseLabel(shipmentId, rateId)
+    // Purchase label via Shippo (uses rateId only, shipmentId not needed)
+    const labelResult = await purchaseLabel(rateId)
 
     // Save label to database
     const shippingLabel = await prisma.shippingLabel.create({
@@ -162,8 +162,15 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'No active label found' }, { status: 404 })
     }
 
-    // TODO: Call EasyPost to void/refund the label
-    // This requires the refundLabel function which depends on the carrier's refund policy
+    // Call Shippo to void/refund the label
+    try {
+      if (label.providerLabelId) {
+        await refundLabel(label.providerLabelId)
+      }
+    } catch (refundError) {
+      console.error('Error refunding label with Shippo:', refundError)
+      // Continue to mark as voided even if refund fails
+    }
 
     // Mark label as voided
     await prisma.shippingLabel.update({

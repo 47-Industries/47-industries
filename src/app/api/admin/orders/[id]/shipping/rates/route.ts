@@ -4,10 +4,10 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import {
   getShippingRates,
-  isEasyPostConfigured,
+  isShippoConfigured,
   ShippingAddress,
   calculatePackageDimensions,
-} from '@/lib/easypost'
+} from '@/lib/shippo'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -55,9 +55,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (!isEasyPostConfigured) {
+    if (!isShippoConfigured) {
       return NextResponse.json(
-        { error: 'Shipping provider not configured. Please add EASYPOST_API_KEY to your environment.' },
+        { error: 'Shipping provider not configured. Please add SHIPPO_API_KEY to your environment.' },
         { status: 400 }
       )
     }
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const body = await req.json().catch(() => ({}))
     const parcel = body.parcel || calculatePackageDimensions(itemsWithWeight)
 
-    // Get rates from EasyPost
+    // Get rates from Shippo
     const shipment = await getShippingRates(fromAddress, toAddress, parcel)
 
     return NextResponse.json({
