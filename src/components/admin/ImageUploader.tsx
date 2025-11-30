@@ -110,7 +110,7 @@ export default function ImageUploader({
         }}>
           {images.map((url, index) => (
             <div
-              key={url}
+              key={`img-${index}`}
               style={{
                 position: 'relative',
                 aspectRatio: '1',
@@ -120,12 +120,21 @@ export default function ImageUploader({
                 border: index === 0 ? '2px solid #3b82f6' : '1px solid #27272a',
               }}
             >
-              <Image
-                src={url}
-                alt={`Product image ${index + 1}`}
-                fill
-                style={{ objectFit: 'cover' }}
-              />
+              {/* Use native img for base64 data URLs, Next Image for regular URLs */}
+              {url.startsWith('data:') ? (
+                <img
+                  src={url}
+                  alt={`Product image ${index + 1}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <Image
+                  src={url}
+                  alt={`Product image ${index + 1}`}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                />
+              )}
 
               {index === 0 && (
                 <div style={{
@@ -250,12 +259,18 @@ export default function ImageUploader({
             <div style={{ color: '#a1a1aa' }}>Uploading...</div>
           ) : (
             <>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+              <div style={{ marginBottom: '8px' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
               <p style={{ color: '#a1a1aa', margin: '0 0 4px 0' }}>
                 Drag and drop images here, or click to browse
               </p>
               <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>
-                JPEG, PNG, WebP, or GIF (max 10MB each)
+                JPEG, PNG, WebP, or GIF (max 5MB each)
               </p>
             </>
           )}
