@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/custom-requests', label: '3D Print Requests' },
     { href: '/admin/inquiries', label: 'Service Inquiries' },
-    { href: '/admin/database', label: 'Database' },
+    { href: '/admin/users', label: 'Users' },
     { href: '/admin/settings', label: 'Settings' },
   ]
 

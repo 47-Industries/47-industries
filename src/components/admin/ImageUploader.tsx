@@ -120,21 +120,12 @@ export default function ImageUploader({
                 border: index === 0 ? '2px solid #3b82f6' : '1px solid #27272a',
               }}
             >
-              {/* Use native img for base64 data URLs, Next Image for regular URLs */}
-              {url.startsWith('data:') ? (
-                <img
-                  src={url}
-                  alt={`Product image ${index + 1}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <Image
-                  src={url}
-                  alt={`Product image ${index + 1}`}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                />
-              )}
+              <Image
+                src={url}
+                alt={`Product image ${index + 1}`}
+                fill
+                style={{ objectFit: 'cover' }}
+              />
 
               {index === 0 && (
                 <div style={{

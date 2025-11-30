@@ -36,6 +36,14 @@ model User {
   // Recovery/backup email for admins
   backupEmail   String?
 
+  // Admin Permissions (JSON array of permission strings)
+  // e.g., ["products", "orders", "users", "settings", "email"]
+  permissions   Json?
+
+  // Email Access (JSON array of email addresses the user can access)
+  // e.g., ["support@47industries.com", "sales@47industries.com"]
+  emailAccess   Json?
+
   // Zoho Mail Integration
   zohoAccessToken   String?   @db.Text
   zohoRefreshToken  String?   @db.Text
