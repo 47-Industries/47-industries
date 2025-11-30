@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || ''
     const category = searchParams.get('category') || ''
     const status = searchParams.get('status') || ''
+    const productType = searchParams.get('productType') || '' // 'PHYSICAL' | 'DIGITAL' | ''
 
     const skip = (page - 1) * limit
 
@@ -39,6 +40,10 @@ export async function GET(req: NextRequest) {
       where.active = true
     } else if (status === 'inactive') {
       where.active = false
+    }
+
+    if (productType) {
+      where.productType = productType
     }
 
     const [products, total] = await Promise.all([
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -125,10 +130,20 @@ export async function POST(req: NextRequest) {
         tags: body.tags || null,
         featured: body.featured || false,
         active: body.active !== false,
+        // Product type
+        productType: body.productType || 'PHYSICAL',
+        requiresShipping: body.requiresShipping !== false,
+        // 3D printing specs
         material: body.material || null,
         printTime: body.printTime || null,
         layerHeight: body.layerHeight || null,
         infill: body.infill || null,
+        // Digital product fields
+        digitalFileUrl: body.digitalFileUrl || null,
+        digitalFileName: body.digitalFileName || null,
+        digitalFileSize: body.digitalFileSize || null,
+        downloadLimit: body.downloadLimit || null,
+        downloadExpiry: body.downloadExpiry || null,
       },
       include: {
         category: {
@@ -136,6 +151,7 @@ export async function POST(req: NextRequest) {
             id: true,
             name: true,
             slug: true,
+            productType: true,
           },
         },
       },

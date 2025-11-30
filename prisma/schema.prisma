@@ -106,23 +106,30 @@ model VerificationToken {
 // E-COMMERCE - PRODUCTS & CATEGORIES
 // ============================================
 
-model Category {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  description String?   @db.Text
-  image       String?
-  parentId    String?
-  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children    Category[] @relation("CategoryToCategory")
-  products    Product[]
-  active      Boolean   @default(true)
+enum ProductType {
+  PHYSICAL
+  DIGITAL
+}
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+model Category {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?     @db.Text
+  image       String?
+  productType ProductType @default(PHYSICAL)  // Categories are either for digital or physical products
+  parentId    String?
+  parent      Category?   @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children    Category[]  @relation("CategoryToCategory")
+  products    Product[]
+  active      Boolean     @default(true)
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([slug])
   @@index([parentId])
+  @@index([productType])
 }
 
 model Product {
@@ -139,13 +146,26 @@ model Product {
   category      Category     @relation(fields: [categoryId], references: [id])
   stock         Int          @default(0)
   sku           String?      @unique
-  weight        Decimal?     @db.Decimal(10, 2)
-  dimensions    String?
   tags          Json?        // Array of tags
   featured      Boolean      @default(false)
   active        Boolean      @default(true)
 
-  // 3D Printing specific
+  // Product Type
+  productType   ProductType  @default(PHYSICAL)
+
+  // Physical Product Fields
+  weight        Decimal?     @db.Decimal(10, 2)
+  dimensions    String?
+  requiresShipping Boolean   @default(true)
+
+  // Digital Product Fields
+  digitalFileUrl   String?   @db.Text  // R2 URL for the downloadable file
+  digitalFileName  String?             // Original filename for display
+  digitalFileSize  Int?                // File size in bytes
+  downloadLimit    Int?      @default(5)  // Max downloads per purchase (null = unlimited)
+  downloadExpiry   Int?      @default(30) // Days until download link expires (null = never)
+
+  // 3D Printing specific (for physical 3D printed products)
   material      String?
   printTime     Int?         // in minutes
   layerHeight   Decimal?     @db.Decimal(5, 3)
@@ -155,6 +175,7 @@ model Product {
   orderItems    OrderItem[]
   cartItems     CartItem[]
   reviews       Review[]
+  digitalDownloads DigitalDownload[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -163,6 +184,33 @@ model Product {
   @@index([categoryId])
   @@index([sku])
   @@index([featured])
+  @@index([productType])
+}
+
+// Track digital product downloads
+model DigitalDownload {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId       String
+  orderItemId   String
+
+  // Download tracking
+  downloadToken String   @unique  // Unique token for download URL
+  downloadCount Int      @default(0)
+  maxDownloads  Int?     // Copied from product at purchase time
+  expiresAt     DateTime?
+
+  // Customer info
+  customerEmail String
+
+  createdAt     DateTime @default(now())
+  lastDownloadAt DateTime?
+
+  @@index([productId])
+  @@index([orderId])
+  @@index([downloadToken])
+  @@index([customerEmail])
 }
 
 // ============================================

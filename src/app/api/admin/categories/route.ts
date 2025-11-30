@@ -8,17 +8,37 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(req.url)
+    const productType = searchParams.get('productType') // 'PHYSICAL' | 'DIGITAL' | null (all)
+    const includeInactive = searchParams.get('includeInactive') === 'true'
+
+    const where: any = {}
+    if (!includeInactive) {
+      where.active = true
+    }
+    if (productType) {
+      where.productType = productType
+    }
+
     const categories = await prisma.category.findMany({
-      where: { active: true },
+      where,
       orderBy: { name: 'asc' },
       select: {
         id: true,
         name: true,
         slug: true,
+        description: true,
+        image: true,
+        productType: true,
+        parentId: true,
+        active: true,
+        _count: {
+          select: { products: true }
+        }
       },
     })
 
@@ -37,7 +57,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -67,6 +87,7 @@ export async function POST(req: NextRequest) {
         slug,
         description: body.description || null,
         image: body.image || null,
+        productType: body.productType || 'PHYSICAL',
         parentId: body.parentId || null,
         active: body.active !== false,
       },
