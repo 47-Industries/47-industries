@@ -5,7 +5,26 @@ Full-stack e-commerce platform for 47 Industries - a 3D printing company offerin
 
 **Domain**: 47industries.com
 **Deployment**: Railway
-**Repository**: [To be created on GitHub]
+**Repository**: https://github.com/kylerivers/47-industries
+
+---
+
+## IMPORTANT RULES FOR CLAUDE
+
+### 1. Task Completion
+**A task is NEVER complete until all changes have been pushed to GitHub.** Railway auto-deploys from the main branch, so pushing to GitHub is required for changes to go live. Always run `git add`, `git commit`, and `git push` before declaring any task complete.
+
+### 2. No Emojis
+**DO NOT use emojis anywhere in the codebase.** This includes:
+- UI text and labels
+- Comments in code
+- Commit messages (except for the robot emoji in the Claude Code signature)
+- Any user-facing content
+
+We use **Font Awesome icons** or **SVG icons** instead. Emojis give an AI-generated feel that we want to avoid.
+
+### 3. Styling Documentation
+All styling choices should be documented in this file. See the Design System section below for current standards.
 
 ---
 
@@ -244,23 +263,67 @@ Node Version: 22.x
 --accent: #3b82f6
 --text-primary: #ffffff
 --text-secondary: #a1a1aa
+--text-muted: #71717a
 --success: #10b981
 --warning: #f59e0b
 --error: #ef4444
+--purple: #7c3aed (used for Super Admin badges)
 ```
 
 ### Typography
-- **Font Family**: Inter, SF Pro Display
-- **Headings**: Bold, clean
-- **Body**: Regular, high readability
+- **Font Family**: Inter, SF Pro Display, system fonts
+- **Headings**: Bold (font-weight: 700), clean
+- **Body**: Regular (font-weight: 400), high readability
+- **Font Sizes**:
+  - Page titles: 24px
+  - Section headers: 18px
+  - Body text: 14px
+  - Small/labels: 12-13px
+
+### Border Radius
+- Cards/modals: 12px
+- Buttons: 6-8px
+- Inputs: 6px
+- Pills/badges: 4px
+- Full round (avatars): 50%
+
+### Spacing
+- Page padding: 24-32px (16px on mobile)
+- Card padding: 16-20px
+- Gap between items: 8-16px
+
+### Icons
+- **Primary**: SVG icons (inline or from icon libraries)
+- **Admin Dashboard**: Simple SVG icons
+- **DO NOT USE**: Emojis, emoji-based icons
+- Icon sizes: 16px (small), 20px (medium), 24px (large)
+
+### Buttons
+- Primary: `background: #3b82f6`, `color: white`, `border-radius: 8px`
+- Secondary: `background: #27272a`, `color: white`
+- Danger: `background: #dc2626` or `#ef4444`
+- Padding: `10px 20px` (standard), `8px 16px` (small)
+
+### Forms
+- Input background: `#0a0a0a` or `#1a1a1a`
+- Border: `1px solid #3f3f46`
+- Focus border: `#3b82f6`
+- Label color: `#a1a1aa`
+
+### Admin Dashboard Specific
+- Sidebar width: 256px
+- Sidebar background: `#0a0a0a`
+- Active nav item: `#3b82f6` background
+- Tables: header background `#27272a`, row borders `#27272a`
 
 ### UI Principles
 - Minimalist, clean layouts
 - Generous white space
-- Smooth animations
-- Glass-morphism effects (subtle)
-- High contrast
+- Smooth animations (0.2s transitions)
+- Glass-morphism effects (subtle, backdrop-blur)
+- High contrast for readability
 - Mobile-first responsive design
+- Breakpoints: 768px (md), 1024px (lg)
 
 ---
 
