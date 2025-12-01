@@ -66,10 +66,10 @@ VALUES (
 );
 
 -- ============================================
--- DEMO PROJECTS (Built under Reflux Labs)
+-- INTERNAL DEVELOPMENT PROJECTS
 -- ============================================
 
--- E-commerce Demo - ShopTech
+-- E-commerce - ShopTech
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -77,17 +77,17 @@ VALUES (
   'shoptech-ecommerce',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
-  'A modern e-commerce solution featuring advanced product management, secure checkout, real-time inventory tracking, and a comprehensive admin panel. Built as a premium tech store template with categories for gaming, smart home, and audio products.',
+  '47 Industries (Internal)',
+  'A modern e-commerce solution featuring advanced product management, secure checkout, real-time inventory tracking, and a comprehensive admin panel. Built as a premium tech store with categories for gaming, smart home, and audio products.',
   'E-commerce businesses need a complete solution that handles everything from product catalogs and shopping carts to order management and analytics.',
   'We built a full-featured e-commerce platform with product collections, advanced filtering, cart functionality, secure checkout, user accounts, wishlists, and a powerful admin dashboard for managing inventory, orders, and analytics.',
-  'A production-ready e-commerce template that demonstrates our capability to build scalable online stores for any industry.',
+  'A production-ready e-commerce platform showcasing our capability to build scalable online stores for any industry.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap 5", "PHP", "MySQL"]',
   0, 1, 10,
   NOW(), NOW()
 );
 
--- Restaurant Demo
+-- Restaurant Website
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -95,17 +95,17 @@ VALUES (
   'restaurant-demo',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A complete restaurant solution featuring an elegant customer-facing website with online ordering, table reservations, menu management, and a kitchen management system through the admin panel.',
   'Restaurants need an online presence that showcases their atmosphere and cuisine while providing practical features like reservations and online ordering.',
   'We developed a full restaurant website with beautiful menu displays, online reservation system, contact integration, and an admin panel for managing menus, reservations, orders, and viewing analytics.',
-  'A ready-to-deploy restaurant template that can be customized for any dining establishment from casual to fine dining.',
+  'A complete restaurant solution ready for deployment, customizable for any dining establishment from casual to fine dining.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "PHP"]',
   0, 1, 11,
   NOW(), NOW()
 );
 
--- Real Estate Demo
+-- Real Estate Portal
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -113,7 +113,7 @@ VALUES (
   'realestate-portal',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A property listing platform with virtual tours, advanced search functionality, agent portal, and lead management system. Designed for real estate agencies and independent agents.',
   'Real estate professionals need a platform to showcase listings, capture leads, and manage client relationships effectively.',
   'We built a comprehensive real estate portal with property listings, advanced search and filtering, agent profiles, lead capture forms, and an agent dashboard for managing listings, leads, and client communications.',
@@ -123,7 +123,7 @@ VALUES (
   NOW(), NOW()
 );
 
--- Healthcare Demo
+-- Healthcare Portal
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -131,17 +131,17 @@ VALUES (
   'healthcare-portal',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A patient management system featuring appointment scheduling, medical records access, test results viewing, secure messaging with providers, and medication tracking. Includes a comprehensive staff dashboard.',
   'Healthcare providers need secure, HIPAA-compliant solutions for patient engagement that streamline appointment booking and communication.',
   'We developed a full patient portal with appointment scheduling, medical records viewing, test results, secure provider messaging, medication management, and a staff dashboard for managing patients and appointments.',
-  'A healthcare template demonstrating our ability to build secure, compliant applications for the medical industry.',
+  'A healthcare solution demonstrating our ability to build secure, compliant applications for the medical industry.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "PHP", "MySQL"]',
   0, 1, 13,
   NOW(), NOW()
 );
 
--- Fitness Demo
+-- Fitness Management
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -149,17 +149,17 @@ VALUES (
   'fitness-management',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A complete gym management system featuring class scheduling, member tracking, trainer profiles, workout logging, progress tracking, and a comprehensive admin panel for gym operations.',
   'Fitness centers need an all-in-one solution for managing memberships, classes, trainers, and member progress.',
   'We built a full fitness portal with class schedules, member registration, trainer profiles, workout and progress tracking, analytics dashboard, and admin tools for managing all aspects of gym operations.',
-  'A production-ready fitness management template suitable for gyms, yoga studios, CrossFit boxes, and personal training businesses.',
+  'A production-ready fitness management system suitable for gyms, yoga studios, CrossFit boxes, and personal training businesses.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "PHP", "MySQL"]',
   0, 1, 14,
   NOW(), NOW()
 );
 
--- Landscaping Demo - Wells Landscaping
+-- Wells Landscaping
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -167,17 +167,17 @@ VALUES (
   'landscaping-services',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A professional landscaping website featuring service showcase, project gallery, consultation booking, invoice generation, and a complete admin panel for managing projects, team, and client communications.',
   'Landscaping businesses need a professional online presence that showcases their work and makes it easy for customers to request quotes.',
   'We developed a complete landscaping website with service pages, project portfolio, pricing information, contact forms, and an admin panel with project management, invoicing, team management, and appointment scheduling.',
-  'A full-featured template for landscaping, lawn care, and outdoor service businesses.',
+  'A full-featured solution for landscaping, lawn care, and outdoor service businesses.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "Node.js"]',
   0, 1, 15,
   NOW(), NOW()
 );
 
--- Vape Shop Demo - Sunshine Smoke & Stuff
+-- Sunshine Smoke & Stuff
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -185,17 +185,17 @@ VALUES (
   'smoke-shop-demo',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A complete smoke shop solution featuring product catalog, inventory management, order processing, customer management, and a unique kava bar section. Includes full admin panel with reporting and analytics.',
   'Smoke shops and vape stores need specialized e-commerce with age verification, complex inventory for product variants, and point-of-sale integration.',
   'We built Sunshine Smoke & Stuff with a modern storefront, product catalog with categories for vapes, cigars, and kava bar menu, inventory management, order processing, customer database, and comprehensive reporting.',
-  'A specialized retail template demonstrating our ability to build industry-specific e-commerce solutions.',
+  'A specialized retail solution demonstrating our ability to build industry-specific e-commerce platforms.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "Node.js", "PHP", "MySQL"]',
   0, 1, 16,
   NOW(), NOW()
 );
 
--- Education Demo
+-- Education Portal
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -203,17 +203,17 @@ VALUES (
   'education-portal',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A comprehensive learning management system featuring course catalogs, virtual classrooms, assignment submissions, student progress tracking, instructor management, and discussion forums.',
   'Educational institutions and online course creators need a platform to deliver content, track student progress, and facilitate learning.',
   'We developed a full LMS with course management, virtual classroom integration, assignment submission and grading, student analytics, instructor dashboards, and discussion forums for collaborative learning.',
-  'A complete education platform template suitable for schools, training centers, and online course businesses.',
+  'A complete education platform suitable for schools, training centers, and online course businesses.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "PHP", "MySQL"]',
   0, 1, 17,
   NOW(), NOW()
 );
 
--- Legal Demo
+-- Legal Portal
 INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
 VALUES (
   UUID(),
@@ -221,11 +221,11 @@ VALUES (
   'legal-portal',
   'WEB_DEVELOPMENT',
   '["WEB_DEVELOPMENT"]',
-  'Reflux Labs Demo',
+  '47 Industries (Internal)',
   'A professional legal services website featuring attorney profiles, practice area pages, client intake forms, document management, and an admin portal with case tracking and analytics.',
   'Law firms need a professional online presence that establishes credibility and generates qualified leads while managing client intake.',
   'We built a legal services portal with attorney bios, practice area content, secure client intake forms, document upload capabilities, and an admin dashboard for managing inquiries and tracking analytics.',
-  'A professional template for law firms and legal service providers.',
+  'A professional solution for law firms and legal service providers.',
   '["HTML5", "CSS3", "JavaScript", "Bootstrap", "PHP"]',
   0, 1, 18,
   NOW(), NOW()
