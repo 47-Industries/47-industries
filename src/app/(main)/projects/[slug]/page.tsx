@@ -138,28 +138,28 @@ export default async function ProjectPage({ params }: Props) {
       {(project.challenge || project.solution || project.results) && (
         <div className="py-12 bg-surface/30">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="max-w-3xl">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {/* Challenge */}
               {project.challenge && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold mb-3">The Challenge</h2>
-                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.challenge}</p>
+                <div className="bg-background/50 rounded-xl p-6">
+                  <h2 className="text-lg font-bold mb-3">The Challenge</h2>
+                  <p className="text-text-secondary text-sm leading-relaxed">{project.challenge}</p>
                 </div>
               )}
 
               {/* Solution */}
               {project.solution && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold mb-3">Our Solution</h2>
-                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.solution}</p>
+                <div className="bg-background/50 rounded-xl p-6">
+                  <h2 className="text-lg font-bold mb-3">Our Solution</h2>
+                  <p className="text-text-secondary text-sm leading-relaxed">{project.solution}</p>
                 </div>
               )}
 
               {/* Results */}
               {project.results && (
-                <div className="mb-10">
-                  <h2 className="text-xl font-bold mb-3">Results</h2>
-                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.results}</p>
+                <div className="bg-background/50 rounded-xl p-6">
+                  <h2 className="text-lg font-bold mb-3">Results</h2>
+                  <p className="text-text-secondary text-sm leading-relaxed">{project.results}</p>
                 </div>
               )}
             </div>
