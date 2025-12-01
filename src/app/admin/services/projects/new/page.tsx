@@ -37,6 +37,7 @@ export default function NewProjectPage() {
     testimonialAuthor: '',
     testimonialRole: '',
     isFeatured: false,
+    showInNavbar: false,
     isActive: true,
     sortOrder: 0,
   })
@@ -514,7 +515,7 @@ export default function NewProjectPage() {
               <p className="text-xs text-text-secondary mt-1">Lower numbers appear first</p>
             </div>
           </div>
-          <div className="flex gap-6 mt-4">
+          <div className="flex flex-wrap gap-6 mt-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -524,6 +525,16 @@ export default function NewProjectPage() {
                 className="w-5 h-5 rounded border-border bg-background text-blue-500 focus:ring-blue-500"
               />
               <span>Featured Project</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="showInNavbar"
+                checked={formData.showInNavbar}
+                onChange={handleChange}
+                className="w-5 h-5 rounded border-border bg-background text-blue-500 focus:ring-blue-500"
+              />
+              <span>Show in Navbar</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
