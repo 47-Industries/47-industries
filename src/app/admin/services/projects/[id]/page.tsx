@@ -7,10 +7,11 @@ import Image from 'next/image'
 
 const CATEGORIES = [
   { value: 'WEB_DEVELOPMENT', label: 'Web Development' },
-  { value: 'APP_DEVELOPMENT', label: 'App Development' },
-  { value: 'AI_SOLUTIONS', label: 'AI Solutions' },
+  { value: 'IOS_APP', label: 'iOS App' },
+  { value: 'ANDROID_APP', label: 'Android App' },
+  { value: 'CROSS_PLATFORM_APP', label: 'Cross-Platform App' },
+  { value: 'DESKTOP_APP', label: 'Desktop App' },
   { value: 'THREE_D_PRINTING', label: '3D Printing' },
-  { value: 'CONSULTATION', label: 'Consultation' },
 ]
 
 interface ProjectData {

@@ -61,9 +61,22 @@ export default async function ProjectPage({ params }: Props) {
             </Link>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left: Text Content */}
-            <div>
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+            {/* Left: Hero Image */}
+            {project.thumbnailUrl && (
+              <div className="order-2 lg:order-1">
+                <div className="rounded-xl overflow-hidden bg-surface inline-block">
+                  <img
+                    src={project.thumbnailUrl}
+                    alt={project.title}
+                    className="w-auto h-auto max-w-full max-h-[450px] object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Right: Text Content */}
+            <div className={`order-1 lg:order-2 ${!project.thumbnailUrl ? 'lg:col-span-2 max-w-2xl' : ''}`}>
               <div className="inline-block px-3 py-1 bg-accent/10 text-accent text-sm font-medium rounded-full mb-4">
                 {CATEGORY_LABELS[project.category] || project.category}
               </div>
@@ -71,7 +84,7 @@ export default async function ProjectPage({ params }: Props) {
               <p className="text-lg text-text-secondary mb-6">{project.clientName}</p>
 
               {/* Quick description */}
-              <p className="text-text-secondary mb-6 line-clamp-4">
+              <p className="text-text-secondary mb-6">
                 {project.description}
               </p>
 
@@ -117,61 +130,42 @@ export default async function ProjectPage({ params }: Props) {
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Right: Hero Image - constrained */}
-            {project.thumbnailUrl && (
-              <div className="relative">
-                <div className="rounded-xl overflow-hidden bg-surface max-h-[400px] md:max-h-[500px] flex items-center justify-center">
-                  <img
-                    src={project.thumbnailUrl}
-                    alt={project.title}
-                    className="w-auto h-auto max-w-full max-h-[400px] md:max-h-[500px] object-contain"
-                  />
+      {/* Case Study Section - Only show if there's additional content */}
+      {(project.challenge || project.solution || project.results) && (
+        <div className="py-12 bg-surface/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-3xl">
+              {/* Challenge */}
+              {project.challenge && (
+                <div className="mb-10">
+                  <h2 className="text-xl font-bold mb-3">The Challenge</h2>
+                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.challenge}</p>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Solution */}
+              {project.solution && (
+                <div className="mb-10">
+                  <h2 className="text-xl font-bold mb-3">Our Solution</h2>
+                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.solution}</p>
+                </div>
+              )}
+
+              {/* Results */}
+              {project.results && (
+                <div className="mb-10">
+                  <h2 className="text-xl font-bold mb-3">Results</h2>
+                  <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.results}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Content Section */}
-      <div className="py-12 bg-surface/30">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-3xl">
-            {/* Full Description */}
-            {project.description && (
-              <div className="mb-10">
-                <h2 className="text-xl font-bold mb-3">About the Project</h2>
-                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.description}</p>
-              </div>
-            )}
-
-            {/* Challenge */}
-            {project.challenge && (
-              <div className="mb-10">
-                <h2 className="text-xl font-bold mb-3">The Challenge</h2>
-                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.challenge}</p>
-              </div>
-            )}
-
-            {/* Solution */}
-            {project.solution && (
-              <div className="mb-10">
-                <h2 className="text-xl font-bold mb-3">Our Solution</h2>
-                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.solution}</p>
-              </div>
-            )}
-
-            {/* Results */}
-            {project.results && (
-              <div className="mb-10">
-                <h2 className="text-xl font-bold mb-3">Results</h2>
-                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.results}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Screenshots Gallery - Horizontal scroll on mobile, grid on desktop */}
       {images.length > 0 && (
