@@ -6,15 +6,35 @@ import { useSession } from 'next-auth/react'
 import Logo from './Logo'
 import { useCart } from '@/lib/cart-store'
 
+interface FeatureSettings {
+  shopEnabled: boolean
+  custom3DPrintingEnabled: boolean
+  webDevServicesEnabled: boolean
+  appDevServicesEnabled: boolean
+  motorevEnabled: boolean
+}
+
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [features, setFeatures] = useState<FeatureSettings>({
+    shopEnabled: true,
+    custom3DPrintingEnabled: true,
+    webDevServicesEnabled: true,
+    appDevServicesEnabled: true,
+    motorevEnabled: true,
+  })
   const { getItemCount } = useCart()
   const { data: session, status } = useSession()
 
   useEffect(() => {
     setMounted(true)
+    // Fetch feature settings
+    fetch('/api/settings/features')
+      .then(res => res.json())
+      .then(data => setFeatures(data))
+      .catch(err => console.error('Failed to fetch features:', err))
   }, [])
 
   // Close account menu when clicking outside
@@ -40,18 +60,26 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/shop" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-              Shop
-            </Link>
-            <Link href="/custom-3d-printing" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-              Custom Manufacturing
-            </Link>
-            <Link href="/web-development" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-              Services
-            </Link>
-            <Link href="/motorev" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-              MotoRev
-            </Link>
+            {features.shopEnabled && (
+              <Link href="/shop" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+                Shop
+              </Link>
+            )}
+            {features.custom3DPrintingEnabled && (
+              <Link href="/custom-3d-printing" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+                Custom Manufacturing
+              </Link>
+            )}
+            {(features.webDevServicesEnabled || features.appDevServicesEnabled) && (
+              <Link href="/web-development" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+                Services
+              </Link>
+            )}
+            {features.motorevEnabled && (
+              <Link href="/motorev" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+                MotoRev
+              </Link>
+            )}
             <Link href="/about" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               About
             </Link>
@@ -175,18 +203,26 @@ export default function Navbar() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-6 space-y-4 border-t border-border animate-fadeIn">
-            <Link href="/shop" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              Shop
-            </Link>
-            <Link href="/custom-3d-printing" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              Custom Manufacturing
-            </Link>
-            <Link href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              Services
-            </Link>
-            <Link href="/motorev" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-              MotoRev
-            </Link>
+            {features.shopEnabled && (
+              <Link href="/shop" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                Shop
+              </Link>
+            )}
+            {features.custom3DPrintingEnabled && (
+              <Link href="/custom-3d-printing" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                Custom Manufacturing
+              </Link>
+            )}
+            {(features.webDevServicesEnabled || features.appDevServicesEnabled) && (
+              <Link href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                Services
+              </Link>
+            )}
+            {features.motorevEnabled && (
+              <Link href="/motorev" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                MotoRev
+              </Link>
+            )}
             <Link href="/about" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               About
             </Link>

@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { isFeatureEnabled } from '@/lib/features'
 
-export default function WebDevelopmentPage() {
+export default async function WebDevelopmentPage() {
+  // Check if web dev services are enabled
+  const enabled = await isFeatureEnabled('webDevServicesEnabled')
+  if (!enabled) {
+    notFound()
+  }
   const packages = [
     {
       name: 'Starter',

@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { isFeatureEnabled } from '@/lib/features'
 
-export default function MotoRevPage() {
+export default async function MotoRevPage() {
+  // Check if MotoRev page is enabled
+  const enabled = await isFeatureEnabled('motorevEnabled')
+  if (!enabled) {
+    notFound()
+  }
   const features = [
     {
       title: 'GPS Ride Tracking',

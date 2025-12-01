@@ -1,6 +1,13 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { isFeatureEnabled } from '@/lib/features'
 
-export default function AppDevelopmentPage() {
+export default async function AppDevelopmentPage() {
+  // Check if app dev services are enabled
+  const enabled = await isFeatureEnabled('appDevServicesEnabled')
+  if (!enabled) {
+    notFound()
+  }
   const services = [
     {
       title: 'Mobile Apps',

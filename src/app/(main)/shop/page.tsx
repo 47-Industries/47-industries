@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { isFeatureEnabled } from '@/lib/features'
 
 interface SearchParams {
   category?: string
@@ -99,6 +101,12 @@ export default async function ShopPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
+  // Check if shop is enabled
+  const shopEnabled = await isFeatureEnabled('shopEnabled')
+  if (!shopEnabled) {
+    notFound()
+  }
+
   const params = await searchParams
   const productType = params.type === 'digital' ? 'DIGITAL' : 'PHYSICAL'
   const isDigital = productType === 'DIGITAL'

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, formatAmountForStripe, isStripeConfigured } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
+import { isFeatureEnabled } from '@/lib/features'
 
 interface CheckoutItem {
   productId: string
@@ -42,6 +43,15 @@ function generateOrderNumber(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if shop is enabled
+    const shopEnabled = await isFeatureEnabled('shopEnabled')
+    if (!shopEnabled) {
+      return NextResponse.json(
+        { error: 'Shop is currently unavailable' },
+        { status: 404 }
+      )
+    }
+
     if (!isStripeConfigured) {
       return NextResponse.json(
         { error: 'Payment processing is not configured' },

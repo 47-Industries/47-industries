@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isFeatureEnabled } from '@/lib/features'
 
 // GET /api/products - List active products (public)
 export async function GET(req: NextRequest) {
   try {
+    // Check if shop is enabled
+    const shopEnabled = await isFeatureEnabled('shopEnabled')
+    if (!shopEnabled) {
+      return NextResponse.json(
+        { error: 'Shop is currently unavailable' },
+        { status: 404 }
+      )
+    }
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')

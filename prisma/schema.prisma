@@ -56,6 +56,7 @@ model User {
   cartItems     CartItem[]
   addresses     Address[]
   emailLogs     EmailLog[]
+  blogPosts     BlogPost[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -176,6 +177,9 @@ model Product {
   cartItems     CartItem[]
   reviews       Review[]
   digitalDownloads DigitalDownload[]
+  inventoryAlerts  InventoryAlert[]
+  stockMovements   StockMovement[]
+  variants      ProductVariant[]
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -185,6 +189,48 @@ model Product {
   @@index([sku])
   @@index([featured])
   @@index([productType])
+}
+
+// Product Variants (e.g., Size: Large, Color: Blue)
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  name        String   // Generated name like "Large / Blue"
+  sku         String?  @unique
+  price       Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  stock       Int      @default(0)
+
+  // Options as JSON: { "Size": "Large", "Color": "Blue" }
+  options     Json
+
+  // Media
+  image       String?
+
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([sku])
+}
+
+// Product Option Types (e.g., Size, Color, Material)
+model ProductOptionType {
+  id          String   @id @default(cuid())
+  name        String   @unique  // "Size", "Color", "Material"
+
+  // Available values as JSON array: ["S", "M", "L", "XL"]
+  values      Json
+
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // Track digital product downloads
@@ -293,6 +339,7 @@ model Order {
 
   // Relations
   items           OrderItem[]
+  returns         ReturnRequest[]
 
   // Notes
   customerNotes   String?       @db.Text
@@ -484,6 +531,10 @@ model ServiceInquiry {
   timeline      String?
   description   String         @db.Text
 
+  // Selected Package (optional)
+  packageId     String?
+  package       ServicePackage? @relation("PackageInquiries", fields: [packageId], references: [id])
+
   // Attachments
   attachments   Json?
 
@@ -503,6 +554,436 @@ model ServiceInquiry {
   @@index([status])
   @@index([serviceType])
   @@index([inquiryNumber])
+  @@index([packageId])
+}
+
+// ============================================
+// SERVICE PACKAGES & PRICING
+// ============================================
+
+enum ServiceCategory {
+  // Web
+  WEBSITE              // Static/marketing websites
+  WEB_APP              // Interactive web applications (SaaS, dashboards)
+  ECOMMERCE            // Online stores
+
+  // Mobile
+  IOS_APP              // Native iOS applications
+  ANDROID_APP          // Native Android applications
+  CROSS_PLATFORM_APP   // React Native, Flutter (iOS + Android)
+
+  // Desktop
+  DESKTOP_APP          // Windows, macOS, Linux apps (Electron, Tauri)
+
+  // Other Services
+  AI_SOLUTIONS         // AI/ML integrations, chatbots
+  THREE_D_PRINTING     // 3D printing services
+  UI_UX_DESIGN         // Design-only packages
+  MAINTENANCE          // Ongoing support/maintenance
+  CONSULTATION         // Strategy, consulting
+
+  // Legacy (for backward compatibility)
+  WEB_DEVELOPMENT      // @deprecated - use WEBSITE or WEB_APP
+  APP_DEVELOPMENT      // @deprecated - use specific app types
+}
+
+model ServicePackage {
+  id            String          @id @default(cuid())
+  name          String          // "Starter", "Professional", "Enterprise"
+  slug          String          @unique
+  category      ServiceCategory
+
+  // Pricing
+  price         Decimal?        @db.Decimal(10, 2) // null = "Custom Quote"
+  priceDisplay  String?         // "Starting at $2,500" or "Custom"
+  billingType   String          @default("one_time") // one_time, monthly, yearly
+  priceNote     String?         // Additional pricing context
+
+  // Description
+  shortDesc     String          @db.VarChar(500)
+  description   String          @db.Text
+
+  // Features (JSON array of feature strings)
+  features      Json
+
+  // What's Included (detailed breakdown)
+  includes      Json?           // [{title: "Design", items: ["Custom UI", "Responsive"]}]
+
+  // Technical Details (for apps)
+  platforms     Json?           // ["iOS", "Android", "Web", "Windows", "macOS"]
+  techStack     Json?           // ["React Native", "Node.js", "PostgreSQL"]
+  integrations  Json?           // ["Stripe", "Firebase", "AWS"]
+
+  // Deliverables
+  deliverables  Json?           // ["Source code", "Documentation", "Design files"]
+
+  // Support & Maintenance
+  supportIncluded   String?     // "30 days", "3 months", etc.
+  revisionRounds    Int?        // Number of revision rounds included
+
+  // Display
+  isPopular     Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  badge         String?         // "Best Value", "Most Popular", "Enterprise"
+
+  // Timing
+  estimatedDays Int?            // Estimated delivery time
+  estimatedWeeks Int?           // Alternative: weeks estimate
+
+  // Relations
+  inquiries     ServiceInquiry[] @relation("PackageInquiries")
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([slug])
+}
+
+model ServiceFeature {
+  id            String          @id @default(cuid())
+  name          String
+  description   String?         @db.Text
+  icon          String?         // Icon name or URL
+  category      ServiceCategory
+  sortOrder     Int             @default(0)
+  isActive      Boolean         @default(true)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([category])
+}
+
+model ServiceProject {
+  id            String          @id @default(cuid())
+  title         String
+  slug          String          @unique
+  category      ServiceCategory
+
+  // Client info
+  clientName    String
+  clientLogo    String?
+
+  // Project details
+  description   String          @db.Text
+  challenge     String?         @db.Text
+  solution      String?         @db.Text
+  results       String?         @db.Text
+
+  // Media
+  thumbnailUrl  String?
+  images        Json?           // Array of image URLs
+  videoUrl      String?
+  liveUrl       String?         // Link to live project
+
+  // Tech stack used
+  technologies  Json?           // Array of tech names
+
+  // Testimonial
+  testimonial   String?         @db.Text
+  testimonialAuthor String?
+  testimonialRole   String?
+
+  // Display
+  isFeatured    Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  sortOrder     Int             @default(0)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([category])
+  @@index([isFeatured])
+  @@index([slug])
+}
+
+// ============================================
+// CUSTOMER MANAGEMENT
+// ============================================
+
+model CustomerNote {
+  id          String   @id @default(cuid())
+  userId      String
+  authorId    String   // Admin who created the note
+  authorName  String   // Snapshot of admin name
+
+  content     String   @db.Text
+  isPinned    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([authorId])
+}
+
+model CustomerSegment {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  color       String   @default("#3b82f6") // For UI display
+
+  // Conditions (JSON) - rules for auto-assignment
+  // e.g., {"minOrders": 5, "minSpent": 500}
+  conditions  Json?
+  isAutomatic Boolean  @default(false) // Auto-assign based on conditions
+
+  // Manual members
+  memberIds   Json?    // Array of user IDs
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// NOTIFICATIONS & ACTIVITY
+// ============================================
+
+enum NotificationType {
+  ORDER_NEW
+  ORDER_STATUS
+  ORDER_REFUND
+  INVENTORY_LOW
+  INVENTORY_OUT
+  CUSTOM_REQUEST
+  SERVICE_INQUIRY
+  REVIEW_NEW
+  USER_SIGNUP
+  SYSTEM
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  link        String?          // URL to relevant page
+
+  // Targeting
+  userId      String?          // Specific user, or null for all admins
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+
+  // Metadata
+  metadata    Json?            // Additional data (orderId, productId, etc.)
+
+  createdAt   DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  userName    String   // Snapshot
+
+  action      String   // "created", "updated", "deleted", "viewed"
+  entityType  String   // "order", "product", "user", etc.
+  entityId    String?
+  entityName  String?  // Human readable name
+
+  details     Json?    // What changed
+  ipAddress   String?
+  userAgent   String?  @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+// ============================================
+// INVENTORY MANAGEMENT
+// ============================================
+
+model InventoryAlert {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type        String   // "LOW_STOCK", "OUT_OF_STOCK", "OVERSTOCK"
+  threshold   Int      // Stock level that triggered alert
+
+  isResolved  Boolean  @default(false)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, type])
+  @@index([productId])
+  @@index([isResolved])
+  @@index([type])
+}
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type        String   // "IN", "OUT", "ADJUSTMENT"
+  quantity    Int      // Positive for in, negative for out
+
+  reason      String?  @db.Text
+  orderId     String?  // If related to an order
+  userId      String?  // Who made the change
+  userName    String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// RETURNS & RMA
+// ============================================
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  SHIPPED
+  RECEIVED
+  REFUNDED
+  COMPLETED
+}
+
+enum ReturnReason {
+  DEFECTIVE
+  WRONG_ITEM
+  NOT_AS_DESCRIBED
+  CHANGED_MIND
+  DAMAGED_SHIPPING
+  OTHER
+}
+
+model ReturnRequest {
+  id            String       @id @default(cuid())
+  orderId       String
+  order         Order        @relation(fields: [orderId], references: [id])
+
+  // Items being returned
+  items         Json         // [{productId, productName, quantity, reason}]
+
+  // Reason
+  reason        String       @default("OTHER") // Maps to ReturnReason enum values
+  notes         String?      @db.Text
+
+  // Resolution
+  status        String       @default("PENDING") // PENDING, APPROVED, REJECTED, RECEIVED, REFUNDED, COMPLETED
+  refundAmount  Decimal?     @db.Decimal(10, 2)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// ============================================
+// MARKETING & CAMPAIGNS
+// ============================================
+
+model EmailCampaign {
+  id            String   @id @default(cuid())
+  name          String
+  subject       String
+  content       String   @db.LongText // HTML content
+
+  // Targeting
+  segmentId     String?  // CustomerSegment ID
+  recipientType String   @default("all") // "all", "segment", "manual"
+  recipientIds  Json?    // Manual list of user IDs
+
+  // Schedule
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+
+  // Stats
+  totalRecipients Int    @default(0)
+  sentCount       Int    @default(0)
+  openCount       Int    @default(0)
+  clickCount      Int    @default(0)
+
+  status        String   @default("draft") // draft, scheduled, sending, sent
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// ============================================
+// BLOG & CONTENT
+// ============================================
+
+model BlogPost {
+  id            String        @id @default(cuid())
+  title         String
+  slug          String        @unique
+  excerpt       String?       @db.VarChar(500)
+  content       String        @db.LongText
+
+  // Media
+  coverImage    String?
+  featuredImage String?
+  images        Json?
+
+  // SEO
+  metaTitle     String?
+  metaDesc      String?       @db.Text
+  keywords      Json?         // Array of keywords
+
+  // Categorization
+  categoryId    String?
+  category      BlogCategory? @relation(fields: [categoryId], references: [id])
+  tags          Json?         // Array of tag strings
+
+  // Author
+  authorId      String
+  author        User          @relation(fields: [authorId], references: [id])
+
+  // Publishing
+  status        String        @default("draft") // draft, published, scheduled, archived
+  publishedAt   DateTime?
+  scheduledAt   DateTime?
+
+  // Stats
+  viewCount     Int           @default(0)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([publishedAt])
+}
+
+model BlogCategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?    @db.Text
+
+  posts       BlogPost[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([slug])
 }
 
 // ============================================

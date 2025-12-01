@@ -1,6 +1,14 @@
+import { notFound } from 'next/navigation'
 import Custom3DPrintingForm from '@/components/Custom3DPrintingForm'
+import { isFeatureEnabled } from '@/lib/features'
 
-export default function Custom3DPrintingPage() {
+export default async function Custom3DPrintingPage() {
+  // Check if custom 3D printing is enabled
+  const enabled = await isFeatureEnabled('custom3DPrintingEnabled')
+  if (!enabled) {
+    notFound()
+  }
+
   return (
     <div className="min-h-screen py-20">
       <div className="container mx-auto px-6">

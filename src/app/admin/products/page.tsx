@@ -127,32 +127,52 @@ export default function AdminProductsPage() {
             fontSize: isMobile ? '14px' : '16px'
           }}>Manage your product catalog</p>
         </div>
-        <Link
-          href="/admin/products/new"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: isMobile ? '10px 20px' : '12px 24px',
-            background: '#3b82f6',
-            color: '#ffffff',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            fontSize: '14px',
-            fontWeight: 500,
-            transition: 'all 0.2s',
-            border: 'none',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#2563eb'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#3b82f6'
-          }}
-        >
-          + Add Product
-        </Link>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <Link
+            href="/admin/products/variants"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: isMobile ? '10px 20px' : '12px 24px',
+              background: 'transparent',
+              color: '#a1a1aa',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+              border: '1px solid #3f3f46',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Manage Variants
+          </Link>
+          <Link
+            href="/admin/products/new"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: isMobile ? '10px 20px' : '12px 24px',
+              background: '#3b82f6',
+              color: '#ffffff',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+              transition: 'all 0.2s',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#2563eb'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#3b82f6'
+            }}
+          >
+            + Add Product
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (

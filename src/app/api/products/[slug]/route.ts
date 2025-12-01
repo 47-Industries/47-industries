@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isFeatureEnabled } from '@/lib/features'
 
 // GET /api/products/[slug] - Get single product by slug (public)
 export async function GET(
@@ -7,6 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    // Check if shop is enabled
+    const shopEnabled = await isFeatureEnabled('shopEnabled')
+    if (!shopEnabled) {
+      return NextResponse.json(
+        { error: 'Shop is currently unavailable' },
+        { status: 404 }
+      )
+    }
+
     const { slug } = await params
 
     const product = await prisma.product.findUnique({

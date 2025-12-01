@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { CustomRequestStatus } from '@prisma/client'
 import { sendCustomRequestConfirmation, sendAdminNotification } from '@/lib/email'
+import { isFeatureEnabled } from '@/lib/features'
 
 // POST /api/custom-print-request - Submit a 3D printing quote request
 export async function POST(req: NextRequest) {
   try {
+    // Check if custom 3D printing is enabled
+    const enabled = await isFeatureEnabled('custom3DPrintingEnabled')
+    if (!enabled) {
+      return NextResponse.json(
+        { error: 'Custom 3D printing service is currently unavailable' },
+        { status: 404 }
+      )
+    }
+
     const body = await req.json()
 
     // Validate required fields
