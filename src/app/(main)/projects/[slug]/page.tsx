@@ -48,6 +48,10 @@ export default async function ProjectPage({ params }: Props) {
 
   const technologies = (project.technologies as string[]) || []
   const images = (project.images as string[]) || []
+  const categories = (project.categories as string[]) || []
+
+  // Use categories array if available, otherwise fall back to single category
+  const displayCategories = categories.length > 0 ? categories : [project.category]
 
   return (
     <div className="min-h-screen">
@@ -77,8 +81,16 @@ export default async function ProjectPage({ params }: Props) {
 
             {/* Right: Text Content */}
             <div className={`order-1 lg:order-2 ${!project.thumbnailUrl ? 'lg:col-span-2 max-w-2xl' : ''}`}>
-              <div className="inline-block px-3 py-1 bg-accent/10 text-accent text-sm font-medium rounded-full mb-4">
-                {CATEGORY_LABELS[project.category] || project.category}
+              {/* Category tags */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {displayCategories.map((cat) => (
+                  <span
+                    key={cat}
+                    className="inline-block px-3 py-1 bg-accent/10 text-accent text-sm font-medium rounded-full"
+                  >
+                    {CATEGORY_LABELS[cat] || cat}
+                  </span>
+                ))}
               </div>
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">{project.title}</h1>
               <p className="text-lg text-text-secondary mb-6">{project.clientName}</p>

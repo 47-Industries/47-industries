@@ -23,6 +23,7 @@ export default function NewProjectPage() {
   const [formData, setFormData] = useState({
     title: '',
     category: 'WEB_DEVELOPMENT',
+    categories: [] as string[],
     clientName: '',
     clientLogo: '',
     description: '',
@@ -178,7 +179,7 @@ export default function NewProjectPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Category *</label>
+                <label className="block text-sm font-medium mb-2">Primary Category *</label>
                 <select
                   name="category"
                   value={formData.category}
@@ -190,6 +191,35 @@ export default function NewProjectPage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Multi-category selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">All Categories (select all that apply)</label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        categories: prev.categories.includes(cat.value)
+                          ? prev.categories.filter(c => c !== cat.value)
+                          : [...prev.categories, cat.value]
+                      }))
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      formData.categories.includes(cat.value)
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-text-secondary mt-2">Select multiple categories if this project spans different service types</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
