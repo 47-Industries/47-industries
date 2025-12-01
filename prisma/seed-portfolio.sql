@@ -9,7 +9,7 @@ DELETE FROM ServiceProject;
 -- ============================================
 
 -- MotoRev - iOS App (FEATURED - flagship product)
-INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, liveUrl, createdAt, updatedAt)
+INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, thumbnailUrl, images, isFeatured, isActive, sortOrder, liveUrl, createdAt, updatedAt)
 VALUES (
   UUID(),
   'MotoRev',
@@ -22,6 +22,8 @@ VALUES (
   'We built MotoRev from the ground up as a native iOS application with a focus on performance and user experience. The app features real-time GPS tracking, social ride sharing, detailed garage management, and emergency safety features. A custom backend handles millions of data points while maintaining fast response times.',
   'MotoRev launched on the App Store with strong user engagement. The app processes thousands of ride logs monthly and has built an active community of motorcycle enthusiasts.',
   '["Swift", "SwiftUI", "MapKit", "CoreLocation", "Node.js", "PostgreSQL", "AWS", "Firebase"]',
+  'https://files.47industries.com/1764598429854-cvlxeqapuqb-moto_17.png',
+  '["https://files.47industries.com/1764598631106-4f6xn6laykr-motorev-garage.png", "https://files.47industries.com/1764598631535-i7jsprhrhd-motorev-profile.png", "https://files.47industries.com/1764598632332-vkv2a7mr2f-motorev-social.png", "https://files.47industries.com/1764598632738-8enyvvrsl28-motorev-navigate.png", "https://files.47industries.com/1764598595234-yvpp1o3omtf-Screenshot_2025-12-01_at_9.15.45_AM.png"]',
   1, 1, 1,
   'https://motorevapp.com',
   NOW(), NOW()
@@ -47,7 +49,7 @@ VALUES (
 );
 
 -- Reflux Labs - Internal R&D
-INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, liveUrl, createdAt, updatedAt)
+INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, thumbnailUrl, isFeatured, isActive, sortOrder, liveUrl, createdAt, updatedAt)
 VALUES (
   UUID(),
   'Reflux Labs',
@@ -60,8 +62,27 @@ VALUES (
   'Through Reflux Labs, we created production-ready templates and full-stack applications for diverse industries. Each project helped us refine our development process and build a library of reusable, battle-tested solutions.',
   'The work done under Reflux Labs directly informed the service offerings at 47 Industries and gave us hands-on experience across multiple industries.',
   '["React", "Next.js", "Node.js", "MongoDB", "PostgreSQL", "Tailwind CSS", "Stripe", "Bootstrap"]',
+  'https://files.47industries.com/1764606459630-pedpoblbrro-refluxlabs.png',
   1, 1, 3,
   NULL,
+  NOW(), NOW()
+);
+
+-- Critter Captures - Real Client Project
+INSERT INTO ServiceProject (id, title, slug, category, categories, clientName, description, challenge, solution, results, technologies, isFeatured, isActive, sortOrder, createdAt, updatedAt)
+VALUES (
+  UUID(),
+  'Critter Captures',
+  'critter-captures',
+  'WEB_DEVELOPMENT',
+  '["WEB_DEVELOPMENT"]',
+  'Critter Captures Wildlife Control',
+  'A professional website for a local wildlife control and extermination company. The site showcases their services, service areas, and provides easy contact options for customers dealing with unwanted critters.',
+  'The client needed a professional online presence to compete with larger pest control companies. They wanted to highlight their humane capture methods and local expertise while making it easy for customers to request service.',
+  'We designed and developed a clean, professional website that emphasizes trust and expertise. The site features service area maps, detailed service descriptions, an emergency contact system, and lead capture forms optimized for conversion.',
+  'The new website significantly improved the client''s online visibility and lead generation, helping them compete effectively in their local market.',
+  '["Next.js", "React", "Tailwind CSS", "Vercel"]',
+  0, 1, 4,
   NOW(), NOW()
 );
 
