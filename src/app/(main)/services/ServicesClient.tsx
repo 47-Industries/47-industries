@@ -67,16 +67,6 @@ const SERVICE_TYPES = [
       </svg>
     )
   },
-  {
-    id: 'THREE_D_PRINTING',
-    label: '3D Printing',
-    description: 'Custom 3D printing services from prototypes to production runs.',
-    icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-      </svg>
-    )
-  },
 ]
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -132,8 +122,8 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
         </div>
 
         {/* Service Type Selector */}
-        <div className="max-w-4xl mx-auto mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="max-w-3xl mx-auto mb-12">
+          <div className="grid grid-cols-3 gap-4">
             {SERVICE_TYPES.map((type) => (
               <button
                 key={type.id}
