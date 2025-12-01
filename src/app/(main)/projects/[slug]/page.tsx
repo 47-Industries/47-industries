@@ -50,182 +50,212 @@ export default async function ProjectPage({ params }: Props) {
   const images = (project.images as string[]) || []
 
   return (
-    <div className="min-h-screen py-20">
-      <div className="container mx-auto px-6">
-        {/* Breadcrumb */}
-        <div className="mb-8">
-          <Link href="/services" className="text-text-secondary hover:text-accent transition-colors">
-            ← Back to Services
-          </Link>
-        </div>
-
-        {/* Header */}
-        <div className="max-w-4xl mb-12">
-          <div className="text-accent text-sm font-medium mb-4">
-            {CATEGORY_LABELS[project.category] || project.category}
+    <div className="min-h-screen">
+      {/* Hero Section - Text + Image side by side */}
+      <div className="pt-20 pb-12 md:pt-24 md:pb-16">
+        <div className="container mx-auto px-4 md:px-6">
+          {/* Breadcrumb */}
+          <div className="mb-6">
+            <Link href="/services" className="text-sm text-text-secondary hover:text-accent transition-colors">
+              ← Back to Services
+            </Link>
           </div>
-          <h1 className="text-5xl font-bold mb-4">{project.title}</h1>
-          <p className="text-xl text-text-secondary">{project.clientName}</p>
-        </div>
 
-        {/* Hero Image */}
-        {project.thumbnailUrl && (
-          <div className="mb-12 rounded-2xl overflow-hidden border border-border bg-surface-elevated">
-            <img
-              src={project.thumbnailUrl}
-              alt={project.title}
-              className="w-full h-auto max-h-[600px] object-contain mx-auto"
-            />
-          </div>
-        )}
-
-        <div className="grid lg:grid-cols-3 gap-12">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-12">
-            {/* Description */}
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            {/* Left: Text Content */}
             <div>
-              <h2 className="text-2xl font-bold mb-4">About the Project</h2>
-              <div className="prose prose-invert max-w-none">
-                <p className="text-text-secondary whitespace-pre-wrap">{project.description}</p>
+              <div className="inline-block px-3 py-1 bg-accent/10 text-accent text-sm font-medium rounded-full mb-4">
+                {CATEGORY_LABELS[project.category] || project.category}
               </div>
-            </div>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">{project.title}</h1>
+              <p className="text-lg text-text-secondary mb-6">{project.clientName}</p>
 
-            {/* Challenge */}
-            {project.challenge && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">The Challenge</h2>
-                <p className="text-text-secondary whitespace-pre-wrap">{project.challenge}</p>
-              </div>
-            )}
+              {/* Quick description */}
+              <p className="text-text-secondary mb-6 line-clamp-4">
+                {project.description}
+              </p>
 
-            {/* Solution */}
-            {project.solution && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Our Solution</h2>
-                <p className="text-text-secondary whitespace-pre-wrap">{project.solution}</p>
-              </div>
-            )}
-
-            {/* Results */}
-            {project.results && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Results</h2>
-                <p className="text-text-secondary whitespace-pre-wrap">{project.results}</p>
-              </div>
-            )}
-
-            {/* Gallery */}
-            {images.length > 0 && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Gallery</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {images.map((img, i) => (
-                    <div key={i} className="rounded-xl overflow-hidden border border-border bg-surface-elevated aspect-[9/16] md:aspect-auto md:max-h-[400px] flex items-center justify-center">
-                      <img
-                        src={img}
-                        alt={`${project.title} screenshot ${i + 1}`}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Testimonial */}
-            {project.testimonial && (
-              <div className="bg-surface rounded-2xl p-8 border border-border">
-                <svg className="w-10 h-10 text-accent mb-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                </svg>
-                <p className="text-lg mb-4">{project.testimonial}</p>
-                {(project.testimonialAuthor || project.testimonialRole) && (
-                  <div>
-                    {project.testimonialAuthor && (
-                      <p className="font-semibold">{project.testimonialAuthor}</p>
-                    )}
-                    {project.testimonialRole && (
-                      <p className="text-text-secondary text-sm">{project.testimonialRole}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Client Logo */}
-            {project.clientLogo && (
-              <div className="bg-surface rounded-xl p-6 border border-border">
-                <img src={project.clientLogo} alt={project.clientName} className="max-h-16" />
-              </div>
-            )}
-
-            {/* Technologies */}
-            {technologies.length > 0 && (
-              <div className="bg-surface rounded-xl p-6 border border-border">
-                <h3 className="font-semibold mb-4">Technologies Used</h3>
-                <div className="flex flex-wrap gap-2">
-                  {technologies.map((tech) => (
+              {/* Tech tags - compact */}
+              {technologies.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {technologies.slice(0, 5).map((tech) => (
                     <span
                       key={tech}
-                      className="px-3 py-1 bg-background border border-border rounded-full text-sm"
+                      className="px-2 py-1 bg-surface border border-border rounded text-xs"
                     >
                       {tech}
                     </span>
                   ))}
+                  {technologies.length > 5 && (
+                    <span className="px-2 py-1 text-text-secondary text-xs">
+                      +{technologies.length - 5} more
+                    </span>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Links */}
-            {(project.liveUrl || project.videoUrl) && (
-              <div className="bg-surface rounded-xl p-6 border border-border space-y-3">
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-3">
                 {project.liveUrl && (
                   <a
                     href={project.liveUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center w-full py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
+                    className="inline-flex items-center px-5 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors text-sm"
                   >
-                    View Live Project
+                    View Live
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
                 )}
-                {project.videoUrl && (
-                  <a
-                    href={project.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center w-full py-3 border border-border rounded-lg font-medium hover:bg-surface-elevated transition-colors"
-                  >
-                    Watch Video
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </a>
-                )}
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center px-5 py-2.5 border border-border rounded-lg font-medium hover:bg-surface transition-colors text-sm"
+                >
+                  Start Your Project
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: Hero Image - constrained */}
+            {project.thumbnailUrl && (
+              <div className="relative">
+                <div className="rounded-xl overflow-hidden bg-surface max-h-[400px] md:max-h-[500px] flex items-center justify-center">
+                  <img
+                    src={project.thumbnailUrl}
+                    alt={project.title}
+                    className="w-auto h-auto max-w-full max-h-[400px] md:max-h-[500px] object-contain"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="py-12 bg-surface/30">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="max-w-3xl">
+            {/* Full Description */}
+            {project.description && (
+              <div className="mb-10">
+                <h2 className="text-xl font-bold mb-3">About the Project</h2>
+                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.description}</p>
               </div>
             )}
 
-            {/* CTA */}
-            <div className="bg-accent/10 rounded-xl p-6 border border-accent/20">
-              <h3 className="font-semibold mb-2">Want something similar?</h3>
-              <p className="text-text-secondary text-sm mb-4">
-                Let's discuss how we can help with your project.
-              </p>
-              <Link
-                href="/contact"
-                className="block w-full py-3 bg-accent text-white text-center rounded-lg font-medium hover:bg-accent/90 transition-colors"
-              >
-                Get in Touch
-              </Link>
+            {/* Challenge */}
+            {project.challenge && (
+              <div className="mb-10">
+                <h2 className="text-xl font-bold mb-3">The Challenge</h2>
+                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.challenge}</p>
+              </div>
+            )}
+
+            {/* Solution */}
+            {project.solution && (
+              <div className="mb-10">
+                <h2 className="text-xl font-bold mb-3">Our Solution</h2>
+                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.solution}</p>
+              </div>
+            )}
+
+            {/* Results */}
+            {project.results && (
+              <div className="mb-10">
+                <h2 className="text-xl font-bold mb-3">Results</h2>
+                <p className="text-text-secondary whitespace-pre-wrap leading-relaxed">{project.results}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Screenshots Gallery - Horizontal scroll on mobile, grid on desktop */}
+      {images.length > 0 && (
+        <div className="py-12">
+          <div className="container mx-auto px-4 md:px-6">
+            <h2 className="text-xl font-bold mb-6">Screenshots</h2>
+
+            {/* Mobile: Horizontal scroll */}
+            <div className="md:hidden overflow-x-auto pb-4 -mx-4 px-4">
+              <div className="flex gap-3" style={{ width: 'max-content' }}>
+                {images.map((img, i) => (
+                  <div
+                    key={i}
+                    className="w-32 h-56 flex-shrink-0 rounded-lg overflow-hidden bg-surface"
+                  >
+                    <img
+                      src={img}
+                      alt={`${project.title} screenshot ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop: Grid */}
+            <div className="hidden md:grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {images.map((img, i) => (
+                <div
+                  key={i}
+                  className="aspect-[9/16] rounded-lg overflow-hidden bg-surface hover:ring-2 hover:ring-accent/50 transition-all cursor-pointer"
+                >
+                  <img
+                    src={img}
+                    alt={`${project.title} screenshot ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Testimonial */}
+      {project.testimonial && (
+        <div className="py-12 bg-surface/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-2xl mx-auto text-center">
+              <svg className="w-8 h-8 text-accent mx-auto mb-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+              </svg>
+              <p className="text-lg md:text-xl mb-4 italic">&ldquo;{project.testimonial}&rdquo;</p>
+              {(project.testimonialAuthor || project.testimonialRole) && (
+                <div>
+                  {project.testimonialAuthor && (
+                    <p className="font-semibold">{project.testimonialAuthor}</p>
+                  )}
+                  {project.testimonialRole && (
+                    <p className="text-text-secondary text-sm">{project.testimonialRole}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CTA Section */}
+      <div className="py-16">
+        <div className="container mx-auto px-4 md:px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Want something similar?</h2>
+          <p className="text-text-secondary mb-6 max-w-md mx-auto">
+            Let&apos;s discuss how we can help bring your project to life.
+          </p>
+          <Link
+            href="/contact"
+            className="inline-flex items-center px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
+          >
+            Get in Touch
+            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </Link>
         </div>
       </div>
     </div>
