@@ -562,29 +562,12 @@ model ServiceInquiry {
 // ============================================
 
 enum ServiceCategory {
-  // Web
-  WEBSITE              // Static/marketing websites
-  WEB_APP              // Interactive web applications (SaaS, dashboards)
-  ECOMMERCE            // Online stores
-
-  // Mobile
+  WEB_DEVELOPMENT      // Websites, web apps, e-commerce
   IOS_APP              // Native iOS applications
   ANDROID_APP          // Native Android applications
   CROSS_PLATFORM_APP   // React Native, Flutter (iOS + Android)
-
-  // Desktop
-  DESKTOP_APP          // Windows, macOS, Linux apps (Electron, Tauri)
-
-  // Other Services
-  AI_SOLUTIONS         // AI/ML integrations, chatbots
+  DESKTOP_APP          // Windows, macOS, Linux apps
   THREE_D_PRINTING     // 3D printing services
-  UI_UX_DESIGN         // Design-only packages
-  MAINTENANCE          // Ongoing support/maintenance
-  CONSULTATION         // Strategy, consulting
-
-  // Legacy (for backward compatibility)
-  WEB_DEVELOPMENT      // @deprecated - use WEBSITE or WEB_APP
-  APP_DEVELOPMENT      // @deprecated - use specific app types
 }
 
 model ServicePackage {

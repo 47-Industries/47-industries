@@ -6,12 +6,19 @@ import { useSession } from 'next-auth/react'
 import Logo from './Logo'
 import { useCart } from '@/lib/cart-store'
 
+interface FeaturedProject {
+  id: string
+  title: string
+  slug: string
+}
+
 interface FeatureSettings {
   shopEnabled: boolean
   custom3DPrintingEnabled: boolean
   webDevServicesEnabled: boolean
   appDevServicesEnabled: boolean
   motorevEnabled: boolean
+  featuredProjects: FeaturedProject[]
 }
 
 export default function Navbar() {
@@ -24,6 +31,7 @@ export default function Navbar() {
     webDevServicesEnabled: true,
     appDevServicesEnabled: true,
     motorevEnabled: true,
+    featuredProjects: [],
   })
   const { getItemCount } = useCart()
   const { data: session, status } = useSession()
@@ -71,15 +79,20 @@ export default function Navbar() {
               </Link>
             )}
             {(features.webDevServicesEnabled || features.appDevServicesEnabled) && (
-              <Link href="/web-development" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
+              <Link href="/services" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
                 Services
               </Link>
             )}
-            {features.motorevEnabled && (
-              <Link href="/motorev" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
-                MotoRev
+            {/* Featured Projects - show in navbar when marked as featured */}
+            {features.featuredProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/projects/${project.slug}`}
+                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                {project.title}
               </Link>
-            )}
+            ))}
             <Link href="/about" className="text-sm text-text-secondary hover:text-text-primary transition-colors">
               About
             </Link>
@@ -214,15 +227,21 @@ export default function Navbar() {
               </Link>
             )}
             {(features.webDevServicesEnabled || features.appDevServicesEnabled) && (
-              <Link href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="/services" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
                 Services
               </Link>
             )}
-            {features.motorevEnabled && (
-              <Link href="/motorev" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-                MotoRev
+            {/* Featured Projects - show in mobile menu when marked as featured */}
+            {features.featuredProjects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/projects/${project.slug}`}
+                className="block text-text-secondary hover:text-text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {project.title}
               </Link>
-            )}
+            ))}
             <Link href="/about" className="block text-text-secondary hover:text-text-primary transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
               About
             </Link>

@@ -28,24 +28,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Simplified nav - only essential items, related things grouped under one page
   const navItems = [
     { href: '/admin', label: 'Dashboard' },
-    { href: '/admin/analytics', label: 'Analytics' },
-    { href: '/admin/email', label: 'Email' },
-    { href: '/admin/products', label: 'Products' },
-    { href: '/admin/categories', label: 'Categories' },
     { href: '/admin/orders', label: 'Orders' },
+    { href: '/admin/products', label: 'Products' },
+    { href: '/admin/services', label: 'Services' },  // Packages + Portfolio all here
+    { href: '/admin/inquiries', label: 'Inquiries' }, // 3D print requests + service inquiries
     { href: '/admin/customers', label: 'Customers' },
-    { href: '/admin/services', label: 'Services' },
-    { href: '/admin/custom-requests', label: '3D Print Requests' },
-    { href: '/admin/inquiries', label: 'Service Inquiries' },
-    { href: '/admin/returns', label: 'Returns' },
-    { href: '/admin/inventory', label: 'Inventory' },
-    { href: '/admin/reports', label: 'Reports' },
-    { href: '/admin/blog', label: 'Blog' },
-    { href: '/admin/marketing', label: 'Marketing' },
-    { href: '/admin/notifications', label: 'Notifications' },
-    { href: '/admin/users', label: 'Users' },
+    { href: '/admin/email', label: 'Email' },
     { href: '/admin/settings', label: 'Settings' },
   ]
 

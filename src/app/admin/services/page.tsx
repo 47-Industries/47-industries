@@ -31,48 +31,23 @@ interface ServiceProject {
   isActive: boolean
 }
 
+// Simplified categories - just the main service types
 const CATEGORY_LABELS: Record<string, string> = {
-  // Web
-  WEBSITE: 'Website',
-  WEB_APP: 'Web App',
-  ECOMMERCE: 'E-Commerce',
-  // Mobile
+  WEB_DEVELOPMENT: 'Web Development',
   IOS_APP: 'iOS App',
   ANDROID_APP: 'Android App',
-  CROSS_PLATFORM_APP: 'Cross-Platform',
-  // Desktop
+  CROSS_PLATFORM_APP: 'Cross-Platform App',
   DESKTOP_APP: 'Desktop App',
-  // Other
-  AI_SOLUTIONS: 'AI Solutions',
   THREE_D_PRINTING: '3D Printing',
-  UI_UX_DESIGN: 'UI/UX Design',
-  MAINTENANCE: 'Maintenance',
-  CONSULTATION: 'Consultation',
-  // Legacy
-  WEB_DEVELOPMENT: 'Web Dev (Legacy)',
-  APP_DEVELOPMENT: 'App Dev (Legacy)',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  // Web - Blue shades
-  WEBSITE: 'bg-blue-500/20 text-blue-400',
-  WEB_APP: 'bg-blue-600/20 text-blue-300',
-  ECOMMERCE: 'bg-cyan-500/20 text-cyan-400',
-  // Mobile - Purple shades
+  WEB_DEVELOPMENT: 'bg-blue-500/20 text-blue-400',
   IOS_APP: 'bg-purple-500/20 text-purple-400',
   ANDROID_APP: 'bg-green-500/20 text-green-400',
   CROSS_PLATFORM_APP: 'bg-violet-500/20 text-violet-400',
-  // Desktop
   DESKTOP_APP: 'bg-indigo-500/20 text-indigo-400',
-  // Other
-  AI_SOLUTIONS: 'bg-emerald-500/20 text-emerald-400',
   THREE_D_PRINTING: 'bg-orange-500/20 text-orange-400',
-  UI_UX_DESIGN: 'bg-pink-500/20 text-pink-400',
-  MAINTENANCE: 'bg-yellow-500/20 text-yellow-400',
-  CONSULTATION: 'bg-rose-500/20 text-rose-400',
-  // Legacy
-  WEB_DEVELOPMENT: 'bg-gray-500/20 text-gray-400',
-  APP_DEVELOPMENT: 'bg-gray-500/20 text-gray-400',
 }
 
 export default function ServicesAdminPage() {
