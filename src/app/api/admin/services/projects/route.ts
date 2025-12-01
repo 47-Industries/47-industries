@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
         title: body.title,
         slug,
         category: body.category,
+        categories: body.categories || null,
         clientName: body.clientName,
         clientLogo: body.clientLogo || null,
         description: body.description,

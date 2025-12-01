@@ -87,6 +87,7 @@ export async function PATCH(
       data: {
         ...(body.title && { title: body.title, slug }),
         ...(body.category && { category: body.category }),
+        ...(body.categories !== undefined && { categories: body.categories }),
         ...(body.clientName && { clientName: body.clientName }),
         ...(body.clientLogo !== undefined && { clientLogo: body.clientLogo || null }),
         ...(body.description && { description: body.description }),
