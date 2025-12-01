@@ -8,18 +8,19 @@ interface CheckoutItem {
   price: number
   quantity: number
   image: string | null
+  productType?: 'PHYSICAL' | 'DIGITAL'
 }
 
 interface ShippingInfo {
   email: string
-  name: string
-  phone: string
-  address1: string
-  address2: string
-  city: string
-  state: string
-  zipCode: string
-  country: string
+  name?: string
+  phone?: string
+  address1?: string
+  address2?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  country?: string
 }
 
 interface ShippingRate {
@@ -49,12 +50,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { items, shipping, shippingRate, shipmentId, tax } = body as {
+    const { items, shipping, shippingRate, shipmentId, tax, isDigitalOnly } = body as {
       items: CheckoutItem[]
       shipping: ShippingInfo
       shippingRate?: ShippingRate | null
       shipmentId?: string | null
       tax?: number
+      isDigitalOnly?: boolean
     }
 
     if (!items || items.length === 0) {
@@ -64,11 +66,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!shipping?.email || !shipping?.name || !shipping?.address1) {
-      return NextResponse.json(
-        { error: 'Missing shipping information' },
-        { status: 400 }
-      )
+    // For digital-only orders, we only need email
+    if (isDigitalOnly) {
+      if (!shipping?.email) {
+        return NextResponse.json(
+          { error: 'Email is required for digital products' },
+          { status: 400 }
+        )
+      }
+    } else {
+      // For physical products, we need full shipping info
+      if (!shipping?.email || !shipping?.name || !shipping?.address1) {
+        return NextResponse.json(
+          { error: 'Missing shipping information' },
+          { status: 400 }
+        )
+      }
     }
 
     // Verify products exist and get current prices
@@ -124,67 +137,69 @@ export async function POST(req: NextRequest) {
     const orderNumber = generateOrderNumber()
 
     // Determine shipping cost and options
-    const shippingCost = shippingRate?.price || 0
+    const shippingCost = isDigitalOnly ? 0 : (shippingRate?.price || 0)
     const taxAmount = tax || 0
 
-    // Build shipping options for Stripe
-    const stripeShippingOptions = []
+    // Build shipping options for Stripe (only for physical products)
+    const stripeShippingOptions: any[] = []
 
-    if (shippingRate) {
-      // Use selected shipping rate
-      const deliveryDays = shippingRate.deliveryDays || 7
-      stripeShippingOptions.push({
-        shipping_rate_data: {
-          type: 'fixed_amount' as const,
-          fixed_amount: {
-            amount: formatAmountForStripe(shippingCost),
-            currency: 'usd',
-          },
-          display_name: shippingRate.serviceName,
-          delivery_estimate: {
-            minimum: { unit: 'business_day' as const, value: Math.max(1, deliveryDays - 2) },
-            maximum: { unit: 'business_day' as const, value: deliveryDays + 2 },
-          },
-          metadata: {
-            carrier: shippingRate.carrier,
-            service: shippingRate.service,
-            rateId: shippingRate.id,
-            isRealTime: shippingRate.isRealTime ? 'true' : 'false',
-          },
-        },
-      })
-    } else {
-      // Fallback shipping options
-      stripeShippingOptions.push(
-        {
+    if (!isDigitalOnly) {
+      if (shippingRate) {
+        // Use selected shipping rate
+        const deliveryDays = shippingRate.deliveryDays || 7
+        stripeShippingOptions.push({
           shipping_rate_data: {
             type: 'fixed_amount' as const,
             fixed_amount: {
-              amount: subtotal >= 50 ? 0 : 799,
+              amount: formatAmountForStripe(shippingCost),
               currency: 'usd',
             },
-            display_name: subtotal >= 50 ? 'Free Shipping' : 'Standard Shipping',
+            display_name: shippingRate.serviceName,
             delivery_estimate: {
-              minimum: { unit: 'business_day' as const, value: 5 },
-              maximum: { unit: 'business_day' as const, value: 10 },
+              minimum: { unit: 'business_day' as const, value: Math.max(1, deliveryDays - 2) },
+              maximum: { unit: 'business_day' as const, value: deliveryDays + 2 },
+            },
+            metadata: {
+              carrier: shippingRate.carrier,
+              service: shippingRate.service,
+              rateId: shippingRate.id,
+              isRealTime: shippingRate.isRealTime ? 'true' : 'false',
             },
           },
-        },
-        {
-          shipping_rate_data: {
-            type: 'fixed_amount' as const,
-            fixed_amount: {
-              amount: 1499,
-              currency: 'usd',
-            },
-            display_name: 'Express Shipping',
-            delivery_estimate: {
-              minimum: { unit: 'business_day' as const, value: 2 },
-              maximum: { unit: 'business_day' as const, value: 3 },
+        })
+      } else {
+        // Fallback shipping options
+        stripeShippingOptions.push(
+          {
+            shipping_rate_data: {
+              type: 'fixed_amount' as const,
+              fixed_amount: {
+                amount: subtotal >= 50 ? 0 : 799,
+                currency: 'usd',
+              },
+              display_name: subtotal >= 50 ? 'Free Shipping' : 'Standard Shipping',
+              delivery_estimate: {
+                minimum: { unit: 'business_day' as const, value: 5 },
+                maximum: { unit: 'business_day' as const, value: 10 },
+              },
             },
           },
-        }
-      )
+          {
+            shipping_rate_data: {
+              type: 'fixed_amount' as const,
+              fixed_amount: {
+                amount: 1499,
+                currency: 'usd',
+              },
+              display_name: 'Express Shipping',
+              delivery_estimate: {
+                minimum: { unit: 'business_day' as const, value: 2 },
+                maximum: { unit: 'business_day' as const, value: 3 },
+              },
+            },
+          }
+        )
+      }
     }
 
     // Add tax as a line item if we have pre-calculated tax
@@ -211,31 +226,40 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items: lineItems,
       customer_email: shipping.email,
-      shipping_options: stripeShippingOptions,
       metadata: {
         orderNumber,
-        customerName: shipping.name,
+        customerName: shipping.name || '',
         customerEmail: shipping.email,
         customerPhone: shipping.phone || '',
-        shippingAddress1: shipping.address1,
-        shippingAddress2: shipping.address2 || '',
-        shippingCity: shipping.city,
-        shippingState: shipping.state,
-        shippingZipCode: shipping.zipCode,
-        shippingCountry: shipping.country,
-        shippingCarrier: shippingRate?.carrier || '',
-        shippingService: shippingRate?.service || '',
-        shipmentId: shipmentId || '',
+        isDigitalOnly: isDigitalOnly ? 'true' : 'false',
+        // Only include shipping details for physical orders
+        ...(isDigitalOnly ? {} : {
+          shippingAddress1: shipping.address1 || '',
+          shippingAddress2: shipping.address2 || '',
+          shippingCity: shipping.city || '',
+          shippingState: shipping.state || '',
+          shippingZipCode: shipping.zipCode || '',
+          shippingCountry: shipping.country || '',
+          shippingCarrier: shippingRate?.carrier || '',
+          shippingService: shippingRate?.service || '',
+          shipmentId: shipmentId || '',
+        }),
         taxAmount: taxAmount.toString(),
         items: JSON.stringify(
           items.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
+            productType: item.productType || 'PHYSICAL',
           }))
         ),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,
+    }
+
+    // Only add shipping options for physical products
+    if (!isDigitalOnly && stripeShippingOptions.length > 0) {
+      sessionConfig.shipping_options = stripeShippingOptions
     }
 
     // Only enable automatic tax if we don't have pre-calculated tax

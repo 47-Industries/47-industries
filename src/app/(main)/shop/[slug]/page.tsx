@@ -19,6 +19,10 @@ interface Product {
   sku: string | null
   material: string | null
   featured: boolean
+  productType: 'PHYSICAL' | 'DIGITAL'
+  requiresShipping: boolean
+  digitalFileUrl: string | null
+  digitalFileName: string | null
   category: {
     id: string
     name: string
@@ -58,7 +62,9 @@ export default function ProductDetailPage() {
   }, [slug])
 
   const handleAddToCart = () => {
-    if (!product || product.stock === 0) return
+    if (!product) return
+    // Digital products don't require stock (unlimited downloads)
+    if (product.productType !== 'DIGITAL' && product.stock === 0) return
 
     addItem({
       productId: product.id,
@@ -66,6 +72,7 @@ export default function ProductDetailPage() {
       price: Number(product.price),
       image: product.images?.[0] || null,
       quantity,
+      productType: product.productType,
     })
 
     setAddedToCart(true)
@@ -205,9 +212,16 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Stock Status */}
+            {/* Stock Status / Digital Badge */}
             <div className="mb-6">
-              {product.stock > 0 ? (
+              {product.productType === 'DIGITAL' ? (
+                <span className="inline-flex items-center gap-2 text-violet-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Digital Download - Instant Delivery
+                </span>
+              ) : product.stock > 0 ? (
                 <span className="inline-flex items-center gap-2 text-green-500">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   In Stock ({product.stock} available)
@@ -239,25 +253,28 @@ export default function ProductDetailPage() {
             )}
 
             {/* Quantity & Add to Cart */}
-            {product.stock > 0 && (
+            {(product.productType === 'DIGITAL' || product.stock > 0) && (
               <div className="flex gap-4 mb-8">
-                <div className="flex items-center border border-border rounded-lg">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-3 hover:bg-surface transition-colors"
-                  >
-                    -
-                  </button>
-                  <span className="px-4 py-3 min-w-[60px] text-center">
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    className="px-4 py-3 hover:bg-surface transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
+                {/* Hide quantity selector for digital products - always 1 */}
+                {product.productType !== 'DIGITAL' && (
+                  <div className="flex items-center border border-border rounded-lg">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-4 py-3 hover:bg-surface transition-colors"
+                    >
+                      -
+                    </button>
+                    <span className="px-4 py-3 min-w-[60px] text-center">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                      className="px-4 py-3 hover:bg-surface transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={handleAddToCart}
@@ -265,10 +282,16 @@ export default function ProductDetailPage() {
                   className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
                     addedToCart
                       ? 'bg-green-500 text-white'
-                      : 'bg-accent text-white hover:bg-accent/90'
+                      : product.productType === 'DIGITAL'
+                        ? 'bg-violet-500 text-white hover:bg-violet-600'
+                        : 'bg-accent text-white hover:bg-accent/90'
                   }`}
                 >
-                  {addedToCart ? 'Added to Cart!' : 'Add to Cart'}
+                  {addedToCart
+                    ? 'Added to Cart!'
+                    : product.productType === 'DIGITAL'
+                      ? 'Add to Cart - Instant Download'
+                      : 'Add to Cart'}
                 </button>
               </div>
             )}

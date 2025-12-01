@@ -9,6 +9,7 @@ export interface CartItem {
   price: number
   image: string | null
   quantity: number
+  productType?: 'PHYSICAL' | 'DIGITAL'
 }
 
 interface CartState {
@@ -19,6 +20,9 @@ interface CartState {
   clearCart: () => void
   getTotal: () => number
   getItemCount: () => number
+  hasPhysicalProducts: () => boolean
+  hasDigitalProducts: () => boolean
+  isDigitalOnly: () => boolean
 }
 
 // Track cart for abandoned cart analytics
@@ -114,6 +118,21 @@ export const useCart = create<CartState>()(
         getItemCount: () => {
           const state = get()
           return state.items.reduce((count, item) => count + item.quantity, 0)
+        },
+
+        hasPhysicalProducts: () => {
+          const state = get()
+          return state.items.some(item => !item.productType || item.productType === 'PHYSICAL')
+        },
+
+        hasDigitalProducts: () => {
+          const state = get()
+          return state.items.some(item => item.productType === 'DIGITAL')
+        },
+
+        isDigitalOnly: () => {
+          const state = get()
+          return state.items.length > 0 && state.items.every(item => item.productType === 'DIGITAL')
         },
       }),
       {

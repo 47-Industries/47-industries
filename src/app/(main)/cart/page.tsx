@@ -8,7 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart } from '@fortawesome/free-solid-svg-icons'
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, getTotal, clearCart } = useCart()
+  const { items, removeItem, updateQuantity, getTotal, clearCart, isDigitalOnly, hasPhysicalProducts } = useCart()
   const [mounted, setMounted] = useState(false)
 
   // Prevent hydration mismatch
@@ -97,33 +97,44 @@ export default function CartPage() {
                       <h3 className="font-semibold text-lg truncate">
                         {item.name}
                       </h3>
-                      <p className="text-text-secondary text-sm">
-                        ${item.price.toFixed(2)} each
-                      </p>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center gap-4 mt-3">
-                        <div className="flex items-center border border-border rounded-lg">
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.productId, item.quantity - 1)
-                            }
-                            className="px-3 py-1 hover:bg-surface transition-colors"
-                          >
-                            -
-                          </button>
-                          <span className="px-3 py-1 min-w-[40px] text-center text-sm">
-                            {item.quantity}
+                      <div className="flex items-center gap-2">
+                        <p className="text-text-secondary text-sm">
+                          ${item.price.toFixed(2)} each
+                        </p>
+                        {item.productType === 'DIGITAL' && (
+                          <span className="text-xs px-2 py-0.5 bg-violet-500/20 text-violet-400 rounded-full">
+                            Digital
                           </span>
-                          <button
-                            onClick={() =>
-                              updateQuantity(item.productId, item.quantity + 1)
-                            }
-                            className="px-3 py-1 hover:bg-surface transition-colors"
-                          >
-                            +
-                          </button>
-                        </div>
+                        )}
+                      </div>
+
+                      {/* Quantity Controls - only for physical products */}
+                      <div className="flex items-center gap-4 mt-3">
+                        {item.productType !== 'DIGITAL' ? (
+                          <div className="flex items-center border border-border rounded-lg">
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.productId, item.quantity - 1)
+                              }
+                              className="px-3 py-1 hover:bg-surface transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="px-3 py-1 min-w-[40px] text-center text-sm">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.productId, item.quantity + 1)
+                              }
+                              className="px-3 py-1 hover:bg-surface transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-text-secondary">Qty: 1</span>
+                        )}
 
                         <button
                           onClick={() => removeItem(item.productId)}
@@ -158,7 +169,11 @@ export default function CartPage() {
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Shipping</span>
                       <span className="text-sm text-text-secondary">
-                        Calculated at checkout
+                        {isDigitalOnly() ? (
+                          <span className="text-violet-400">No shipping needed</span>
+                        ) : (
+                          'Calculated at checkout'
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between">

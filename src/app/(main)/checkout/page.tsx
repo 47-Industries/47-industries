@@ -42,7 +42,7 @@ interface TaxResult {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, getTotal, clearCart } = useCart()
+  const { items, getTotal, clearCart, isDigitalOnly, hasPhysicalProducts } = useCart()
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -84,9 +84,12 @@ export default function CheckoutPage() {
   // Check if address is complete for rate calculation
   const isAddressComplete = shipping.address1 && shipping.city && shipping.state && shipping.zipCode
 
-  // Fetch shipping rates when address is complete
+  // For digital-only orders, we don't need shipping
+  const digitalOnly = isDigitalOnly()
+
+  // Fetch shipping rates when address is complete (only for physical products)
   const fetchShippingRates = useCallback(async () => {
-    if (!isAddressComplete || items.length === 0) return
+    if (!isAddressComplete || items.length === 0 || digitalOnly) return
 
     setLoadingRates(true)
     setRatesError('')
@@ -138,8 +141,15 @@ export default function CheckoutPage() {
     }
   }, [isAddressComplete, items, shipping, selectedShippingId])
 
-  // Fetch tax when address and shipping are complete
+  // Fetch tax when address and shipping are complete (or for digital-only orders)
   const fetchTax = useCallback(async () => {
+    // For digital orders, we just need email; for physical we need address + shipping
+    if (digitalOnly) {
+      // Digital orders can skip tax for now or calculate based on email
+      // For simplicity, we'll skip tax on digital goods
+      setTaxInfo({ taxAmount: 0, totalTaxRate: 0, appliedRates: [] })
+      return
+    }
     if (!isAddressComplete || !selectedShippingId) return
 
     setLoadingTax(true)
@@ -200,8 +210,15 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!selectedShippingId) {
+    // For physical products, require shipping method
+    if (!digitalOnly && !selectedShippingId) {
       setError('Please select a shipping method')
+      return
+    }
+
+    // For digital products, just require email
+    if (!shipping.email) {
+      setError('Please enter your email address')
       return
     }
 
@@ -221,9 +238,10 @@ export default function CheckoutPage() {
             price: item.price,
             quantity: item.quantity,
             image: item.image,
+            productType: item.productType,
           })),
-          shipping,
-          shippingRate: selectedRate ? {
+          shipping: digitalOnly ? { email: shipping.email, name: shipping.name } : shipping,
+          shippingRate: digitalOnly ? null : (selectedRate ? {
             id: selectedRate.id,
             carrier: selectedRate.carrier,
             service: selectedRate.service,
@@ -231,9 +249,10 @@ export default function CheckoutPage() {
             price: selectedRate.price,
             deliveryDays: selectedRate.deliveryDays,
             isRealTime: selectedRate.isRealTime,
-          } : null,
-          shipmentId,
+          } : null),
+          shipmentId: digitalOnly ? null : shipmentId,
           tax: taxInfo?.taxAmount || 0,
+          isDigitalOnly: digitalOnly,
         }),
       })
 
@@ -299,12 +318,33 @@ export default function CheckoutPage() {
         <h1 className="text-4xl font-bold mb-8">Checkout</h1>
 
         <div className="grid lg:grid-cols-2 gap-12 max-w-6xl">
-          {/* Shipping Form */}
+          {/* Form */}
           <div>
-            <h2 className="text-2xl font-bold mb-6">Shipping Information</h2>
+            {digitalOnly ? (
+              <>
+                {/* Digital Products Notice */}
+                <div className="mb-6 p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-6 h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <div>
+                      <h3 className="font-semibold text-violet-400">Digital Download</h3>
+                      <p className="text-sm text-text-secondary">
+                        You&apos;ll receive download links via email after purchase
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-bold mb-6">Contact Information</h2>
+              </>
+            ) : (
+              <h2 className="text-2xl font-bold mb-6">Shipping Information</h2>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Contact */}
+              {/* Contact - Always Required */}
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Email *
@@ -318,132 +358,143 @@ export default function CheckoutPage() {
                   className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
                   placeholder="you@example.com"
                 />
+                {digitalOnly && (
+                  <p className="text-xs text-text-secondary mt-1">
+                    Download links will be sent to this email
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={digitalOnly ? '' : 'grid grid-cols-2 gap-4'}>
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Full Name *
+                    Full Name {digitalOnly ? '' : '*'}
                   </label>
                   <input
                     type="text"
                     name="name"
-                    required
+                    required={!digitalOnly}
                     value={shipping.name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
                     placeholder="John Doe"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={shipping.phone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
+                {!digitalOnly && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={shipping.phone}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* Address */}
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Address *
-                </label>
-                <input
-                  type="text"
-                  name="address1"
-                  required
-                  value={shipping.address1}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                  placeholder="123 Main Street"
-                />
-              </div>
+              {/* Address - Only for Physical Products */}
+              {!digitalOnly && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Address *
+                    </label>
+                    <input
+                      type="text"
+                      name="address1"
+                      required
+                      value={shipping.address1}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                      placeholder="123 Main Street"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Apartment, suite, etc.
-                </label>
-                <input
-                  type="text"
-                  name="address2"
-                  value={shipping.address2}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                  placeholder="Apt 4B"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Apartment, suite, etc.
+                    </label>
+                    <input
+                      type="text"
+                      name="address2"
+                      value={shipping.address2}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                      placeholder="Apt 4B"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    City *
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    required
-                    value={shipping.city}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                    placeholder="New York"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    State *
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    required
-                    value={shipping.state}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                    placeholder="NY"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        City *
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        required
+                        value={shipping.city}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                        placeholder="New York"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        State *
+                      </label>
+                      <input
+                        type="text"
+                        name="state"
+                        required
+                        value={shipping.state}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                        placeholder="NY"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    ZIP Code *
-                  </label>
-                  <input
-                    type="text"
-                    name="zipCode"
-                    required
-                    value={shipping.zipCode}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                    placeholder="10001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Country *
-                  </label>
-                  <select
-                    name="country"
-                    value={shipping.country}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                  >
-                    <option value="US">United States</option>
-                    <option value="CA">Canada</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        ZIP Code *
+                      </label>
+                      <input
+                        type="text"
+                        name="zipCode"
+                        required
+                        value={shipping.zipCode}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                        placeholder="10001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Country *
+                      </label>
+                      <select
+                        name="country"
+                        value={shipping.country}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                      >
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
 
-              {/* Shipping Method */}
-              {isAddressComplete && (
+              {/* Shipping Method - Only for Physical Products */}
+              {!digitalOnly && isAddressComplete && (
                 <div className="pt-4 border-t border-border">
                   <h3 className="text-lg font-semibold mb-4">Shipping Method</h3>
 
@@ -524,14 +575,19 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                disabled={loading || !selectedShippingId}
-                className="w-full py-4 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || (!digitalOnly && !selectedShippingId)}
+                className={`w-full py-4 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  digitalOnly
+                    ? 'bg-violet-500 hover:bg-violet-600'
+                    : 'bg-accent hover:bg-accent/90'
+                }`}
               >
-                {loading ? 'Processing...' : 'Continue to Payment'}
+                {loading ? 'Processing...' : digitalOnly ? 'Purchase Download' : 'Continue to Payment'}
               </button>
 
               <p className="text-xs text-text-secondary text-center">
                 You&apos;ll be redirected to Stripe to complete your payment securely.
+                {digitalOnly && ' Download links will be sent to your email.'}
               </p>
             </form>
           </div>
@@ -558,12 +614,21 @@ export default function CheckoutPage() {
                           No Image
                         </div>
                       )}
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-accent text-white text-xs rounded-full flex items-center justify-center">
+                      <div className={`absolute -top-1 -right-1 w-5 h-5 text-white text-xs rounded-full flex items-center justify-center ${
+                        item.productType === 'DIGITAL' ? 'bg-violet-500' : 'bg-accent'
+                      }`}>
                         {item.quantity}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium truncate">{item.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium truncate">{item.name}</h3>
+                        {item.productType === 'DIGITAL' && (
+                          <span className="text-xs px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded">
+                            Digital
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-text-secondary">
                         ${item.price.toFixed(2)} x {item.quantity}
                       </p>
@@ -581,16 +646,24 @@ export default function CheckoutPage() {
                   <span className="text-text-secondary">Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-secondary">Shipping</span>
-                  {selectedRate ? (
-                    <span className={selectedRate.isFreeShipping ? 'text-green-500' : ''}>
-                      {selectedRate.isFreeShipping ? 'FREE' : `$${shippingCost.toFixed(2)}`}
-                    </span>
-                  ) : (
-                    <span className="text-text-secondary">Select method</span>
-                  )}
-                </div>
+                {!digitalOnly && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-secondary">Shipping</span>
+                    {selectedRate ? (
+                      <span className={selectedRate.isFreeShipping ? 'text-green-500' : ''}>
+                        {selectedRate.isFreeShipping ? 'FREE' : `$${shippingCost.toFixed(2)}`}
+                      </span>
+                    ) : (
+                      <span className="text-text-secondary">Select method</span>
+                    )}
+                  </div>
+                )}
+                {digitalOnly && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-secondary">Delivery</span>
+                    <span className="text-violet-400">Instant Download</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-text-secondary">
                     Tax

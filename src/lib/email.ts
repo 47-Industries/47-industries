@@ -449,6 +449,111 @@ export async function sendShippingNotification(data: {
   }
 }
 
+export async function sendDigitalProductDelivery(data: {
+  to: string
+  name: string
+  orderNumber: string
+  items: Array<{
+    name: string
+    downloadUrl: string
+    downloadToken: string
+    expiresAt: Date
+    downloadLimit: number
+  }>
+  total: number
+}) {
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+
+    const itemsHtml = data.items.map(item => {
+      const downloadLink = `${appUrl}/api/download/${item.downloadToken}`
+      const expiryDate = new Date(item.expiresAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+
+      return `
+        <div style="background: #fff; padding: 20px; border-radius: 12px; margin: 15px 0; border: 1px solid #e5e5e5;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0 0 8px 0; color: #1a1a1a;">${item.name}</h3>
+              <p style="margin: 0; color: #666; font-size: 14px;">
+                Downloads remaining: ${item.downloadLimit} • Expires: ${expiryDate}
+              </p>
+            </div>
+          </div>
+          <a href="${downloadLink}"
+             style="display: inline-block; margin-top: 15px; background: #8b5cf6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+            Download File
+          </a>
+        </div>
+      `
+    }).join('')
+
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: `Your Digital Downloads Are Ready - ${data.orderNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: #fff; padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 12px 12px; }
+            .highlight { background: #8b5cf6; color: #fff; padding: 15px 20px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+            .icon { font-size: 48px; margin-bottom: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="icon">📥</div>
+              <h1 style="margin: 0;">Your Downloads Are Ready!</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">47 Industries Digital Products</p>
+            </div>
+            <div class="content">
+              <h2>Hello ${data.name || 'there'}!</h2>
+              <p>Thank you for your purchase! Your digital products are ready for download.</p>
+
+              <div class="highlight">
+                <p style="margin: 0; font-size: 14px;">Order Number</p>
+                <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold;">${data.orderNumber}</p>
+              </div>
+
+              <h3 style="margin-top: 30px;">Your Downloads</h3>
+              ${itemsHtml}
+
+              <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; margin-top: 25px;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                  <strong>Important:</strong> Download links are unique to your order and have limited downloads.
+                  Please save your files after downloading.
+                </p>
+              </div>
+
+              <p style="margin-top: 25px;">If you have any issues with your downloads, please contact us at support@47industries.com</p>
+
+              <div class="footer">
+                <p>47 Industries - Digital Products</p>
+                <p><a href="https://47industries.com" style="color: #8b5cf6;">47industries.com</a></p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send digital product delivery email:', error)
+    return { success: false, error }
+  }
+}
+
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()
 
