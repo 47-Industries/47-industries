@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -47,6 +47,15 @@ export default function ShopClient({
   const [currentPage, setCurrentPage] = useState(pagination.page)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(pagination.page < pagination.totalPages)
+  const [totalProducts, setTotalProducts] = useState(pagination.total)
+
+  // Reset state when filters change (initialProducts changes)
+  useEffect(() => {
+    setProducts(initialProducts)
+    setCurrentPage(pagination.page)
+    setHasMore(pagination.page < pagination.totalPages)
+    setTotalProducts(pagination.total)
+  }, [initialProducts, pagination.page, pagination.totalPages, pagination.total])
 
   const loadMore = async () => {
     setLoading(true)
@@ -65,6 +74,7 @@ export default function ShopClient({
         setProducts(prev => [...prev, ...data.products])
         setCurrentPage(nextPage)
         setHasMore(nextPage < data.pagination.totalPages)
+        setTotalProducts(data.pagination.total)
       }
     } catch (error) {
       console.error('Failed to load more products:', error)
@@ -136,10 +146,15 @@ export default function ShopClient({
                     </span>
                   )}
                 </div>
-                <h3 className="text-sm font-semibold mb-1 group-hover:text-accent transition-colors line-clamp-2">
+                <h3 className="text-sm font-semibold group-hover:text-accent transition-colors line-clamp-1">
                   {product.name}
                 </h3>
-                <div className="flex items-center gap-2">
+                {product.shortDesc && (
+                  <p className="text-[11px] text-text-secondary line-clamp-2 mb-1">
+                    {product.shortDesc}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 mt-auto">
                   <span className="text-base font-bold">
                     ${product.price.toFixed(2)}
                   </span>
@@ -185,7 +200,7 @@ export default function ShopClient({
             )}
           </button>
           <p className="mt-2 text-sm text-text-secondary">
-            Showing {products.length} of {pagination.total} products
+            Showing {products.length} of {totalProducts} products
           </p>
         </div>
       )}
