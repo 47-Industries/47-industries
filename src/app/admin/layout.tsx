@@ -295,51 +295,51 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 // Item with dropdown
                 <>
                   <div
+                    onClick={(e) => {
+                      // If clicking directly on the text label, navigate
+                      // Otherwise toggle the dropdown
+                      const target = e.target as HTMLElement
+                      if (target.tagName === 'SPAN' && target.dataset.navLabel === 'true') {
+                        closeMobileMenu()
+                        router.push(item.href)
+                      } else {
+                        toggleExpanded(item.href)
+                      }
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: '4px',
+                      padding: '12px 16px',
+                      borderRadius: expandedItems.includes(item.href) ? '12px 12px 0 0' : '12px',
+                      background: isActiveOrChild(item.href) ? '#3b82f6' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
                     }}
                   >
-                    <Link
-                      href={item.href}
-                      onClick={closeMobileMenu}
+                    <span
+                      data-nav-label="true"
                       style={{
-                        flex: 1,
-                        display: 'block',
-                        padding: '12px 16px',
-                        borderRadius: expandedItems.includes(item.href) ? '12px 12px 0 0' : '12px',
                         fontSize: '14px',
                         fontWeight: 500,
                         color: isActiveOrChild(item.href) ? '#ffffff' : '#a1a1aa',
-                        textDecoration: 'none',
-                        background: isActiveOrChild(item.href) ? '#3b82f6' : 'transparent',
-                        transition: 'all 0.2s'
+                        cursor: 'pointer',
                       }}
                     >
                       {item.label}
-                    </Link>
-                    <button
-                      onClick={() => toggleExpanded(item.href)}
+                    </span>
+                    <span
                       style={{
-                        background: 'transparent',
-                        border: 'none',
                         color: isActiveOrChild(item.href) ? '#ffffff' : '#a1a1aa',
-                        cursor: 'pointer',
-                        padding: '8px',
-                        fontSize: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginLeft: '-40px',
-                        marginRight: '8px',
+                        fontSize: '10px',
                         transform: expandedItems.includes(item.href) ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.2s',
+                        padding: '4px',
                       }}
                     >
                       ▼
-                    </button>
+                    </span>
                   </div>
                   {/* Dropdown items */}
                   {expandedItems.includes(item.href) && (
@@ -349,25 +349,36 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                       marginBottom: '4px',
                       overflow: 'hidden',
                     }}>
-                      {item.subItems.map(subItem => (
-                        <Link
-                          key={subItem.href}
-                          href={subItem.href}
-                          onClick={closeMobileMenu}
-                          style={{
-                            display: 'block',
-                            padding: '10px 16px 10px 32px',
-                            fontSize: '13px',
-                            fontWeight: 400,
-                            color: pathname.includes(subItem.href.split('?')[0]) && pathname.includes(subItem.href.split('=')[1] || '') ? '#ffffff' : '#a1a1aa',
-                            textDecoration: 'none',
-                            borderLeft: '2px solid transparent',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          {subItem.label}
-                        </Link>
-                      ))}
+                      {item.subItems.map(subItem => {
+                        // Parse the href to check if this sub-item is active
+                        const [basePath, queryString] = subItem.href.split('?')
+                        const tabValue = queryString?.split('=')[1]
+                        const currentTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+                        const isSubActive = pathname === basePath && currentTab === tabValue
+
+                        return (
+                          <div
+                            key={subItem.href}
+                            onClick={() => {
+                              closeMobileMenu()
+                              router.push(subItem.href)
+                            }}
+                            style={{
+                              display: 'block',
+                              padding: '10px 16px 10px 32px',
+                              fontSize: '13px',
+                              fontWeight: isSubActive ? 500 : 400,
+                              color: isSubActive ? '#ffffff' : '#a1a1aa',
+                              cursor: 'pointer',
+                              borderLeft: isSubActive ? '2px solid #3b82f6' : '2px solid transparent',
+                              transition: 'all 0.2s',
+                              background: isSubActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                            }}
+                          >
+                            {subItem.label}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </>

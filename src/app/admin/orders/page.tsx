@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // ============ TYPES ============
 interface OrderItem {
@@ -833,12 +834,19 @@ function ReturnDetailModal({
 
 // ============ MAIN PAGE ============
 export default function OrdersPage() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'returns'>('orders')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  const activeTab = (tabParam === 'returns' ? 'returns' : 'orders') as 'orders' | 'returns'
 
   const tabs = [
     { id: 'orders' as const, label: 'Orders' },
     { id: 'returns' as const, label: 'Returns & RMA' },
   ]
+
+  const handleTabChange = (tabId: 'orders' | 'returns') => {
+    router.push(`/admin/orders?tab=${tabId}`)
+  }
 
   return (
     <div style={{ color: '#fff' }}>
@@ -865,7 +873,7 @@ export default function OrdersPage() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '10px 24px',
               borderRadius: '8px',

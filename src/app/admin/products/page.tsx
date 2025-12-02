@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // ============================================
 // TYPES
@@ -61,7 +62,10 @@ interface InventoryAlert {
 // ============================================
 
 export default function AdminProductsPage() {
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'inventory'>('products')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  const activeTab = (['products', 'categories', 'inventory'].includes(tabParam || '') ? tabParam : 'products') as 'products' | 'categories' | 'inventory'
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -76,6 +80,10 @@ export default function AdminProductsPage() {
     { id: 'categories', label: 'Categories' },
     { id: 'inventory', label: 'Inventory' },
   ]
+
+  const handleTabChange = (tabId: string) => {
+    router.push(`/admin/products?tab=${tabId}`)
+  }
 
   return (
     <div>
@@ -115,7 +123,7 @@ export default function AdminProductsPage() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '10px 20px',
               borderRadius: '8px',

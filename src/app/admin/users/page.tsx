@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 type Permission = 'products' | 'orders' | 'users' | 'settings' | 'email' | 'custom_requests' | 'analytics'
 
@@ -1216,12 +1217,19 @@ function SegmentModal({
 
 // ============ MAIN PAGE ============
 export default function UsersPage() {
-  const [activeTab, setActiveTab] = useState<'customers' | 'admins'>('customers')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  const activeTab = (tabParam === 'admins' ? 'admins' : 'customers') as 'customers' | 'admins'
 
   const tabs = [
     { id: 'customers' as const, label: 'Customers' },
     { id: 'admins' as const, label: 'Admins' },
   ]
+
+  const handleTabChange = (tabId: 'customers' | 'admins') => {
+    router.push(`/admin/users?tab=${tabId}`)
+  }
 
   return (
     <div style={{ padding: '24px', color: '#fff', minHeight: '100vh', background: '#000' }}>
@@ -1248,7 +1256,7 @@ export default function UsersPage() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '10px 24px',
               borderRadius: '8px',

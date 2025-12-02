@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // ============ TYPES ============
 interface CustomRequest {
@@ -654,12 +655,19 @@ function ServiceInquiriesTab() {
 
 // ============ MAIN PAGE ============
 export default function InquiriesPage() {
-  const [activeTab, setActiveTab] = useState<'print-requests' | 'service-inquiries'>('print-requests')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  const activeTab = (tabParam === 'service-inquiries' ? 'service-inquiries' : 'print-requests') as 'print-requests' | 'service-inquiries'
 
   const tabs = [
     { id: 'print-requests' as const, label: '3D Print Requests' },
     { id: 'service-inquiries' as const, label: 'Service Inquiries' },
   ]
+
+  const handleTabChange = (tabId: 'print-requests' | 'service-inquiries') => {
+    router.push(`/admin/inquiries?tab=${tabId}`)
+  }
 
   return (
     <div style={{ color: '#fff' }}>
@@ -686,7 +694,7 @@ export default function InquiriesPage() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '10px 24px',
               borderRadius: '8px',
