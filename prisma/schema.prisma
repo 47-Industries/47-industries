@@ -570,6 +570,7 @@ enum ServiceCategory {
   IOS_APP              // Native iOS applications
   ANDROID_APP          // Native Android applications
   CROSS_PLATFORM_APP   // React Native, Flutter (iOS + Android)
+  DESKTOP_APP          // Legacy - to be removed after data migration
   THREE_D_PRINTING     // 3D printing services
 }
 
