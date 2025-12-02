@@ -31,12 +31,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/web-development" className="text-text-secondary hover:text-text-primary transition-colors">
+                <Link href="/services?category=web" className="text-text-secondary hover:text-text-primary transition-colors">
                   Web Development
                 </Link>
               </li>
               <li>
-                <Link href="/app-development" className="text-text-secondary hover:text-text-primary transition-colors">
+                <Link href="/services?category=app" className="text-text-secondary hover:text-text-primary transition-colors">
                   App Development
                 </Link>
               </li>

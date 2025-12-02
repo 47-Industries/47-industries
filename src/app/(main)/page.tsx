@@ -99,7 +99,7 @@ export default function Home() {
             </Link>
 
             {/* Web Development */}
-            <Link href="/web-development" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+            <Link href="/services?category=web" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
               <h3 className="text-2xl md:text-3xl font-bold mb-3">Web Development</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
                 Custom websites built with modern technologies. Fast, secure, and beautifully designed.
@@ -113,7 +113,7 @@ export default function Home() {
             </Link>
 
             {/* App Development */}
-            <Link href="/app-development" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+            <Link href="/services?category=app" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
               <h3 className="text-2xl md:text-3xl font-bold mb-3">App Development</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
                 AI-driven applications that solve real problems. Innovation meets functionality.

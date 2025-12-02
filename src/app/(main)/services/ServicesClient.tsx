@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface Package {
@@ -38,17 +39,17 @@ interface ServicesClientProps {
 const SERVICE_TYPES = [
   {
     id: 'WEB_DEVELOPMENT',
-    label: 'Web Development',
+    label: 'Web',
     description: 'Custom websites and web applications built with modern technologies. Fast, secure, and scalable solutions.',
   },
   {
     id: 'IOS_APP',
-    label: 'iOS App',
+    label: 'iOS',
     description: 'Native iOS applications built with Swift for iPhone and iPad. Optimized for the Apple ecosystem.',
   },
   {
     id: 'ANDROID_APP',
-    label: 'Android App',
+    label: 'Android',
     description: 'Native Android applications using Kotlin. Designed for the full range of Android devices.',
   },
   {
@@ -58,10 +59,20 @@ const SERVICE_TYPES = [
   },
   {
     id: 'DESKTOP_APP',
-    label: 'Desktop App',
+    label: 'Desktop',
     description: 'Cross-platform desktop applications for Windows, macOS, and Linux using modern frameworks.',
   },
 ]
+
+// Map URL params to service type IDs
+const CATEGORY_FROM_PARAM: Record<string, string> = {
+  'web': 'WEB_DEVELOPMENT',
+  'ios': 'IOS_APP',
+  'android': 'ANDROID_APP',
+  'cross-platform': 'CROSS_PLATFORM_APP',
+  'desktop': 'DESKTOP_APP',
+  'app': 'IOS_APP', // Default app to iOS
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   WEB_DEVELOPMENT: 'Web Development',
@@ -79,7 +90,16 @@ const technologies = [
 ]
 
 export default function ServicesClient({ packages, projects }: ServicesClientProps) {
+  const searchParams = useSearchParams()
   const [selectedType, setSelectedType] = useState('WEB_DEVELOPMENT')
+
+  // Set initial category from URL param
+  useEffect(() => {
+    const category = searchParams.get('category')
+    if (category && CATEGORY_FROM_PARAM[category]) {
+      setSelectedType(CATEGORY_FROM_PARAM[category])
+    }
+  }, [searchParams])
 
   // Get packages for selected type (3 tiers per category)
   const displayPackages = packages.filter(pkg => pkg.category === selectedType)
@@ -99,13 +119,13 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
               {currentService?.description}
             </p>
 
-            {/* Service Type Tabs - Inline with header */}
-            <div className="inline-flex flex-wrap justify-center gap-2 p-1.5 bg-surface/50 rounded-xl border border-border">
+            {/* Service Type Tabs - Compact on mobile */}
+            <div className="flex flex-wrap justify-center gap-1.5 md:gap-2 p-1 md:p-1.5 bg-surface/50 rounded-lg md:rounded-xl border border-border">
               {SERVICE_TYPES.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2.5 py-1.5 md:px-4 md:py-2 rounded-md md:rounded-lg text-xs md:text-sm font-medium transition-all ${
                     selectedType === type.id
                       ? 'bg-accent text-white shadow-sm'
                       : 'text-text-secondary hover:text-white hover:bg-surface-elevated'

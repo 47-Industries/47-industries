@@ -29,7 +29,7 @@ export default function NotFound() {
     {
       title: 'Web Development',
       description: 'Professional web solutions',
-      href: '/web-development',
+      href: '/services?category=web',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="16 18 22 12 16 6" />
@@ -40,7 +40,7 @@ export default function NotFound() {
     {
       title: 'App Development',
       description: 'Mobile & desktop applications',
-      href: '/app-development',
+      href: '/services?category=app',
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />

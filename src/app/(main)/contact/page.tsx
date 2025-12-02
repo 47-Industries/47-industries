@@ -46,10 +46,10 @@ export default function ContactPage() {
                   <a href="/custom-3d-printing" className="block text-text-secondary hover:text-text-primary transition-colors">
                     → Request 3D Printing Quote
                   </a>
-                  <a href="/web-development" className="block text-text-secondary hover:text-text-primary transition-colors">
+                  <a href="/services?category=web" className="block text-text-secondary hover:text-text-primary transition-colors">
                     → View Web Development Packages
                   </a>
-                  <a href="/app-development" className="block text-text-secondary hover:text-text-primary transition-colors">
+                  <a href="/services?category=app" className="block text-text-secondary hover:text-text-primary transition-colors">
                     → Explore App Development
                   </a>
                   <a href="/shop" className="block text-text-secondary hover:text-text-primary transition-colors">
