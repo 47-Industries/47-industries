@@ -12,6 +12,20 @@ interface Category {
   productType: 'PHYSICAL' | 'DIGITAL'
 }
 
+interface OptionType {
+  id: string
+  name: string
+  values: string[]
+}
+
+interface VariantDraft {
+  id: string
+  options: Record<string, string>
+  price: string
+  stock: string
+  sku: string
+}
+
 export default function NewProductPage() {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
@@ -24,6 +38,10 @@ export default function NewProductPage() {
   const [digitalFileName, setDigitalFileName] = useState('')
   const [digitalFileSize, setDigitalFileSize] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [optionTypes, setOptionTypes] = useState<OptionType[]>([])
+  const [variants, setVariants] = useState<VariantDraft[]>([])
+  const [showAddVariant, setShowAddVariant] = useState(false)
+  const [hasVariants, setHasVariants] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +75,38 @@ export default function NewProductPage() {
   useEffect(() => {
     fetchCategories()
   }, [productType])
+
+  useEffect(() => {
+    fetchOptionTypes()
+  }, [])
+
+  const fetchOptionTypes = async () => {
+    try {
+      const res = await fetch('/api/admin/products/option-types')
+      if (res.ok) {
+        const data = await res.json()
+        setOptionTypes(data.optionTypes || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch option types:', error)
+    }
+  }
+
+  const addVariant = (variantData: Omit<VariantDraft, 'id'>) => {
+    const newVariant: VariantDraft = {
+      id: `temp-${Date.now()}`,
+      ...variantData
+    }
+    setVariants([...variants, newVariant])
+  }
+
+  const removeVariant = (id: string) => {
+    setVariants(variants.filter(v => v.id !== id))
+  }
+
+  const getVariantName = (options: Record<string, string>) => {
+    return Object.values(options).filter(Boolean).join(' / ') || 'Unnamed Variant'
+  }
 
   const fetchCategories = async () => {
     try {
@@ -149,6 +199,28 @@ export default function NewProductPage() {
       })
 
       if (res.ok) {
+        const productData = await res.json()
+
+        // If we have variants, create them
+        if (hasVariants && variants.length > 0 && productData.id) {
+          for (const variant of variants) {
+            try {
+              await fetch(`/api/admin/products/${productData.id}/variants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  options: variant.options,
+                  price: parseFloat(variant.price) || parseFloat(formData.price),
+                  stock: parseInt(variant.stock) || 0,
+                  sku: variant.sku || null
+                }),
+              })
+            } catch (variantError) {
+              console.error('Failed to create variant:', variantError)
+            }
+          }
+        }
+
         router.push('/admin/products')
       } else {
         const error = await res.json()
@@ -628,6 +700,190 @@ export default function NewProductPage() {
                 </div>
               </div>
             )}
+
+            {/* Product Variants Section - Only for Physical Products */}
+            {productType === 'PHYSICAL' && (
+              <div style={{
+                background: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '16px',
+                padding: isMobile ? '20px' : '24px',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '20px',
+                }}>
+                  <div>
+                    <h2 style={{
+                      fontSize: '18px',
+                      fontWeight: 600,
+                      margin: 0
+                    }}>Product Variants</h2>
+                    <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0' }}>
+                      Add size, color, or other variations
+                    </p>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={hasVariants}
+                      onChange={(e) => {
+                        setHasVariants(e.target.checked)
+                        if (!e.target.checked) {
+                          setVariants([])
+                        }
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        marginRight: '10px',
+                        cursor: 'pointer',
+                        accentColor: '#3b82f6'
+                      }}
+                    />
+                    <span style={{ fontSize: '14px', color: '#a1a1aa' }}>This product has variants</span>
+                  </label>
+                </div>
+
+                {hasVariants && (
+                  <>
+                    {optionTypes.length === 0 ? (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '32px',
+                        color: '#71717a',
+                        border: '1px dashed #3f3f46',
+                        borderRadius: '12px',
+                      }}>
+                        <p style={{ marginBottom: '12px' }}>No option types defined yet.</p>
+                        <p style={{ fontSize: '13px', marginBottom: '16px' }}>
+                          Create option types like Size, Color, or Material first.
+                        </p>
+                        <Link
+                          href="/admin/products/variants"
+                          style={{
+                            padding: '10px 20px',
+                            background: '#3b82f6',
+                            color: '#ffffff',
+                            borderRadius: '8px',
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          Manage Option Types
+                        </Link>
+                      </div>
+                    ) : (
+                      <>
+                        {variants.length === 0 ? (
+                          <div style={{
+                            textAlign: 'center',
+                            padding: '32px',
+                            color: '#71717a',
+                            border: '1px dashed #3f3f46',
+                            borderRadius: '12px',
+                          }}>
+                            <p style={{ marginBottom: '8px' }}>No variants added yet.</p>
+                            <p style={{ fontSize: '13px', marginBottom: '16px' }}>
+                              Add variants for different sizes, colors, or options.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddVariant(true)}
+                              style={{
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                background: '#3b82f6',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              + Add First Variant
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid #27272a' }}>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#71717a', fontWeight: 600 }}>Variant</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#71717a', fontWeight: 600 }}>SKU</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', color: '#71717a', fontWeight: 600 }}>Price</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', color: '#71717a', fontWeight: 600 }}>Stock</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '12px', color: '#71717a', fontWeight: 600 }}></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {variants.map((variant, index) => (
+                                    <tr key={variant.id} style={{ borderBottom: index < variants.length - 1 ? '1px solid #27272a' : 'none' }}>
+                                      <td style={{ padding: '12px 16px' }}>
+                                        <div style={{ fontWeight: 500 }}>{getVariantName(variant.options)}</div>
+                                        <div style={{ fontSize: '12px', color: '#71717a' }}>
+                                          {Object.entries(variant.options).map(([key, value]) => `${key}: ${value}`).join(' / ')}
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: '12px 16px', color: '#a1a1aa', fontSize: '13px' }}>{variant.sku || '-'}</td>
+                                      <td style={{ padding: '12px 16px', textAlign: 'right', fontSize: '14px' }}>${parseFloat(variant.price || formData.price || '0').toFixed(2)}</td>
+                                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                        <span style={{
+                                          color: parseInt(variant.stock) <= 0 ? '#ef4444' : parseInt(variant.stock) <= 5 ? '#f59e0b' : '#10b981'
+                                        }}>
+                                          {variant.stock || 0}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeVariant(variant.id)}
+                                          style={{
+                                            padding: '6px 12px',
+                                            background: 'rgba(239, 68, 68, 0.1)',
+                                            color: '#ef4444',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          Remove
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddVariant(true)}
+                              style={{
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                background: '#27272a',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              + Add Another Variant
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Column */}
@@ -890,6 +1146,242 @@ export default function NewProductPage() {
           </button>
         </div>
       </form>
+
+      {/* Add Variant Modal */}
+      {showAddVariant && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <AddVariantModalContent
+            optionTypes={optionTypes}
+            basePrice={formData.price}
+            onClose={() => setShowAddVariant(false)}
+            onSave={(variantData) => {
+              addVariant(variantData)
+              setShowAddVariant(false)
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AddVariantModalContent({
+  optionTypes,
+  basePrice,
+  onClose,
+  onSave
+}: {
+  optionTypes: OptionType[]
+  basePrice: string
+  onClose: () => void
+  onSave: (data: Omit<VariantDraft, 'id'>) => void
+}) {
+  const [variantData, setVariantData] = useState({
+    options: {} as Record<string, string>,
+    price: basePrice,
+    stock: '0',
+    sku: ''
+  })
+
+  const variantName = Object.values(variantData.options).filter(Boolean).join(' / ') || 'New Variant'
+
+  const handleSave = () => {
+    if (Object.keys(variantData.options).length === 0 || !Object.values(variantData.options).some(v => v)) {
+      alert('Please select at least one option')
+      return
+    }
+    onSave(variantData)
+  }
+
+  return (
+    <div style={{
+      background: '#18181b',
+      borderRadius: '16px',
+      border: '1px solid #27272a',
+      width: '100%',
+      maxWidth: '500px',
+      maxHeight: '90vh',
+      overflow: 'auto'
+    }}>
+      <div style={{
+        padding: '24px',
+        borderBottom: '1px solid #27272a',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Add Variant</h2>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#71717a',
+            fontSize: '24px',
+            cursor: 'pointer'
+          }}
+        >
+          x
+        </button>
+      </div>
+
+      <div style={{ padding: '24px' }}>
+        {/* Variant Preview */}
+        <div style={{
+          background: '#27272a',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '24px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Variant Name</div>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>{variantName}</div>
+        </div>
+
+        {/* Option Selectors */}
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', display: 'block' }}>Options</label>
+          {optionTypes.map(option => (
+            <div key={option.id} style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '13px', color: '#71717a', marginBottom: '6px', display: 'block' }}>{option.name}</label>
+              <select
+                value={variantData.options[option.name] || ''}
+                onChange={(e) => setVariantData({
+                  ...variantData,
+                  options: { ...variantData.options, [option.name]: e.target.value }
+                })}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '14px',
+                  background: '#27272a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  outline: 'none'
+                }}
+              >
+                <option value="">Select {option.name}</option>
+                {option.values.map(value => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        {/* SKU */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', display: 'block' }}>SKU (Optional)</label>
+          <input
+            type="text"
+            value={variantData.sku}
+            onChange={(e) => setVariantData({ ...variantData, sku: e.target.value })}
+            placeholder="e.g., PROD-001-SM-BLK"
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '14px',
+              background: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '8px',
+              color: '#ffffff',
+              outline: 'none'
+            }}
+          />
+        </div>
+
+        {/* Price and Stock */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <label style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', display: 'block' }}>Price</label>
+            <input
+              type="number"
+              value={variantData.price}
+              onChange={(e) => setVariantData({ ...variantData, price: e.target.value })}
+              step="0.01"
+              min="0"
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '14px',
+                background: '#27272a',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+                color: '#ffffff',
+                outline: 'none'
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px', display: 'block' }}>Stock</label>
+            <input
+              type="number"
+              value={variantData.stock}
+              onChange={(e) => setVariantData({ ...variantData, stock: e.target.value })}
+              min="0"
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '14px',
+                background: '#27272a',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+                color: '#ffffff',
+                outline: 'none'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        padding: '16px 24px',
+        borderTop: '1px solid #27272a',
+        display: 'flex',
+        gap: '12px',
+        justifyContent: 'flex-end'
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '12px 24px',
+            fontSize: '14px',
+            fontWeight: 500,
+            background: 'transparent',
+            color: '#a1a1aa',
+            border: '1px solid #3f3f46',
+            borderRadius: '10px',
+            cursor: 'pointer',
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          style={{
+            padding: '12px 24px',
+            fontSize: '14px',
+            fontWeight: 500,
+            background: '#3b82f6',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer',
+          }}
+        >
+          Add Variant
+        </button>
+      </div>
     </div>
   )
 }
