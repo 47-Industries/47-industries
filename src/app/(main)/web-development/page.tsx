@@ -114,7 +114,7 @@ export default async function WebDevelopmentPage() {
                 </ul>
 
                 <Link
-                  href="/contact"
+                  href="/start-project"
                   className={`block w-full py-3 text-center rounded-lg font-medium transition-all ${
                     pkg.popular
                       ? 'bg-accent text-white hover:bg-accent/90'

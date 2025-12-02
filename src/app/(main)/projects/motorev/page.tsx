@@ -177,7 +177,7 @@ export default async function MotoRevProjectPage() {
                   </a>
                 )}
                 <Link
-                  href="/contact"
+                  href="/start-project"
                   className="inline-flex items-center px-5 py-2.5 border border-border rounded-lg font-medium hover:bg-surface transition-colors text-sm"
                 >
                   Start Your Project
@@ -482,7 +482,7 @@ export default async function MotoRevProjectPage() {
               </svg>
             </a>
             <Link
-              href="/contact"
+              href="/start-project"
               className="inline-flex items-center justify-center px-8 py-4 border border-border rounded-lg font-medium hover:bg-surface transition-colors"
             >
               Start a Similar Project

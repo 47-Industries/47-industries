@@ -160,7 +160,7 @@ export default async function ProjectPage({ params }: Props) {
                   </a>
                 )}
                 <Link
-                  href="/contact"
+                  href="/start-project"
                   className="inline-flex items-center px-5 py-2.5 border border-border rounded-lg font-medium hover:bg-surface transition-colors text-sm"
                 >
                   Start Your Project

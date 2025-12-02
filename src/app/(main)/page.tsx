@@ -29,7 +29,7 @@ export default function Home() {
                 </svg>
               </Link>
               <Link
-                href="/contact"
+                href="/start-project"
                 className="px-8 py-4 border border-border rounded-lg font-medium hover:bg-surface transition-all inline-flex items-center justify-center"
               >
                 Get Started

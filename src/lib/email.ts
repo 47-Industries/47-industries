@@ -172,8 +172,99 @@ export async function sendContactConfirmation(data: {
   }
 }
 
+export async function sendServiceInquiryConfirmation(data: {
+  to: string
+  name: string
+  inquiryNumber: string
+  serviceType: string
+}) {
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: `Project Inquiry Received - ${data.inquiryNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #000; color: #fff; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .highlight { background: #3b82f6; color: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; }
+            .service-badge { display: inline-block; background: #8b5cf6; color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 14px; margin-bottom: 15px; }
+            .timeline { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e5e5; }
+            .timeline-item { display: flex; align-items: flex-start; margin-bottom: 15px; }
+            .timeline-number { width: 28px; height: 28px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; }
+            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">47 Industries</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.8;">Web & App Development</p>
+            </div>
+            <div class="content">
+              <h2>Hello ${data.name}!</h2>
+              <p>Thank you for your interest in working with us. We've received your project inquiry and our team is excited to review it.</p>
+
+              <div class="highlight">
+                <p style="margin: 0; font-size: 14px;">Reference Number</p>
+                <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold;">${data.inquiryNumber}</p>
+              </div>
+
+              <p style="text-align: center;">
+                <span class="service-badge">${data.serviceType}</span>
+              </p>
+
+              <div class="timeline">
+                <p style="margin: 0 0 15px 0; font-weight: bold;">What happens next?</p>
+                <div class="timeline-item">
+                  <div class="timeline-number">1</div>
+                  <div>
+                    <strong>Review</strong>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Our team will carefully review your project requirements</p>
+                  </div>
+                </div>
+                <div class="timeline-item">
+                  <div class="timeline-number">2</div>
+                  <div>
+                    <strong>Discovery Call</strong>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">We'll schedule a call to discuss your vision in detail</p>
+                  </div>
+                </div>
+                <div class="timeline-item" style="margin-bottom: 0;">
+                  <div class="timeline-number">3</div>
+                  <div>
+                    <strong>Proposal</strong>
+                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">You'll receive a detailed proposal with timeline and pricing</p>
+                  </div>
+                </div>
+              </div>
+
+              <p>Expect to hear from us within <strong>1-2 business days</strong>. If you have any urgent questions, reply to this email.</p>
+
+              <div class="footer">
+                <p>47 Industries - Digital Solutions</p>
+                <p><a href="https://47industries.com">47industries.com</a></p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send service inquiry confirmation:', error)
+    return { success: false, error }
+  }
+}
+
 export async function sendAdminNotification(data: {
-  type: 'custom_request' | 'contact' | 'order'
+  type: 'custom_request' | 'contact' | 'order' | 'service_inquiry'
   title: string
   details: string
   link: string

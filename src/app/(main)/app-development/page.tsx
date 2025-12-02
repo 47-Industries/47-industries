@@ -208,7 +208,7 @@ export default async function AppDevelopmentPage() {
             Let's turn your vision into a powerful application that users love.
           </p>
           <Link
-            href="/contact"
+            href="/start-project"
             className="inline-flex items-center px-10 py-5 bg-text-primary text-background rounded-lg text-lg font-medium hover:bg-text-secondary transition-all"
           >
             Start Your Project

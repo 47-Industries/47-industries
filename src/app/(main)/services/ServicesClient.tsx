@@ -168,7 +168,7 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
                   )}
 
                   <Link
-                    href={`/contact?service=${pkg.slug}`}
+                    href={`/start-project?service=${pkg.slug}`}
                     className={`block w-full py-3 text-center rounded-lg font-medium transition-all ${
                       pkg.isPopular
                         ? 'bg-accent text-white hover:bg-accent/90'
