@@ -53,7 +53,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/motorev" className="text-text-secondary hover:text-text-primary transition-colors">
+                <Link href="/projects/motorev" className="text-text-secondary hover:text-text-primary transition-colors">
                   MotoRev
                 </Link>
               </li>
