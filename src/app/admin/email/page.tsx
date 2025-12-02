@@ -13,6 +13,8 @@ interface Email {
   summary: string
   isRead: boolean
   hasAttachment: boolean
+  folderId?: string
+  threadId?: string
 }
 
 interface Signature {
@@ -94,6 +96,7 @@ function EmailPageContent() {
   const [isUploading, setIsUploading] = useState(false)
   const [sentByAdmin, setSentByAdmin] = useState<string | null>(null)
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([{ id: 'all', label: 'All Inboxes', email: null }])
+  const [showExternalImages, setShowExternalImages] = useState(false)
 
   // Mobile state
   const [isMobile, setIsMobile] = useState(false)
@@ -385,6 +388,7 @@ function EmailPageContent() {
 
   function handleSelectEmail(email: Email) {
     setSelectedEmail(email)
+    setShowExternalImages(false)
     fetchEmailContent(email.messageId)
     if (email.hasAttachment) {
       fetchAttachments(email.messageId)
@@ -840,8 +844,18 @@ function EmailPageContent() {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}>
-                  {email.subject || '(No Subject)'}
+                  {email.hasAttachment && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  )}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {email.subject || '(No Subject)'}
+                  </span>
                 </div>
                 <div style={{
                   fontSize: '12px',
@@ -1357,43 +1371,63 @@ function EmailPageContent() {
             </div>
 
             <div style={{ flex: 1, padding: isMobile ? '16px' : '24px', overflowY: 'auto' }}>
-              {isLoadingContent ? (
-                <p style={{ color: '#71717a' }}>Loading email content...</p>
-              ) : emailContent ? (
-                <div
-                  className="email-content"
-                  style={{
-                    color: '#e4e4e7',
-                    lineHeight: 1.6,
-                  }}
-                >
-                  <style>{`
-                    .email-content, .email-content * {
-                      color: #e4e4e7 !important;
-                      background-color: transparent !important;
-                    }
-                    .email-content a {
-                      color: #3b82f6 !important;
-                    }
-                  `}</style>
-                  <div dangerouslySetInnerHTML={{ __html: emailContent }} />
+              {/* External Images Banner */}
+              {emailContent && !showExternalImages && emailContent.includes('<img') && (
+                <div style={{
+                  padding: '12px 16px',
+                  background: '#27272a',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}>
+                  <span style={{ fontSize: '13px', color: '#a1a1aa' }}>
+                    External images are not displayed
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowExternalImages(true)}
+                      style={{
+                        background: '#3b82f6',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Display Now
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <p style={{ color: '#d4d4d8', lineHeight: 1.6 }}>
-                  {selectedEmail.summary}
-                </p>
               )}
 
-              {/* Attachments Display */}
-              {(attachments.length > 0 || isLoadingAttachments) && (
+              {/* Attachments Display - Show at top like Zoho */}
+              {(attachments.length > 0 || (selectedEmail?.hasAttachment && isLoadingAttachments)) && (
                 <div style={{
-                  marginTop: '24px',
-                  padding: '16px',
+                  marginBottom: '16px',
+                  padding: '12px 16px',
                   background: '#18181b',
                   borderRadius: '8px',
+                  border: '1px solid #27272a',
                 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '12px' }}>
-                    Attachments
+                  <div style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    marginBottom: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    color: '#a1a1aa',
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                    {attachments.length} Attachment{attachments.length !== 1 ? 's' : ''}
                   </div>
                   {isLoadingAttachments ? (
                     <p style={{ color: '#71717a', fontSize: '13px' }}>Loading attachments...</p>
@@ -1403,27 +1437,124 @@ function EmailPageContent() {
                         <a
                           key={att.attachmentId}
                           href={att.downloadUrl}
-                          download={att.attachmentName}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            padding: '8px 12px',
+                            padding: '10px 14px',
                             background: '#27272a',
-                            borderRadius: '6px',
+                            borderRadius: '8px',
                             textDecoration: 'none',
                             color: '#fff',
                             fontSize: '13px',
+                            border: '1px solid #3f3f46',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = '#3f3f46'
+                            e.currentTarget.style.borderColor = '#52525b'
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = '#27272a'
+                            e.currentTarget.style.borderColor = '#3f3f46'
                           }}
                         >
-                          <span>{att.attachmentName}</span>
-                          <span style={{ color: '#71717a', fontSize: '11px' }}>
-                            ({formatFileSize(att.attachmentSize)})
-                          </span>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14,2 14,8 20,8" />
+                          </svg>
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{att.attachmentName}</div>
+                            <div style={{ color: '#71717a', fontSize: '11px' }}>
+                              {formatFileSize(att.attachmentSize)}
+                            </div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2" style={{ marginLeft: '4px' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7,10 12,15 17,10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
                         </a>
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Email Content */}
+              {isLoadingContent ? (
+                <div style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  color: '#71717a',
+                  background: '#18181b',
+                  borderRadius: '8px',
+                }}>
+                  Loading email content...
+                </div>
+              ) : emailContent ? (
+                <div
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid #27272a',
+                  }}
+                >
+                  <div
+                    className="email-body-content"
+                    style={{
+                      padding: '24px',
+                      fontSize: '14px',
+                      lineHeight: 1.6,
+                      color: '#1a1a1a',
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: showExternalImages
+                        ? emailContent
+                        : emailContent.replace(/<img[^>]*src=["']https?:\/\/[^"']*["'][^>]*>/gi, '<div style="padding:8px 12px;background:#f5f5f5;border:1px dashed #ccc;border-radius:4px;color:#666;font-size:12px;display:inline-block;margin:4px 0;">[Image blocked]</div>')
+                    }}
+                  />
+                  <style>{`
+                    .email-body-content {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                    }
+                    .email-body-content img {
+                      max-width: 100%;
+                      height: auto;
+                    }
+                    .email-body-content a {
+                      color: #3b82f6;
+                    }
+                    .email-body-content table {
+                      max-width: 100%;
+                    }
+                    .email-body-content pre, .email-body-content code {
+                      background: #f5f5f5;
+                      border-radius: 4px;
+                      padding: 2px 6px;
+                      font-size: 13px;
+                    }
+                    .email-body-content blockquote {
+                      border-left: 3px solid #ddd;
+                      margin: 12px 0;
+                      padding-left: 12px;
+                      color: #666;
+                    }
+                  `}</style>
+                </div>
+              ) : (
+                <div style={{
+                  background: '#ffffff',
+                  borderRadius: '8px',
+                  padding: '24px',
+                  border: '1px solid #27272a',
+                  color: '#1a1a1a',
+                  lineHeight: 1.6,
+                }}>
+                  {selectedEmail.summary || 'No content available'}
                 </div>
               )}
             </div>
