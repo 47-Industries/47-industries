@@ -18,7 +18,7 @@ async function main() {
     },
     orderBy: { name: 'asc' }
   });
-  categories.forEach(c => console.log(`ID: ${c.id} | Name: ${c.name} | Slug: ${c.slug} | Products: ${c._count.products} | Parent: ${c.parent?.name || 'None'}`));
+  categories.forEach(c => console.log(`${c.name}: ${c._count.products} products`));
 
   // List all products with their categories
   console.log('\n=== PRODUCTS ===');
@@ -26,7 +26,7 @@ async function main() {
     include: { category: true },
     orderBy: { name: 'asc' }
   });
-  products.forEach(p => console.log(`ID: ${p.id} | Name: ${p.name} | Category: ${p.category.name} | CategoryID: ${p.categoryId}`));
+  products.forEach(p => console.log(`${p.name} -> ${p.category.name}`));
 }
 
 main()
