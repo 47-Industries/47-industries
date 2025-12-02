@@ -20,6 +20,55 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isMobile, setIsMobile] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
 
+  // Check if a path is active (exact match or starts with for nested routes)
+  const isActive = (path: string) => pathname === path
+  const isActiveOrChild = (path: string) => pathname === path || pathname.startsWith(path + '/')
+
+  // Consolidated navigation structure - must be defined before useEffect that uses it
+  const navItems: NavItem[] = [
+    { href: '/admin', label: 'Dashboard' },
+    { href: '/admin/analytics', label: 'Analytics' },
+    { href: '/admin/email', label: 'Email' },
+    {
+      href: '/admin/products',
+      label: 'Products',
+      subItems: [
+        { href: '/admin/products?tab=products', label: 'All Products' },
+        { href: '/admin/products?tab=categories', label: 'Categories' },
+        { href: '/admin/products?tab=inventory', label: 'Inventory' },
+      ]
+    },
+    {
+      href: '/admin/orders',
+      label: 'Orders',
+      subItems: [
+        { href: '/admin/orders?tab=orders', label: 'All Orders' },
+        { href: '/admin/orders?tab=returns', label: 'Returns & RMA' },
+      ]
+    },
+    {
+      href: '/admin/users',
+      label: 'Users',
+      subItems: [
+        { href: '/admin/users?tab=customers', label: 'Customers' },
+        { href: '/admin/users?tab=admins', label: 'Admins' },
+      ]
+    },
+    { href: '/admin/services', label: 'Services' },
+    {
+      href: '/admin/inquiries',
+      label: 'Inquiries',
+      subItems: [
+        { href: '/admin/inquiries?tab=print-requests', label: '3D Print Requests' },
+        { href: '/admin/inquiries?tab=service-inquiries', label: 'Service Inquiries' },
+      ]
+    },
+    { href: '/admin/reports', label: 'Reports' },
+    { href: '/admin/blog', label: 'Blog' },
+    { href: '/admin/settings', label: 'Settings' },
+  ]
+
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // SECURITY: Redirect to login if not authenticated or not an admin
   useEffect(() => {
     // Skip check for login page
@@ -40,6 +89,32 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       return
     }
   }, [session, status, pathname, router])
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Auto-expand items that contain the current path
+  useEffect(() => {
+    navItems.forEach(item => {
+      if (item.subItems) {
+        const hasActiveChild = item.subItems.some(sub => pathname.startsWith(sub.href))
+        if (hasActiveChild && !expandedItems.includes(item.href)) {
+          setExpandedItems(prev => [...prev, item.href])
+        }
+      }
+    })
+  }, [pathname])
 
   // SECURITY: Don't render anything until we verify authentication
   // This prevents any flash of admin content for unauthenticated users
@@ -90,36 +165,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
   }
 
-  // Check if a path is active (exact match or starts with for nested routes)
-  const isActive = (path: string) => pathname === path
-  const isActiveOrChild = (path: string) => pathname === path || pathname.startsWith(path + '/')
-
-  // Detect mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
-      if (window.innerWidth >= 1024) {
-        setIsMobileMenuOpen(false)
-      }
-    }
-
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Auto-expand items that contain the current path
-  useEffect(() => {
-    navItems.forEach(item => {
-      if (item.subItems) {
-        const hasActiveChild = item.subItems.some(sub => pathname.startsWith(sub.href))
-        if (hasActiveChild && !expandedItems.includes(item.href)) {
-          setExpandedItems(prev => [...prev, item.href])
-        }
-      }
-    })
-  }, [pathname])
-
   const toggleExpanded = (href: string) => {
     setExpandedItems(prev =>
       prev.includes(href)
@@ -127,50 +172,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         : [...prev, href]
     )
   }
-
-  // Consolidated navigation structure
-  const navItems: NavItem[] = [
-    { href: '/admin', label: 'Dashboard' },
-    { href: '/admin/analytics', label: 'Analytics' },
-    { href: '/admin/email', label: 'Email' },
-    {
-      href: '/admin/products',
-      label: 'Products',
-      subItems: [
-        { href: '/admin/products?tab=products', label: 'All Products' },
-        { href: '/admin/products?tab=categories', label: 'Categories' },
-        { href: '/admin/products?tab=inventory', label: 'Inventory' },
-      ]
-    },
-    {
-      href: '/admin/orders',
-      label: 'Orders',
-      subItems: [
-        { href: '/admin/orders?tab=orders', label: 'All Orders' },
-        { href: '/admin/orders?tab=returns', label: 'Returns & RMA' },
-      ]
-    },
-    {
-      href: '/admin/users',
-      label: 'Users',
-      subItems: [
-        { href: '/admin/users?tab=customers', label: 'Customers' },
-        { href: '/admin/users?tab=admins', label: 'Admins' },
-      ]
-    },
-    { href: '/admin/services', label: 'Services' },
-    {
-      href: '/admin/inquiries',
-      label: 'Inquiries',
-      subItems: [
-        { href: '/admin/inquiries?tab=print-requests', label: '3D Print Requests' },
-        { href: '/admin/inquiries?tab=service-inquiries', label: 'Service Inquiries' },
-      ]
-    },
-    { href: '/admin/reports', label: 'Reports' },
-    { href: '/admin/blog', label: 'Blog' },
-    { href: '/admin/settings', label: 'Settings' },
-  ]
 
   const closeMobileMenu = () => {
     if (isMobile) {
