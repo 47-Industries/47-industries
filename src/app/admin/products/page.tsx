@@ -220,23 +220,6 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
       {/* Action Bar */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <Link
-          href="/admin/products/variants"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '10px 20px',
-            background: 'transparent',
-            color: '#a1a1aa',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            fontSize: '14px',
-            fontWeight: 500,
-            border: '1px solid #3f3f46',
-          }}
-        >
-          Manage Variants
-        </Link>
-        <Link
           href="/admin/products/new"
           style={{
             display: 'inline-flex',
