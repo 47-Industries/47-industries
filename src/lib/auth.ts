@@ -18,32 +18,49 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials')
         }
 
-        // Try to find user by username first, then by email
+        const identifier = credentials.usernameOrEmail.trim()
+        const password = credentials.password
+
+        // Try to find user by username first, then by email (case-insensitive)
         let user = await prisma.user.findUnique({
           where: {
-            username: credentials.usernameOrEmail
+            username: identifier
           }
         })
 
         // If not found by username, try email
+        // MySQL is case-insensitive by default for VARCHAR columns
         if (!user) {
           user = await prisma.user.findFirst({
             where: {
-              email: credentials.usernameOrEmail
+              email: identifier.toLowerCase()
             }
           })
         }
 
-        if (!user || !user.password) {
+        // Also try with original case if not found (in case email was stored with different case)
+        if (!user) {
+          user = await prisma.user.findFirst({
+            where: {
+              email: identifier
+            }
+          })
+        }
+
+        if (!user) {
+          console.log('Auth failed: User not found for identifier:', identifier)
           throw new Error('Invalid credentials')
         }
 
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
+        if (!user.password) {
+          console.log('Auth failed: User has no password set:', user.email)
+          throw new Error('Invalid credentials')
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password)
 
         if (!isPasswordValid) {
+          console.log('Auth failed: Invalid password for user:', user.email)
           throw new Error('Invalid credentials')
         }
 
