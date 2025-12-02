@@ -299,10 +299,9 @@ export default function ProductDetailPage() {
             {/* Description */}
             <div className="prose prose-invert max-w-none">
               <h3 className="text-lg font-semibold mb-4">Description</h3>
-              <div
-                className="text-text-secondary"
-                dangerouslySetInnerHTML={{ __html: product.description }}
-              />
+              <div className="text-text-secondary whitespace-pre-line">
+                {product.description}
+              </div>
             </div>
           </div>
         </div>
