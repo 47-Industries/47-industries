@@ -133,11 +133,11 @@ export default function ProductDetailPage() {
           <span className="text-text-primary">{product.name}</span>
         </nav>
 
-        <div className="grid lg:grid-cols-2 gap-12">
+        <div className="grid lg:grid-cols-5 gap-12">
           {/* Image Gallery */}
-          <div>
+          <div className="lg:col-span-2">
             {/* Main Image */}
-            <div className="aspect-square bg-surface rounded-2xl overflow-hidden relative mb-4">
+            <div className="aspect-square bg-surface rounded-2xl overflow-hidden relative mb-4 max-w-md mx-auto lg:mx-0">
               {images.length > 0 ? (
                 <Image
                   src={images[selectedImage]}
@@ -164,7 +164,7 @@ export default function ProductDetailPage() {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 max-w-md mx-auto lg:mx-0">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
@@ -189,7 +189,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Product Info */}
-          <div>
+          <div className="lg:col-span-3">
             <div className="mb-6">
               <div className="text-sm text-text-secondary mb-2">
                 {product.category.name}
