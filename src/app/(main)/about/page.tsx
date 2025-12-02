@@ -57,8 +57,8 @@ export default function AboutPage() {
           <h2 className="text-4xl font-bold mb-6">Our Story</h2>
           <p className="text-text-secondary leading-relaxed mb-4">
             47 Industries was founded by Bryce Raiford, a visionary who believed in the power of
-            technology to transform ideas into reality. Though Bryce tragically passed away in 2021,
-            his spirit and vision continue to drive everything we do.
+            technology to transform ideas into reality. Though Bryce tragically passed away on
+            December 17, 2022, his spirit and vision continue to drive everything we do.
           </p>
           <p className="text-text-secondary leading-relaxed">
             Today, we carry forward Bryce's legacy by building innovative solutions that make a
