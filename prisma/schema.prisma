@@ -565,11 +565,11 @@ model ServiceInquiry {
 // ============================================
 
 enum ServiceCategory {
-  WEB_DEVELOPMENT      // Websites, web apps, e-commerce
+  WEB_DEVELOPMENT      // Websites, landing pages, marketing sites
+  WEB_APP              // Web applications, dashboards, SaaS platforms
   IOS_APP              // Native iOS applications
   ANDROID_APP          // Native Android applications
   CROSS_PLATFORM_APP   // React Native, Flutter (iOS + Android)
-  DESKTOP_APP          // Windows, macOS, Linux apps
   THREE_D_PRINTING     // 3D printing services
 }
 

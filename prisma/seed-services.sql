@@ -79,23 +79,23 @@ VALUES
 '["Unlimited screens", "iOS & Android", "Complex integrations", "Enterprise security", "Custom backend", "Performance optimization", "Dedicated support", "12 months support"]',
 0, 1, 3, NULL, 20, NOW(), NOW()),
 
--- Desktop App Packages
-(UUID(), 'Basic', 'desktop-basic', 'DESKTOP_APP', 10000.00, '$10,000', 'one_time',
-'Simple desktop application',
-'A cross-platform desktop application using Electron. Works on Windows, macOS, and Linux.',
-'["Single platform", "Basic UI/UX", "Local data storage", "Auto-updates", "Installer package", "1 month support"]',
+-- Web App Packages
+(UUID(), 'Starter', 'webapp-starter', 'WEB_APP', 8000.00, '$8,000', 'one_time',
+'Simple web application',
+'A functional web application with user authentication, basic dashboard, and essential features.',
+'["User authentication", "Basic dashboard", "Up to 5 pages", "Database integration", "Responsive design", "1 month support"]',
 0, 1, 1, NULL, 6, NOW(), NOW()),
 
-(UUID(), 'Professional', 'desktop-professional', 'DESKTOP_APP', 20000.00, '$20,000', 'one_time',
-'Full-featured desktop application',
-'A feature-rich desktop application with cloud sync, API integration, and multi-platform support.',
-'["Windows & macOS", "Custom UI/UX design", "Cloud synchronization", "API integration", "Database support", "Auto-updates", "3 months support"]',
+(UUID(), 'Professional', 'webapp-professional', 'WEB_APP', 18000.00, '$18,000', 'one_time',
+'Full-featured web application',
+'A comprehensive web application with advanced features, API integrations, and admin panel.',
+'["User roles & permissions", "Advanced dashboard", "Up to 15 pages", "API integrations", "Admin panel", "Payment processing", "3 months support"]',
 1, 1, 2, 'MOST POPULAR', 10, NOW(), NOW()),
 
-(UUID(), 'Enterprise', 'desktop-enterprise', 'DESKTOP_APP', NULL, 'Custom', 'one_time',
-'Enterprise desktop solutions',
-'Enterprise-grade desktop applications with advanced features, security, and dedicated support.',
-'["All platforms", "Complex integrations", "Enterprise security", "Custom backend", "License management", "Dedicated support", "12 months support"]',
+(UUID(), 'Enterprise', 'webapp-enterprise', 'WEB_APP', NULL, 'Custom', 'one_time',
+'Enterprise web platform',
+'Enterprise-grade SaaS platforms, portals, and complex web applications with dedicated support.',
+'["Unlimited pages", "Multi-tenant architecture", "Advanced security", "Custom integrations", "Performance optimization", "Dedicated support", "12 months support"]',
 0, 1, 3, NULL, 16, NOW(), NOW()),
 
 -- 3D Printing Packages

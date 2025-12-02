@@ -39,8 +39,13 @@ interface ServicesClientProps {
 const SERVICE_TYPES = [
   {
     id: 'WEB_DEVELOPMENT',
-    label: 'Web',
-    description: 'Custom websites and web applications built with modern technologies. Fast, secure, and scalable solutions.',
+    label: 'Websites',
+    description: 'Custom websites built with modern technologies. Fast, secure, and beautifully designed for your brand.',
+  },
+  {
+    id: 'WEB_APP',
+    label: 'Web Apps',
+    description: 'Full-featured web applications with complex functionality. Dashboards, portals, and SaaS platforms.',
   },
   {
     id: 'IOS_APP',
@@ -57,29 +62,26 @@ const SERVICE_TYPES = [
     label: 'Cross-Platform',
     description: 'Build once, deploy everywhere. React Native apps for both iOS and Android from a single codebase.',
   },
-  {
-    id: 'DESKTOP_APP',
-    label: 'Desktop',
-    description: 'Cross-platform desktop applications for Windows, macOS, and Linux using modern frameworks.',
-  },
 ]
 
 // Map URL params to service type IDs
 const CATEGORY_FROM_PARAM: Record<string, string> = {
   'web': 'WEB_DEVELOPMENT',
+  'websites': 'WEB_DEVELOPMENT',
+  'webapp': 'WEB_APP',
+  'web-app': 'WEB_APP',
   'ios': 'IOS_APP',
   'android': 'ANDROID_APP',
   'cross-platform': 'CROSS_PLATFORM_APP',
-  'desktop': 'DESKTOP_APP',
   'app': 'IOS_APP', // Default app to iOS
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  WEB_DEVELOPMENT: 'Web Development',
+  WEB_DEVELOPMENT: 'Website',
+  WEB_APP: 'Web Application',
   IOS_APP: 'iOS App',
   ANDROID_APP: 'Android App',
   CROSS_PLATFORM_APP: 'Cross-Platform App',
-  DESKTOP_APP: 'Desktop App',
   THREE_D_PRINTING: '3D Printing',
 }
 
