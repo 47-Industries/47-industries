@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
         mailboxes.push({
           id: detail.sendMailId || detail.fromAddress,
-          label: detail.displayName || detail.fromAddress?.split('@')[0] || 'Unknown',
+          label: detail.fromAddress || 'Unknown',
           email: detail.fromAddress,
         })
       }
