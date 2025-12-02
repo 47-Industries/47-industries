@@ -156,7 +156,7 @@ export default async function MotoRevProjectPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-5 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors text-sm"
                   >
-                    View Live
+                    Join Beta
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
@@ -176,14 +176,12 @@ export default async function MotoRevProjectPage() {
                     </svg>
                   </a>
                 )}
-                <a
-                  href="https://apps.apple.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/contact"
                   className="inline-flex items-center px-5 py-2.5 border border-border rounded-lg font-medium hover:bg-surface transition-colors text-sm"
                 >
-                  Download on App Store
-                </a>
+                  Start Your Project
+                </Link>
               </div>
             </div>
           </div>
@@ -478,7 +476,7 @@ export default async function MotoRevProjectPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-8 py-4 bg-text-primary text-background rounded-lg font-medium hover:bg-text-secondary transition-all"
             >
-              Learn More at MotoRevApp.com
+              Join Beta
               <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
@@ -487,7 +485,7 @@ export default async function MotoRevProjectPage() {
               href="/contact"
               className="inline-flex items-center justify-center px-8 py-4 border border-border rounded-lg font-medium hover:bg-surface transition-colors"
             >
-              Get in Touch
+              Start a Similar Project
             </Link>
           </div>
         </div>
