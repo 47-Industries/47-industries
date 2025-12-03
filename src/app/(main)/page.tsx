@@ -29,10 +29,10 @@ export default function Home() {
                 </svg>
               </Link>
               <Link
-                href="/start-project"
+                href="/services"
                 className="px-8 py-4 border border-border rounded-lg font-medium hover:bg-surface transition-all inline-flex items-center justify-center"
               >
-                Get Started
+                View Services
               </Link>
             </div>
 
@@ -69,42 +69,14 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
-            {/* 3D Printing */}
-            <Link href="/shop" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
-              <h3 className="text-2xl md:text-3xl font-bold mb-3">3D Printed Products</h3>
-              <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
-                High-quality 3D printed items produced at scale. Browse our catalog of ready-to-ship products.
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {/* Web Apps */}
+            <Link href="/services?category=web" className="group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+              <h3 className="text-xl md:text-2xl font-bold mb-3">Web Apps</h3>
+              <p className="text-text-secondary mb-6 leading-relaxed text-sm">
+                Full-featured web applications with modern frameworks and scalable architecture.
               </p>
-              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm md:text-base">
-                Explore catalog
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </div>
-            </Link>
-
-            {/* Custom Manufacturing */}
-            <Link href="/custom-3d-printing" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
-              <h3 className="text-2xl md:text-3xl font-bold mb-3">Custom Manufacturing</h3>
-              <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
-                Upload your designs and receive instant quotes. From prototypes to production runs.
-              </p>
-              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm md:text-base">
-                Request quote
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </div>
-            </Link>
-
-            {/* Web Development */}
-            <Link href="/services?category=web" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
-              <h3 className="text-2xl md:text-3xl font-bold mb-3">Web Development</h3>
-              <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
-                Custom websites built with modern technologies. Fast, secure, and beautifully designed.
-              </p>
-              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm md:text-base">
+              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm">
                 View services
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -112,14 +84,42 @@ export default function Home() {
               </div>
             </Link>
 
-            {/* App Development */}
-            <Link href="/services?category=app" className="group p-6 md:p-10 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
-              <h3 className="text-2xl md:text-3xl font-bold mb-3">App Development</h3>
-              <p className="text-text-secondary mb-6 leading-relaxed text-sm md:text-base">
-                AI-driven applications that solve real problems. Innovation meets functionality.
+            {/* Websites */}
+            <Link href="/services?category=web" className="group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+              <h3 className="text-xl md:text-2xl font-bold mb-3">Websites</h3>
+              <p className="text-text-secondary mb-6 leading-relaxed text-sm">
+                Custom websites built with modern technologies. Fast, secure, and beautifully designed.
               </p>
-              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm md:text-base">
+              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm">
+                View services
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </div>
+            </Link>
+
+            {/* Mobile Development */}
+            <Link href="/services?category=app" className="group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+              <h3 className="text-xl md:text-2xl font-bold mb-3">Mobile Development</h3>
+              <p className="text-text-secondary mb-6 leading-relaxed text-sm">
+                Native and cross-platform mobile apps for iOS and Android.
+              </p>
+              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm">
                 Learn more
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </div>
+            </Link>
+
+            {/* Custom Manufacturing */}
+            <Link href="/custom-3d-printing" className="group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all">
+              <h3 className="text-xl md:text-2xl font-bold mb-3">Custom Manufacturing</h3>
+              <p className="text-text-secondary mb-6 leading-relaxed text-sm">
+                Upload your designs and receive instant quotes. From prototypes to production runs.
+              </p>
+              <div className="text-text-primary group-hover:translate-x-2 transition-transform inline-flex items-center text-sm">
+                Request quote
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
