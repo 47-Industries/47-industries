@@ -95,12 +95,12 @@ export default async function ProjectPage({ params }: Props) {
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">{project.title}</h1>
 
               {/* Client info with optional logo */}
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-4 mb-6">
                 {project.clientLogo && (
                   <img
                     src={project.clientLogo}
                     alt={project.clientName}
-                    className="h-8 w-auto object-contain"
+                    className="h-16 w-auto object-contain"
                   />
                 )}
                 <p className="text-lg text-text-secondary">{project.clientName}</p>
