@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic'
 
 const CATEGORY_LABELS: Record<string, string> = {
   WEB_DEVELOPMENT: 'Web Development',
+  WEB_APP: 'Web Application',
   IOS_APP: 'iOS App',
   ANDROID_APP: 'Android App',
   CROSS_PLATFORM_APP: 'Cross-Platform App',
