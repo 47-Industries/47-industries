@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import ScreenshotGallery from '@/components/projects/ScreenshotGallery'
+import ImageLightbox from '@/components/projects/ImageLightbox'
 
 // Force dynamic rendering - database not available at build time
 export const dynamic = 'force-dynamic'
@@ -63,9 +65,6 @@ export default async function ProjectPage({ params }: Props) {
     return img
   })
 
-  const mobileImages = images.filter(img => img.type === 'mobile')
-  const desktopImages = images.filter(img => img.type === 'desktop')
-
   // Use categories array if available, otherwise fall back to single category
   const displayCategories = categories.length > 0 ? categories : [project.category]
 
@@ -86,7 +85,7 @@ export default async function ProjectPage({ params }: Props) {
             {project.thumbnailUrl && (
               <div className="order-2 lg:order-1">
                 <div className="rounded-xl overflow-hidden bg-surface inline-block">
-                  <img
+                  <ImageLightbox
                     src={project.thumbnailUrl}
                     alt={project.title}
                     className="w-auto h-auto max-w-full max-h-[450px] object-contain"
@@ -221,79 +220,7 @@ export default async function ProjectPage({ params }: Props) {
       )}
 
       {/* Screenshots Gallery */}
-      {images.length > 0 && (
-        <div className="py-12">
-          <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-xl font-bold mb-6">Screenshots</h2>
-
-            {/* Desktop Screenshots */}
-            {desktopImages.length > 0 && (
-              <div className="mb-8">
-                {mobileImages.length > 0 && (
-                  <h3 className="text-sm font-medium text-text-secondary mb-4">Desktop</h3>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {desktopImages.map((img, i) => (
-                    <div
-                      key={i}
-                      className="aspect-video rounded-xl overflow-hidden bg-surface hover:ring-2 hover:ring-accent/50 transition-all"
-                    >
-                      <img
-                        src={img.url}
-                        alt={`${project.title} desktop screenshot ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Mobile Screenshots */}
-            {mobileImages.length > 0 && (
-              <div>
-                {desktopImages.length > 0 && (
-                  <h3 className="text-sm font-medium text-text-secondary mb-4">Mobile</h3>
-                )}
-
-                {/* Mobile: Horizontal scroll */}
-                <div className="md:hidden overflow-x-auto pb-4 -mx-4 px-4">
-                  <div className="flex gap-3" style={{ width: 'max-content' }}>
-                    {mobileImages.map((img, i) => (
-                      <div
-                        key={i}
-                        className="w-32 h-56 flex-shrink-0 rounded-lg overflow-hidden bg-surface"
-                      >
-                        <img
-                          src={img.url}
-                          alt={`${project.title} mobile screenshot ${i + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Desktop: Grid of mobile screenshots */}
-                <div className="hidden md:grid grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {mobileImages.map((img, i) => (
-                    <div
-                      key={i}
-                      className="aspect-[9/16] rounded-lg overflow-hidden bg-surface hover:ring-2 hover:ring-accent/50 transition-all"
-                    >
-                      <img
-                        src={img.url}
-                        alt={`${project.title} mobile screenshot ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <ScreenshotGallery images={images} projectTitle={project.title} />
 
       {/* Testimonial */}
       {project.testimonial && (
