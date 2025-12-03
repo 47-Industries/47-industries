@@ -17,7 +17,6 @@ export async function GET() {
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true,
       },
     })
@@ -52,19 +51,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, phone } = await request.json()
+    const { name } = await request.json()
 
     const user = await prisma.user.update({
       where: { id: session.user.id },
       data: {
         name: name || null,
-        phone: phone || null,
       },
       select: {
         id: true,
         name: true,
         email: true,
-        phone: true,
         createdAt: true,
       },
     })

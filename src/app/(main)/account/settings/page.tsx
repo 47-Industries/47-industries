@@ -9,7 +9,6 @@ interface UserProfile {
   id: string
   name: string | null
   email: string
-  phone: string | null
   createdAt: string
 }
 
@@ -36,7 +35,6 @@ export default function AccountSettingsPage() {
 
   // Form states
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
 
   // Password change
   const [showPasswordChange, setShowPasswordChange] = useState(false)
@@ -63,7 +61,6 @@ export default function AccountSettingsPage() {
         const data = await res.json()
         setProfile(data.user)
         setName(data.user.name || '')
-        setPhone(data.user.phone || '')
         setAddresses(data.addresses || [])
       }
     } catch (error) {
@@ -82,7 +79,7 @@ export default function AccountSettingsPage() {
       const res = await fetch('/api/account/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name }),
       })
 
       if (res.ok) {
@@ -203,17 +200,6 @@ export default function AccountSettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your full name"
-                className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-accent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">Phone Number</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Enter your phone number"
                 className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-accent"
               />
             </div>
