@@ -14,6 +14,11 @@ const CATEGORIES = [
   { value: 'THREE_D_PRINTING', label: '3D Printing' },
 ]
 
+interface ProjectImage {
+  url: string
+  type: 'mobile' | 'desktop'
+}
+
 interface ProjectData {
   id: string
   title: string
@@ -27,7 +32,7 @@ interface ProjectData {
   solution: string | null
   results: string | null
   thumbnailUrl: string | null
-  images: string[] | null
+  images: (string | ProjectImage)[] | null
   videoUrl: string | null
   liveUrl: string | null
   technologies: string[] | null
@@ -38,6 +43,17 @@ interface ProjectData {
   showInNavbar: boolean
   isActive: boolean
   sortOrder: number
+}
+
+// Helper to normalize images - handles both old string format and new object format
+function normalizeImages(images: (string | ProjectImage)[] | null): ProjectImage[] {
+  if (!images) return []
+  return images.map(img => {
+    if (typeof img === 'string') {
+      return { url: img, type: 'mobile' as const }
+    }
+    return img
+  })
 }
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -61,7 +77,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     solution: '',
     results: '',
     thumbnailUrl: '',
-    images: [] as string[],
+    images: [] as ProjectImage[],
     videoUrl: '',
     liveUrl: '',
     technologies: [] as string[],
@@ -75,6 +91,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   })
 
   const [newTech, setNewTech] = useState('')
+  const [uploadType, setUploadType] = useState<'mobile' | 'desktop'>('mobile')
 
   useEffect(() => {
     fetchProject()
@@ -102,7 +119,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         solution: data.solution || '',
         results: data.results || '',
         thumbnailUrl: data.thumbnailUrl || '',
-        images: data.images || [],
+        images: normalizeImages(data.images),
         videoUrl: data.videoUrl || '',
         liveUrl: data.liveUrl || '',
         technologies: data.technologies || [],
@@ -171,7 +188,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         const data = await res.json()
 
         if (field === 'images') {
-          setFormData(prev => ({ ...prev, images: [...prev.images, data.url] }))
+          setFormData(prev => ({ ...prev, images: [...prev.images, { url: data.url, type: uploadType }] }))
         } else {
           setFormData(prev => ({ ...prev, [field]: data.url }))
         }
@@ -186,7 +203,18 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const removeImage = (url: string) => {
     setFormData(prev => ({
       ...prev,
-      images: prev.images.filter(img => img !== url),
+      images: prev.images.filter(img => img.url !== url),
+    }))
+  }
+
+  const toggleImageType = (url: string) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.map(img =>
+        img.url === url
+          ? { ...img, type: img.type === 'mobile' ? 'desktop' : 'mobile' }
+          : img
+      ),
     }))
   }
 
@@ -582,19 +610,67 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
 
             {/* Gallery Images */}
             <div>
-              <label className="block text-sm font-medium mb-2">Gallery Images</label>
+              <label className="block text-sm font-medium mb-2">Gallery Screenshots</label>
+              <p className="text-xs text-text-secondary mb-3">Select whether each screenshot is from mobile or desktop before uploading</p>
+
+              {/* Upload Type Selector */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setUploadType('mobile')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    uploadType === 'mobile'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Mobile Screenshot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadType('desktop')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    uploadType === 'desktop'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-surface-elevated border border-border text-text-secondary hover:text-white'
+                  }`}
+                >
+                  Desktop Screenshot
+                </button>
+              </div>
+
+              {/* Images Grid */}
               <div className="flex flex-wrap gap-4">
                 {formData.images.map((img, index) => (
-                  <div key={index} className="relative w-24 h-24 rounded-lg overflow-hidden bg-surface-elevated">
+                  <div
+                    key={index}
+                    className={`relative rounded-lg overflow-hidden bg-surface-elevated ${
+                      img.type === 'desktop' ? 'w-40 h-24' : 'w-16 h-28'
+                    }`}
+                  >
                     <Image
-                      src={img}
+                      src={img.url}
                       alt={`Gallery ${index + 1}`}
                       fill
                       className="object-cover"
                     />
+                    {/* Type Badge */}
                     <button
                       type="button"
-                      onClick={() => removeImage(img)}
+                      onClick={() => toggleImageType(img.url)}
+                      className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        img.type === 'desktop'
+                          ? 'bg-purple-500/90 text-white'
+                          : 'bg-green-500/90 text-white'
+                      }`}
+                      title="Click to change type"
+                    >
+                      {img.type === 'desktop' ? 'Desktop' : 'Mobile'}
+                    </button>
+                    {/* Remove Button */}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(img.url)}
                       className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -603,11 +679,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     </button>
                   </div>
                 ))}
-                <label className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                <label className={`border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors ${
+                  uploadType === 'desktop' ? 'w-40 h-24' : 'w-16 h-28'
+                }`}>
                   <svg className="w-6 h-6 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  <span className="text-xs text-text-secondary mt-1">Add</span>
+                  <span className="text-[10px] text-text-secondary mt-1">{uploadType}</span>
                   <input
                     type="file"
                     accept="image/*"
