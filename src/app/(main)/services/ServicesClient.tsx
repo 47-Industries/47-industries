@@ -120,16 +120,16 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
               {currentService?.description}
             </p>
 
-            {/* Service Type Tabs - Compact on mobile */}
-            <div className="flex flex-wrap justify-center gap-1.5 md:gap-2 p-1 md:p-1.5 bg-surface/50 rounded-lg md:rounded-xl border border-border">
+            {/* Service Type Tabs */}
+            <div className="inline-flex flex-wrap justify-center gap-2 md:gap-3">
               {SERVICE_TYPES.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setSelectedType(type.id)}
-                  className={`px-2.5 py-1.5 md:px-4 md:py-2 rounded-md md:rounded-lg text-xs md:text-sm font-medium transition-all ${
+                  className={`px-4 py-2 md:px-5 md:py-2.5 rounded-full text-sm font-medium transition-all ${
                     selectedType === type.id
-                      ? 'bg-accent text-white shadow-sm'
-                      : 'text-text-secondary hover:text-white hover:bg-surface-elevated'
+                      ? 'bg-accent text-white'
+                      : 'bg-surface border border-border text-text-secondary hover:text-white hover:border-text-secondary'
                   }`}
                 >
                   {type.label}
