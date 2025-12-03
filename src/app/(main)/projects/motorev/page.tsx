@@ -117,7 +117,7 @@ export default async function MotoRevProjectPage() {
                   <img
                     src={project.clientLogo}
                     alt={project.clientName}
-                    className="h-16 w-auto object-contain"
+                    className="h-14 w-auto object-contain"
                   />
                 )}
                 <p className="text-lg text-text-secondary">{project.clientName}</p>
