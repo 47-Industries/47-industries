@@ -302,6 +302,18 @@ export default function StartProjectClient() {
               <p className="text-2xl font-bold text-accent">{inquiryNumber}</p>
             </div>
 
+            {/* View Inquiry Button */}
+            <Link
+              href={`/inquiry/${inquiryNumber}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors mb-6"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Your Inquiry
+            </Link>
+
             <div className="bg-surface border border-border rounded-xl p-6 mb-8 text-left">
               <h3 className="font-semibold mb-4">What happens next?</h3>
               <ol className="space-y-3 text-text-secondary">
@@ -320,13 +332,23 @@ export default function StartProjectClient() {
               </ol>
             </div>
 
-            <p className="text-text-secondary mb-8">
+            <p className="text-text-secondary text-sm mb-4">
               A confirmation has been sent to <strong>{formData.email}</strong>.
             </p>
+
+            <div className="bg-surface-elevated border border-border rounded-lg p-4 mb-8">
+              <p className="text-sm text-text-secondary">
+                Bookmark your inquiry page to track status updates and view our responses:
+              </p>
+              <p className="text-sm text-accent font-medium mt-1 break-all">
+                47industries.com/inquiry/{inquiryNumber}
+              </p>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/"
-                className="px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-colors"
+                className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-surface transition-colors"
               >
                 Back to Home
               </Link>

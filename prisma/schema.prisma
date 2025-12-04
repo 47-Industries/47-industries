@@ -509,12 +509,15 @@ enum ServiceType {
 
 enum InquiryStatus {
   NEW
+  IN_PROGRESS
   CONTACTED
+  QUOTED
   PROPOSAL_SENT
   NEGOTIATING
   ACCEPTED
   DECLINED
   COMPLETED
+  CANCELLED
 }
 
 model ServiceInquiry {
@@ -550,6 +553,9 @@ model ServiceInquiry {
   proposalUrl   String?
   adminNotes    String?        @db.Text
 
+  // Messages/Responses
+  messages      InquiryMessage[]
+
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -558,6 +564,28 @@ model ServiceInquiry {
   @@index([serviceType])
   @@index([inquiryNumber])
   @@index([packageId])
+}
+
+// Inquiry Messages - for communication between customer and team
+model InquiryMessage {
+  id          String         @id @default(cuid())
+  inquiryId   String
+  inquiry     ServiceInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  // Message content
+  message     String         @db.Text
+  isFromAdmin Boolean        @default(false)  // true = from team, false = from customer
+  senderName  String?                         // Name of sender (admin name or customer name)
+
+  // For quotes
+  isQuote     Boolean        @default(false)
+  quoteAmount Decimal?       @db.Decimal(10, 2)
+  quoteMonthly Decimal?      @db.Decimal(10, 2)
+  quoteValidDays Int?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([inquiryId])
 }
 
 // ============================================

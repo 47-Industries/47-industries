@@ -154,11 +154,27 @@ export async function POST(req: NextRequest) {
 
     // Send confirmation email to customer
     try {
+      // Get human-readable service names for email
+      const serviceLabels: Record<string, string> = {
+        'WEBSITE': 'Website',
+        'WEB_APP': 'Web Application',
+        'IOS_APP': 'iOS App',
+        'ANDROID_APP': 'Android App',
+        'CROSS_PLATFORM': 'Cross-Platform App',
+        'AI_AUTOMATION': 'AI Automation',
+      }
+      const selectedServiceLabels = pd.services?.map((s: string) => serviceLabels[s] || s) || []
+
       await sendServiceInquiryConfirmation({
         to: body.email,
         name: body.name,
         inquiryNumber: inquiry.inquiryNumber,
         serviceType: serviceLabel,
+        projectName: pd.projectName,
+        services: selectedServiceLabels,
+        budget: body.budget,
+        timeline: body.timeline,
+        description: body.description,
       })
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError)

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { prisma } from '@/lib/prisma'
+import { InquiryStatus } from '@prisma/client'
 
 // Initialize Resend lazily
 let resendClient: Resend | null = null
@@ -133,6 +135,34 @@ export async function POST(req: NextRequest) {
         </html>
       `,
     })
+
+    // Save the quote as a message in the database if inquiryId is provided
+    if (body.inquiryId) {
+      // Build quote message
+      let quoteMessage = 'We have prepared a quote for your project.'
+      if (body.notes) {
+        quoteMessage += `\n\n${body.notes}`
+      }
+
+      await prisma.inquiryMessage.create({
+        data: {
+          inquiryId: body.inquiryId,
+          message: quoteMessage,
+          isFromAdmin: true,
+          senderName: '47 Industries',
+          isQuote: true,
+          quoteAmount: body.oneTimeAmount || null,
+          quoteMonthly: body.monthlyAmount || null,
+          quoteValidDays: validDays,
+        },
+      })
+
+      // Update inquiry status to QUOTED
+      await prisma.serviceInquiry.update({
+        where: { id: body.inquiryId },
+        data: { status: InquiryStatus.QUOTED },
+      })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

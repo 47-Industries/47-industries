@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendReplyEmail } from '@/lib/email'
+import { prisma } from '@/lib/prisma'
+import { InquiryStatus } from '@prisma/client'
 
 // POST /api/admin/inquiries/reply - Send email reply to inquiry
 export async function POST(req: NextRequest) {
@@ -23,6 +25,29 @@ export async function POST(req: NextRequest) {
     })
 
     if (result.success) {
+      // Save the message to the database if inquiryId is provided
+      if (body.inquiryId) {
+        await prisma.inquiryMessage.create({
+          data: {
+            inquiryId: body.inquiryId,
+            message: body.message,
+            isFromAdmin: true,
+            senderName: body.senderName || '47 Industries',
+          },
+        })
+
+        // Update inquiry status to IN_PROGRESS if it's NEW
+        await prisma.serviceInquiry.updateMany({
+          where: {
+            id: body.inquiryId,
+            status: InquiryStatus.NEW,
+          },
+          data: {
+            status: InquiryStatus.IN_PROGRESS,
+          },
+        })
+      }
+
       return NextResponse.json({ success: true })
     } else {
       return NextResponse.json(

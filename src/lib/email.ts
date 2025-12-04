@@ -184,7 +184,20 @@ export async function sendServiceInquiryConfirmation(data: {
   name: string
   inquiryNumber: string
   serviceType: string
+  projectName?: string
+  services?: string[]
+  budget?: string
+  timeline?: string
+  description?: string
 }) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const trackingUrl = `${APP_URL}/inquiry/${data.inquiryNumber}`
+
+  // Build services list HTML
+  const servicesHtml = data.services && data.services.length > 0
+    ? data.services.map(s => `<span style="display: inline-block; background: #3b82f6; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 13px; margin: 3px 4px 3px 0;">${s}</span>`).join('')
+    : `<span style="display: inline-block; background: #3b82f6; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 13px;">${data.serviceType}</span>`
+
   try {
     await getResend().emails.send({
       from: FROM_EMAIL,
@@ -195,70 +208,142 @@ export async function sendServiceInquiryConfirmation(data: {
         <!DOCTYPE html>
         <html>
         <head>
+          <meta name="color-scheme" content="light dark">
+          <meta name="supported-color-schemes" content="light dark">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #000; color: #fff; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-            .highlight { background: #3b82f6; color: #fff; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; }
-            .service-badge { display: inline-block; background: #8b5cf6; color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 14px; margin-bottom: 15px; }
-            .timeline { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e5e5; }
-            .timeline-item { display: flex; align-items: flex-start; margin-bottom: 15px; }
-            .timeline-number { width: 28px; height: 28px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+            :root { color-scheme: light dark; }
+            @media (prefers-color-scheme: dark) {
+              .email-body { background-color: #0a0a0a !important; }
+              .email-container { background-color: #0a0a0a !important; }
+              .content-box { background-color: #1a1a1a !important; border-color: #27272a !important; }
+              .text-primary { color: #ffffff !important; }
+              .text-secondary { color: #a1a1aa !important; }
+              .details-box { background-color: #0a0a0a !important; border-color: #27272a !important; }
+              .timeline-box { background-color: #0a0a0a !important; border-color: #27272a !important; }
+              .footer-text { color: #71717a !important; }
+            }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif; line-height: 1.6; margin: 0; padding: 0; }
           </style>
         </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1 style="margin: 0;">47 Industries</h1>
-              <p style="margin: 10px 0 0 0; opacity: 0.8;">Web & App Development</p>
+        <body class="email-body" style="background-color: #f4f4f5; margin: 0; padding: 20px;">
+          <div class="email-container" style="max-width: 600px; margin: 0 auto; background-color: #f4f4f5;">
+
+            <!-- Header with Logo -->
+            <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+              <img src="${APP_URL}/logo.png" alt="47 Industries" style="height: 48px; margin-bottom: 16px;" />
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Project Inquiry Received</h1>
             </div>
-            <div class="content">
-              <h2>Hello ${data.name}!</h2>
-              <p>Thank you for your interest in working with us. We've received your project inquiry and our team is excited to review it.</p>
 
-              <div class="highlight">
-                <p style="margin: 0; font-size: 14px;">Reference Number</p>
-                <p style="margin: 5px 0 0 0; font-size: 24px; font-weight: bold;">${data.inquiryNumber}</p>
-              </div>
+            <!-- Main Content -->
+            <div class="content-box" style="background-color: #ffffff; padding: 32px; border: 1px solid #e4e4e7; border-top: none;">
 
-              <p style="text-align: center;">
-                <span class="service-badge">${data.serviceType}</span>
+              <p class="text-primary" style="color: #18181b; font-size: 16px; margin: 0 0 20px 0;">
+                Hello <strong>${data.name}</strong>,
               </p>
 
-              <div class="timeline">
-                <p style="margin: 0 0 15px 0; font-weight: bold;">What happens next?</p>
-                <div class="timeline-item">
-                  <div class="timeline-number">1</div>
+              <p class="text-secondary" style="color: #52525b; font-size: 15px; margin: 0 0 24px 0;">
+                Thank you for your interest in working with us. We've received your project inquiry and our team is excited to review it.
+              </p>
+
+              <!-- Reference Number Box -->
+              <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 24px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
+                <p style="margin: 0 0 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Reference Number</p>
+                <p style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: 1px;">${data.inquiryNumber}</p>
+              </div>
+
+              <!-- Project Details -->
+              <div class="details-box" style="background-color: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                <h3 class="text-primary" style="color: #18181b; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">Project Summary</h3>
+
+                ${data.projectName ? `
+                <div style="margin-bottom: 12px;">
+                  <span class="text-secondary" style="color: #71717a; font-size: 13px;">Project Name</span>
+                  <p class="text-primary" style="color: #18181b; font-size: 15px; margin: 4px 0 0 0; font-weight: 500;">${data.projectName}</p>
+                </div>
+                ` : ''}
+
+                <div style="margin-bottom: 12px;">
+                  <span class="text-secondary" style="color: #71717a; font-size: 13px;">Services Requested</span>
+                  <div style="margin-top: 8px;">${servicesHtml}</div>
+                </div>
+
+                ${data.budget ? `
+                <div style="margin-bottom: 12px;">
+                  <span class="text-secondary" style="color: #71717a; font-size: 13px;">Budget Range</span>
+                  <p class="text-primary" style="color: #18181b; font-size: 15px; margin: 4px 0 0 0; font-weight: 500;">${data.budget}</p>
+                </div>
+                ` : ''}
+
+                ${data.timeline ? `
+                <div style="margin-bottom: 12px;">
+                  <span class="text-secondary" style="color: #71717a; font-size: 13px;">Timeline</span>
+                  <p class="text-primary" style="color: #18181b; font-size: 15px; margin: 4px 0 0 0; font-weight: 500;">${data.timeline}</p>
+                </div>
+                ` : ''}
+
+                ${data.description ? `
+                <div style="margin-bottom: 0;">
+                  <span class="text-secondary" style="color: #71717a; font-size: 13px;">Project Description</span>
+                  <p class="text-primary" style="color: #18181b; font-size: 14px; margin: 4px 0 0 0; line-height: 1.6;">${data.description.length > 200 ? data.description.substring(0, 200) + '...' : data.description}</p>
+                </div>
+                ` : ''}
+              </div>
+
+              <!-- View Full Details Button -->
+              <div style="text-align: center; margin-bottom: 24px;">
+                <a href="${trackingUrl}" style="display: inline-block; background: #18181b; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+                  View Full Inquiry & Updates
+                </a>
+              </div>
+
+              <!-- What's Next Timeline -->
+              <div class="timeline-box" style="background-color: #fafafa; border: 1px solid #e4e4e7; border-radius: 12px; padding: 20px;">
+                <h3 class="text-primary" style="color: #18181b; font-size: 14px; font-weight: 600; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">What Happens Next</h3>
+
+                <div style="display: flex; align-items: flex-start; margin-bottom: 16px;">
+                  <div style="width: 28px; height: 28px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; margin-right: 14px; flex-shrink: 0;">1</div>
                   <div>
-                    <strong>Review</strong>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Our team will carefully review your project requirements</p>
+                    <p class="text-primary" style="color: #18181b; font-size: 14px; font-weight: 600; margin: 0;">Review</p>
+                    <p class="text-secondary" style="color: #71717a; font-size: 13px; margin: 2px 0 0 0;">Our team will carefully review your project requirements</p>
                   </div>
                 </div>
-                <div class="timeline-item">
-                  <div class="timeline-number">2</div>
+
+                <div style="display: flex; align-items: flex-start; margin-bottom: 16px;">
+                  <div style="width: 28px; height: 28px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; margin-right: 14px; flex-shrink: 0;">2</div>
                   <div>
-                    <strong>Discovery Call</strong>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">We'll schedule a call to discuss your vision in detail</p>
+                    <p class="text-primary" style="color: #18181b; font-size: 14px; font-weight: 600; margin: 0;">Discovery Call</p>
+                    <p class="text-secondary" style="color: #71717a; font-size: 13px; margin: 2px 0 0 0;">We'll schedule a call to discuss your vision in detail</p>
                   </div>
                 </div>
-                <div class="timeline-item" style="margin-bottom: 0;">
-                  <div class="timeline-number">3</div>
+
+                <div style="display: flex; align-items: flex-start;">
+                  <div style="width: 28px; height: 28px; background: #3b82f6; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; margin-right: 14px; flex-shrink: 0;">3</div>
                   <div>
-                    <strong>Proposal</strong>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">You'll receive a detailed proposal with timeline and pricing</p>
+                    <p class="text-primary" style="color: #18181b; font-size: 14px; font-weight: 600; margin: 0;">Proposal</p>
+                    <p class="text-secondary" style="color: #71717a; font-size: 13px; margin: 2px 0 0 0;">You'll receive a detailed proposal with timeline and pricing</p>
                   </div>
                 </div>
               </div>
 
-              <p>Expect to hear from us within <strong>1-2 business days</strong>. If you have any urgent questions, reply to this email.</p>
+              <p class="text-secondary" style="color: #52525b; font-size: 14px; margin: 24px 0 0 0; text-align: center;">
+                Expect to hear from us within <strong style="color: #18181b;">1-2 business days</strong>.
+              </p>
 
-              <div class="footer">
-                <p>47 Industries - Digital Solutions</p>
-                <p><a href="https://47industries.com">47industries.com</a></p>
-              </div>
             </div>
+
+            <!-- Footer -->
+            <div style="padding: 24px 32px; text-align: center; border-radius: 0 0 12px 12px; background-color: #fafafa; border: 1px solid #e4e4e7; border-top: none;">
+              <p class="footer-text" style="color: #71717a; font-size: 13px; margin: 0 0 8px 0;">
+                47 Industries - Digital Solutions
+              </p>
+              <p style="margin: 0;">
+                <a href="https://47industries.com" style="color: #3b82f6; text-decoration: none; font-size: 13px;">47industries.com</a>
+              </p>
+              <p class="footer-text" style="color: #a1a1aa; font-size: 11px; margin: 16px 0 0 0;">
+                Questions? Reply to this email or visit your <a href="${trackingUrl}" style="color: #3b82f6; text-decoration: none;">inquiry page</a>.
+              </p>
+            </div>
+
           </div>
         </body>
         </html>
