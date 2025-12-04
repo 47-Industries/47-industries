@@ -344,6 +344,15 @@ function ServiceInquiriesTab() {
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  // Quote modal state
+  const [showQuoteModal, setShowQuoteModal] = useState(false)
+  const [quoteInquiry, setQuoteInquiry] = useState<ServiceInquiry | null>(null)
+  const [quoteAmount, setQuoteAmount] = useState('')
+  const [quoteMonthly, setQuoteMonthly] = useState('')
+  const [quoteNotes, setQuoteNotes] = useState('')
+  const [quoteValidDays, setQuoteValidDays] = useState('14')
+  const [sendingQuote, setSendingQuote] = useState(false)
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
@@ -469,6 +478,59 @@ function ServiceInquiriesTab() {
       } finally {
         setActionMenuOpen(null)
       }
+    }
+  }
+
+  const openQuoteModal = (inquiry: ServiceInquiry) => {
+    setQuoteInquiry(inquiry)
+    setQuoteAmount('')
+    setQuoteMonthly('')
+    setQuoteNotes('')
+    setQuoteValidDays('14')
+    setShowQuoteModal(true)
+    setActionMenuOpen(null)
+  }
+
+  const handleSendQuote = async () => {
+    if (!quoteInquiry) return
+    if (!quoteAmount && !quoteMonthly) {
+      alert('Please enter at least one quote amount')
+      return
+    }
+
+    try {
+      setSendingQuote(true)
+      const res = await fetch('/api/admin/inquiries/send-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inquiryId: quoteInquiry.id,
+          to: quoteInquiry.email,
+          name: quoteInquiry.name,
+          inquiryNumber: quoteInquiry.inquiryNumber,
+          oneTimeAmount: quoteAmount ? parseFloat(quoteAmount) : null,
+          monthlyAmount: quoteMonthly ? parseFloat(quoteMonthly) : null,
+          notes: quoteNotes,
+          validDays: parseInt(quoteValidDays),
+        }),
+      })
+
+      if (res.ok) {
+        alert('Quote sent successfully!')
+        setShowQuoteModal(false)
+        // Update inquiry status in the list
+        setInquiries(inquiries.map(i =>
+          i.id === quoteInquiry.id ? { ...i, status: 'QUOTED' } : i
+        ))
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to send quote')
+      }
+    } catch (error) {
+      console.error('Error sending quote:', error)
+      alert('Failed to send quote')
+    } finally {
+      setSendingQuote(false)
     }
   }
 
@@ -682,6 +744,30 @@ function ServiceInquiriesTab() {
                         overflow: 'hidden',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                       }}>
+                        {/* Send Quote */}
+                        <button
+                          onClick={() => openQuoteModal(inquiry)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#10b981',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#27272a'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Send Quote
+                        </button>
                         {inquiry.status !== 'DECLINED' && (
                           <button
                             onClick={() => handleQuickAction(inquiry.id, 'reject')}
@@ -787,6 +873,218 @@ function ServiceInquiriesTab() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Quote Modal */}
+      {showQuoteModal && quoteInquiry && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '500px',
+            border: '1px solid #27272a',
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Send Quote</h2>
+                <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '14px' }}>
+                  {quoteInquiry.inquiryNumber}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuoteModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#71717a',
+                  cursor: 'pointer',
+                  padding: '8px',
+                }}
+              >
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 4px 0', color: '#a1a1aa', fontSize: '14px' }}>Sending to</p>
+                <p style={{ margin: 0, fontWeight: 500 }}>{quoteInquiry.name}</p>
+                <p style={{ margin: 0, color: '#71717a', fontSize: '14px' }}>{quoteInquiry.email}</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                    One-Time Amount
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#71717a',
+                    }}>$</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={quoteAmount}
+                      onChange={(e) => setQuoteAmount(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 28px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                    Monthly Amount
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#71717a',
+                    }}>$</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={quoteMonthly}
+                      onChange={(e) => setQuoteMonthly(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 28px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                  Valid For (Days)
+                </label>
+                <select
+                  value={quoteValidDays}
+                  onChange={(e) => setQuoteValidDays(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="7">7 days</option>
+                  <option value="14">14 days</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                  Additional Notes (Optional)
+                </label>
+                <textarea
+                  placeholder="Include any details about scope, timeline, or payment terms..."
+                  value={quoteNotes}
+                  onChange={(e) => setQuoteNotes(e.target.value)}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 20px',
+              borderTop: '1px solid #27272a',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+            }}>
+              <button
+                onClick={() => setShowQuoteModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendQuote}
+                disabled={sendingQuote || (!quoteAmount && !quoteMonthly)}
+                style={{
+                  padding: '10px 20px',
+                  background: sendingQuote || (!quoteAmount && !quoteMonthly) ? '#1e40af' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: sendingQuote || (!quoteAmount && !quoteMonthly) ? 'not-allowed' : 'pointer',
+                  opacity: sendingQuote || (!quoteAmount && !quoteMonthly) ? 0.6 : 1,
+                }}
+              >
+                {sendingQuote ? 'Sending...' : 'Send Quote'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

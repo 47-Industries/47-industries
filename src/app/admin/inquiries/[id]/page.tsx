@@ -779,6 +779,43 @@ export default function InquiryDetailPage() {
                   Call Customer
                 </a>
               )}
+              <div style={{ borderTop: '1px solid #27272a', margin: '8px 0' }} />
+              {status !== 'DECLINED' && (
+                <button
+                  onClick={handleReject}
+                  disabled={saving}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: 'transparent',
+                    color: '#f59e0b',
+                    border: '1px solid #f59e0b',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    opacity: saving ? 0.7 : 1,
+                  }}
+                >
+                  Reject Inquiry
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  color: '#ef4444',
+                  border: '1px solid #ef4444',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Delete Inquiry
+              </button>
             </div>
           </div>
 
@@ -916,49 +953,9 @@ export default function InquiryDetailPage() {
                 fontWeight: 500,
                 cursor: saving ? 'not-allowed' : 'pointer',
                 opacity: saving ? 0.7 : 1,
-                marginBottom: '12px',
               }}
             >
               {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-
-            {status !== 'DECLINED' && (
-              <button
-                onClick={handleReject}
-                disabled={saving}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'transparent',
-                  color: '#f59e0b',
-                  border: '1px solid #f59e0b',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  marginBottom: '12px',
-                  opacity: saving ? 0.7 : 1,
-                }}
-              >
-                Reject Inquiry
-              </button>
-            )}
-
-            <button
-              onClick={handleDelete}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'transparent',
-                color: '#ef4444',
-                border: '1px solid #ef4444',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              Delete Inquiry
             </button>
           </div>
         </div>
