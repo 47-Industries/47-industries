@@ -11,16 +11,18 @@ export default function Footer() {
         <div className="md:hidden">
           {/* Logo and tagline centered */}
           <div className="text-center mb-6">
-            <Logo className="mx-auto mb-3" />
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Logo />
+            </div>
             <p className="text-text-secondary text-sm">
               Innovation in 3D printing, custom manufacturing, and digital solutions.
             </p>
           </div>
 
-          {/* Links in 2-column grid */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6 mb-6">
+          {/* Links in 2-column grid, centered */}
+          <div className="flex justify-center gap-12 mb-6">
             {/* Services */}
-            <div>
+            <div className="text-center">
               <h4 className="font-semibold mb-3 text-sm">Services</h4>
               <ul className="space-y-2 text-sm">
                 <li>
@@ -47,7 +49,7 @@ export default function Footer() {
             </div>
 
             {/* Company */}
-            <div>
+            <div className="text-center">
               <h4 className="font-semibold mb-3 text-sm">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li>
