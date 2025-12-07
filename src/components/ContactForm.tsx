@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 export default function ContactForm() {
   const [formData, setFormData] = useState({
+    website_url: '', // Honeypot field
     name: '',
     email: '',
     subject: '',
@@ -31,7 +32,7 @@ export default function ContactForm() {
       if (res.ok) {
         setSuccess(true)
         setInquiryNumber(data.inquiryNumber)
-        setFormData({ name: '', email: '', subject: '', message: '' })
+        setFormData({ website_url: '', name: '', email: '', subject: '', message: '' })
       } else {
         setError(data.error || 'Failed to send message. Please try again.')
       }
@@ -69,6 +70,20 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Honeypot field - hidden from humans, bots will fill it */}
+      <div className="absolute -left-[9999px]" aria-hidden="true">
+        <label htmlFor="website_url">Website URL</label>
+        <input
+          type="text"
+          id="website_url"
+          name="website_url"
+          value={formData.website_url}
+          onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
+
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
           {error}

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { CustomRequestStatus } from '@prisma/client'
 import { sendCustomRequestConfirmation, sendAdminNotification } from '@/lib/email'
 import { isFeatureEnabled } from '@/lib/features'
+import { isSpam, validateHoneypot } from '@/lib/spam-protection'
 
 // POST /api/custom-print-request - Submit a 3D printing quote request
 export async function POST(req: NextRequest) {
@@ -17,6 +18,24 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+
+    // Honeypot check - if filled, it's a bot
+    if (!validateHoneypot(body.website_url)) {
+      // Silently reject but return success to not tip off bots
+      return NextResponse.json({
+        success: true,
+        requestNumber: '3DP-000000-0000',
+        message: 'Your request has been received!',
+      })
+    }
+
+    // Spam detection
+    if (isSpam({ name: body.name, email: body.email, message: body.notes })) {
+      return NextResponse.json(
+        { error: 'Your submission was flagged as spam. Please try again with valid information.' },
+        { status: 400 }
+      )
+    }
 
     // Validate required fields
     if (!body.name || !body.email || !body.material || !body.finish || !body.color || !body.quantity) {

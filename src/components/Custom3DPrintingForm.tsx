@@ -12,6 +12,7 @@ interface UploadedFile {
 
 export default function Custom3DPrintingForm() {
   const [formData, setFormData] = useState({
+    website_url: '', // Honeypot field
     name: '',
     email: '',
     phone: '',
@@ -121,6 +122,7 @@ export default function Custom3DPrintingForm() {
         setSuccess(true)
         setRequestNumber(data.requestNumber)
         setFormData({
+          website_url: '',
           name: '',
           email: '',
           phone: '',
@@ -169,6 +171,20 @@ export default function Custom3DPrintingForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Honeypot field - hidden from humans, bots will fill it */}
+      <div className="absolute -left-[9999px]" aria-hidden="true">
+        <label htmlFor="website_url_3d">Website URL</label>
+        <input
+          type="text"
+          id="website_url_3d"
+          name="website_url"
+          value={formData.website_url}
+          onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
+
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
           {error}

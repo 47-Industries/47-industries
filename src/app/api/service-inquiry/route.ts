@@ -2,11 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ServiceType, InquiryStatus } from '@prisma/client'
 import { sendServiceInquiryConfirmation, sendAdminNotification } from '@/lib/email'
+import { isSpam, validateHoneypot } from '@/lib/spam-protection'
 
 // POST /api/service-inquiry - Submit a detailed service inquiry
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+
+    // Honeypot check - if filled, it's a bot
+    if (!validateHoneypot(body.website_url)) {
+      // Silently reject but return success to not tip off bots
+      return NextResponse.json({
+        success: true,
+        inquiryNumber: 'INQ-000000-0000',
+        message: 'Your project inquiry has been received!',
+      })
+    }
+
+    // Spam detection
+    if (isSpam({ name: body.name, email: body.email, message: body.description })) {
+      return NextResponse.json(
+        { error: 'Your submission was flagged as spam. Please try again with a valid name and description.' },
+        { status: 400 }
+      )
+    }
 
     // Validate required fields
     if (!body.name || !body.email || !body.serviceType || !body.description) {

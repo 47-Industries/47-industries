@@ -100,6 +100,9 @@ const BUDGETS = [
 ]
 
 interface FormData {
+  // Honeypot (spam protection)
+  website_url: string
+
   // Contact
   name: string
   email: string
@@ -146,6 +149,7 @@ export default function StartProjectClient() {
   const [inquiryNumber, setInquiryNumber] = useState('')
 
   const [formData, setFormData] = useState<FormData>({
+    website_url: '', // Honeypot field
     name: '',
     email: '',
     phone: '',
@@ -426,6 +430,21 @@ export default function StartProjectClient() {
           {step === 1 && (
             <div className="bg-surface border border-border rounded-2xl p-6 md:p-8">
               <h2 className="text-xl font-bold mb-6">Contact Information</h2>
+
+              {/* Honeypot field - hidden from humans, bots will fill it */}
+              <div className="absolute -left-[9999px]" aria-hidden="true">
+                <label htmlFor="website_url">Website URL</label>
+                <input
+                  type="text"
+                  id="website_url"
+                  name="website_url"
+                  value={formData.website_url}
+                  onChange={(e) => updateForm('website_url', e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4 mb-8">
                 <div>
                   <label className="block text-sm font-medium mb-2">
