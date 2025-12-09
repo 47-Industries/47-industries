@@ -1333,6 +1333,25 @@ model ShippingLabel {
 }
 
 // ============================================
+// SMS CONSENT RECORDS
+// ============================================
+
+model SmsConsent {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  ipAddress   String?
+  userAgent   String?  @db.Text
+  agreedAt    DateTime
+
+  createdAt   DateTime @default(now())
+
+  @@index([phone])
+  @@index([agreedAt])
+}
+
+// ============================================
 // EMAIL AUDIT LOG
 // ============================================
 
