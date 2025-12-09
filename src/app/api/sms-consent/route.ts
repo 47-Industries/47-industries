@@ -18,7 +18,9 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'unknown'
 
-    // Store consent record in database
+    const userAgent = request.headers.get('user-agent') || null
+
+    // Store consent record in local database (for Twilio compliance)
     const consent = await prisma.smsConsent.create({
       data: {
         name,
@@ -26,9 +28,33 @@ export async function POST(request: NextRequest) {
         email: email || null,
         ipAddress: ip,
         agreedAt: new Date(agreedAt),
-        userAgent: request.headers.get('user-agent') || null
+        userAgent
       }
     })
+
+    // Also send to bill-notifier service to add as recipient
+    if (process.env.BILL_NOTIFIER_URL && process.env.BILL_NOTIFIER_API_KEY) {
+      try {
+        await fetch(`${process.env.BILL_NOTIFIER_URL}/api/recipients`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': process.env.BILL_NOTIFIER_API_KEY
+          },
+          body: JSON.stringify({
+            name,
+            phone,
+            email: email || null,
+            ipAddress: ip,
+            userAgent,
+            agreedAt
+          })
+        })
+      } catch (err) {
+        // Log but don't fail - local record is the important one
+        console.error('Failed to sync with bill-notifier:', err)
+      }
+    }
 
     return NextResponse.json({
       success: true,
