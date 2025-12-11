@@ -90,21 +90,8 @@ export async function GET(
       content = typeof rawContent === 'object' ? JSON.stringify(rawContent) : String(rawContent || '')
     }
 
-    // Strip HTML tags for plain text display on mobile
-    const plainText = content
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    return NextResponse.json({ content: plainText })
+    // Return HTML content as-is for proper rendering
+    return NextResponse.json({ content })
   } catch (error) {
     console.error('Error fetching email content:', error)
     return NextResponse.json(
