@@ -37,12 +37,16 @@ model User {
   backupEmail   String?
 
   // Admin Permissions (JSON array of permission strings)
-  // e.g., ["products", "orders", "users", "settings", "email"]
+  // e.g., ["products", "orders", "users", "settings", "email", "expenses"]
   permissions   Json?
 
   // Email Access (JSON array of email addresses the user can access)
   // e.g., ["support@47industries.com", "sales@47industries.com"]
   emailAccess   Json?
+
+  // Founder flag - the 4 founding members who split household bills
+  // Staff hired later won't have this flag and won't see personal splits
+  isFounder     Boolean   @default(false)
 
   // Zoho Mail Integration
   zohoAccessToken   String?   @db.Text
@@ -58,11 +62,15 @@ model User {
   emailLogs     EmailLog[]
   blogPosts     BlogPost[]
 
+  // Expense tracking relations (for founders)
+  billPayments  BillPayment[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([username])
   @@index([email])
+  @@index([isFounder])
 }
 
 model Account {
@@ -1387,6 +1395,98 @@ model FinanceIncome {
 
   @@index([date])
   @@index([category])
+}
+
+// ============================================
+// EXPENSE & BILL TRACKING
+// ============================================
+// Bills are auto-split among Users with isFounder=true
+// Staff with "expenses" permission can view but not see personal splits
+
+// Bills detected from email (Duke Energy, Chase, Amex, Water, Trash, BoA)
+model Bill {
+  id            String      @id @default(cuid())
+  vendor        String      // Duke Energy, Chase, Amex, Water, Trash, etc.
+  vendorType    String      // UTILITY, CREDIT_CARD, SUBSCRIPTION, OTHER
+
+  // Bill details
+  amount        Decimal     @db.Decimal(10, 2)
+  dueDate       DateTime?
+  statementDate DateTime?
+  accountNumber String?     // Last 4 digits (masked)
+
+  // Email source (for auto-detected bills)
+  emailId       String?     @unique // Gmail message ID to prevent duplicates
+  emailSubject  String?
+  emailFrom     String?
+  emailDate     DateTime?
+
+  // Payment tracking
+  status        String      @default("PENDING") // PENDING, PAID, OVERDUE
+  paidDate      DateTime?
+  paidByUserId  String?     // User who marked it paid
+
+  // Notifications
+  notifiedAt    DateTime?   // When push notification was sent
+
+  // Relations
+  payments      BillPayment[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([vendor])
+  @@index([vendorType])
+  @@index([status])
+  @@index([dueDate])
+  @@index([emailId])
+  @@index([createdAt])
+}
+
+// Track each founder's payment status for a bill
+model BillPayment {
+  id          String    @id @default(cuid())
+  billId      String
+  bill        Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  userId      String    // Must be a User with isFounder=true
+  user        User      @relation(fields: [userId], references: [id])
+
+  amount      Decimal   @db.Decimal(10, 2) // Their share (total / founder count)
+  status      String    @default("PENDING") // PENDING, PAID
+  paidDate    DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([billId, userId])
+  @@index([billId])
+  @@index([userId])
+  @@index([status])
+}
+
+// Gmail credentials for bill email scraping
+model GmailCredentials {
+  id              String    @id @default(cuid())
+  accountEmail    String    @unique
+  accessToken     String    @db.Text
+  refreshToken    String    @db.Text
+  tokenExpiry     DateTime?
+  lastSync        DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Track processed emails to prevent duplicate bill entries
+model ProcessedEmail {
+  id            String    @id @default(cuid())
+  emailId       String    @unique // Gmail message ID
+  vendor        String?
+  billId        String?   // Link to created bill if any
+  processedAt   DateTime  @default(now())
+
+  @@index([emailId])
+  @@index([processedAt])
 }
 
 // ============================================
