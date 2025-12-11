@@ -70,9 +70,41 @@ export async function GET(
     const client = new ZohoMailClient(accessToken)
 
     // Get email content (HTML body)
-    const content = await client.getEmailContent(messageId)
+    const rawContent = await client.getEmailContent(messageId)
 
-    return NextResponse.json({ content })
+    // Extract the actual content string from Zoho's response
+    // Zoho returns { content: "...", htmlContent: "..." } or similar
+    let content: string = ''
+    if (typeof rawContent === 'string') {
+      content = rawContent
+    } else if (rawContent?.content) {
+      content = rawContent.content
+    } else if (rawContent?.htmlContent) {
+      content = rawContent.htmlContent
+    } else if (rawContent?.textContent) {
+      content = rawContent.textContent
+    } else if (rawContent?.body) {
+      content = rawContent.body
+    } else {
+      // Fallback: stringify if it's still an object
+      content = typeof rawContent === 'object' ? JSON.stringify(rawContent) : String(rawContent || '')
+    }
+
+    // Strip HTML tags for plain text display on mobile
+    const plainText = content
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    return NextResponse.json({ content: plainText })
   } catch (error) {
     console.error('Error fetching email content:', error)
     return NextResponse.json(
