@@ -13,48 +13,67 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const role = searchParams.get('role') // CUSTOMER, ADMIN, SUPER_ADMIN, or null for all
+    const role = searchParams.get('role') // USER (customers), ADMIN, SUPER_ADMIN, or null for all
     const adminRoles = searchParams.get('adminRoles') // If true, fetch both ADMIN and SUPER_ADMIN
     const search = searchParams.get('search')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
     const where: any = {}
+
+    // Normalize role to uppercase for comparison
+    const normalizedRole = role?.toUpperCase()
 
     if (adminRoles === 'true') {
       // Fetch both ADMIN and SUPER_ADMIN
       where.role = { in: ['ADMIN', 'SUPER_ADMIN'] }
-    } else if (role) {
-      where.role = role
+    } else if (normalizedRole === 'USER' || normalizedRole === 'CUSTOMER' || normalizedRole === 'CUSTOMERS') {
+      // Customers - exclude admin roles (USER maps to CUSTOMER which is non-admin)
+      where.role = { notIn: ['ADMIN', 'SUPER_ADMIN'] }
+    } else if (normalizedRole === 'ADMIN' || normalizedRole === 'ADMINS') {
+      // All admins (ADMIN and SUPER_ADMIN)
+      where.role = { in: ['ADMIN', 'SUPER_ADMIN'] }
+    } else if (normalizedRole === 'SUPER_ADMIN') {
+      where.role = 'SUPER_ADMIN'
     }
+    // If no valid role filter, don't add role to where clause (returns all users)
 
     if (search) {
       where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { username: { contains: search } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } },
       ]
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        image: true,
-        role: true,
-        permissions: true,
-        emailAccess: true,
-        emailVerified: true,
-        createdAt: true,
-        _count: {
-          select: { orders: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          username: true,
+          image: true,
+          role: true,
+          permissions: true,
+          emailAccess: true,
+          emailVerified: true,
+          isFounder: true,
+          createdAt: true,
+          _count: {
+            select: { orders: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ])
 
-    return NextResponse.json({ users })
+    return NextResponse.json({ users, total, page, limit })
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })

@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Request not found' }, { status: 404 })
     }
 
-    return NextResponse.json(request)
+    return NextResponse.json({ request })
   } catch (error) {
     console.error('Error fetching custom request:', error)
     return NextResponse.json(
@@ -82,7 +82,7 @@ export async function PUT(
       data: updateData,
     })
 
-    return NextResponse.json(request)
+    return NextResponse.json({ request })
   } catch (error) {
     console.error('Error updating custom request:', error)
     return NextResponse.json(
