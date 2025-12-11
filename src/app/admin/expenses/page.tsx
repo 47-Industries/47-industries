@@ -486,27 +486,16 @@ export default function ExpensesPage() {
           {/* Bills Tab */}
           {activeTab === 'bills' && (
             <div>
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button onClick={openModal} style={{
                   padding: '10px 20px', borderRadius: '8px', border: 'none',
                   background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 500
                 }}>
                   Add Manual Bill
                 </button>
-                <button onClick={syncBills} disabled={syncing} style={{
-                  padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46',
-                  background: '#27272a', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 500,
-                  opacity: syncing ? 0.5 : 1
-                }}>
-                  {syncing ? 'Syncing...' : 'Sync from Gmail'}
-                </button>
-                {syncStatus && (
-                  <span style={{ fontSize: '13px', color: '#71717a', alignSelf: 'center' }}>
-                    {syncStatus.configured
-                      ? `Last sync: ${syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Never'}`
-                      : 'Gmail not configured'}
-                  </span>
-                )}
+                <span style={{ fontSize: '13px', color: '#71717a' }}>
+                  Bills are automatically synced from email by the bill notifier service
+                </span>
               </div>
 
               <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '16px', overflow: 'hidden' }}>
