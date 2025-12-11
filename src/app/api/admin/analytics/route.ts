@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/analytics - Get analytics data
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
