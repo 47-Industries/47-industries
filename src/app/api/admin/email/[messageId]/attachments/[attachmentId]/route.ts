@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 import { refreshAccessToken } from '@/lib/zoho'
@@ -12,8 +12,8 @@ export async function GET(
   { params }: { params: Promise<{ messageId: string; attachmentId: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -28,7 +28,7 @@ export async function GET(
 
     // Get user's Zoho tokens
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: auth.userId },
       select: {
         zohoAccessToken: true,
         zohoRefreshToken: true,
@@ -47,7 +47,7 @@ export async function GET(
       accessToken = tokens.access_token
 
       await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: auth.userId },
         data: {
           zohoAccessToken: tokens.access_token,
           zohoTokenExpiry: new Date(Date.now() + tokens.expires_in * 1000),

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 
@@ -13,10 +13,10 @@ export async function GET(
   context: RouteContext
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
     const { id } = await context.params
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -44,10 +44,10 @@ export async function PUT(
   context: RouteContext
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
     const { id } = await context.params
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -58,13 +58,23 @@ export async function PUT(
       adminNotes: body.adminNotes,
     }
 
-    // If providing a quote
+    // If providing a quote, get user info for quotedBy
     if (body.estimatedPrice !== undefined) {
       updateData.estimatedPrice = body.estimatedPrice
       updateData.estimatedDays = body.estimatedDays
       updateData.quoteNotes = body.quoteNotes
       updateData.quotedAt = new Date()
-      updateData.quotedBy = session.user.email || session.user.name || 'Admin'
+
+      // Get user email for quotedBy field
+      if (auth.userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: auth.userId },
+          select: { email: true, name: true }
+        })
+        updateData.quotedBy = user?.email || user?.name || 'Admin'
+      } else {
+        updateData.quotedBy = 'Admin'
+      }
     }
 
     const request = await prisma.customRequest.update({
@@ -88,10 +98,10 @@ export async function DELETE(
   context: RouteContext
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
     const { id } = await context.params
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

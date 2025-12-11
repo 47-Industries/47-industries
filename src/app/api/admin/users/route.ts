@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
@@ -7,8 +7,8 @@ import bcrypt from 'bcryptjs'
 // GET /api/admin/users - List all users with filtering
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized || session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || (auth.role !== 'ADMIN' && auth.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -64,8 +64,8 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/users - Create a new user
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized || session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || (auth.role !== 'ADMIN' && auth.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

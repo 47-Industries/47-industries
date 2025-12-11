@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 
 // POST /api/admin/notifications/read-all - Mark all notifications as read
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       where: {
         OR: [
           { userId: null },
-          { userId: session.user.id },
+          { userId: auth.userId },
         ],
         isRead: false,
       },

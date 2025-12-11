@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/notifications - List all notifications
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const where: any = {
       OR: [
         { userId: null }, // For all admins
-        { userId: session.user.id }, // For specific admin
+        { userId: auth.userId }, // For specific admin
       ]
     }
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       where: {
         OR: [
           { userId: null },
-          { userId: session.user.id },
+          { userId: auth.userId },
         ]
       },
       select: {
@@ -70,9 +70,9 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/notifications - Create a notification (internal use)
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

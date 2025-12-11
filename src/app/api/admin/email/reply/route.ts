@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 import { sendReplyEmail, EMAIL_ADDRESSES } from '@/lib/email'
@@ -7,9 +7,9 @@ import { sendReplyEmail, EMAIL_ADDRESSES } from '@/lib/email'
 // POST /api/admin/email/reply - Send a reply email to a customer
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -31,6 +31,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Get user name for sender
+    let senderName = body.senderName || '47 Industries'
+    if (auth.userId && !body.senderName) {
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { name: true }
+      })
+      if (user?.name) {
+        senderName = user.name
+      }
+    }
+
     // Send the email
     const result = await sendReplyEmail({
       to: body.to,
@@ -38,7 +50,7 @@ export async function POST(req: NextRequest) {
       message: body.message,
       referenceNumber: body.referenceNumber,
       fromAddress: body.fromAddress,
-      senderName: body.senderName || session.user.name || '47 Industries',
+      senderName,
     })
 
     if (!result.success) {
@@ -97,9 +109,9 @@ export async function POST(req: NextRequest) {
 // GET /api/admin/email/reply - Get available email addresses
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

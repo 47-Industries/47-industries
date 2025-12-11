@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { getZohoAuthUrl } from '@/lib/zoho'
 
 // GET /api/admin/email/connect - Get Zoho OAuth URL
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const authUrl = getZohoAuthUrl(session.user.id)
+    const authUrl = getZohoAuthUrl(auth.userId)
 
     return NextResponse.json({ authUrl })
   } catch (error) {

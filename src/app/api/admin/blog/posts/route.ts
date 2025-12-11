@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/blog/posts - List all blog posts
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/blog/posts - Create a new blog post
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
+    const auth = await getAdminAuthInfo(req)
 
-    if (!isAuthorized) {
+    if (!auth.isAuthorized || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
           excerpt: excerpt || null,
           content,
           categoryId: categoryId || null,
-          authorId: session.user.id,
+          authorId: auth.userId,
           status: status || 'DRAFT',
           coverImage: coverImage || null,
           publishedAt: status === 'PUBLISHED' ? new Date() : null,

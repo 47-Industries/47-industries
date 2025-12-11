@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
@@ -10,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized || session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || (auth.role !== 'ADMIN' && auth.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -55,8 +55,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized || session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || (auth.role !== 'ADMIN' && auth.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -79,7 +79,7 @@ export async function PATCH(
     }
 
     // Don't allow non-super-admins to create super admins
-    if (role === 'SUPER_ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    if (role === 'SUPER_ADMIN' && auth.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Only super admins can create other super admins' }, { status: 403 })
     }
 
@@ -128,15 +128,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized || session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized || (auth.role !== 'ADMIN' && auth.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { id } = await params
 
     // Don't allow deleting yourself
-    if (id === session.user.id) {
+    if (id === auth.userId) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
@@ -147,7 +147,7 @@ export async function DELETE(
     }
 
     // Only super admins can delete other admins
-    if ((existing.role === 'ADMIN' || existing.role === 'SUPER_ADMIN') && session.user.role !== 'SUPER_ADMIN') {
+    if ((existing.role === 'ADMIN' || existing.role === 'SUPER_ADMIN') && auth.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Only super admins can delete admin accounts' }, { status: 403 })
     }
 
