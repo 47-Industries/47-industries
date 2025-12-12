@@ -1489,6 +1489,22 @@ model ProcessedEmail {
   @@index([processedAt])
 }
 
+// Blocked bill senders - emails from these senders/patterns are personal, not company bills
+model BlockedBillSender {
+  id            String    @id @default(cuid())
+  pattern       String    // Email address, domain, or keyword to block
+  patternType   String    @default("sender") // sender, subject, vendor
+  reason        String?   // Why this was blocked (e.g., "Personal Zelle payment")
+  blockedBillId String?   // The bill ID that triggered this block (for reference)
+
+  createdAt     DateTime  @default(now())
+  createdBy     String?   // User who blocked it
+
+  @@unique([pattern, patternType])
+  @@index([pattern])
+  @@index([patternType])
+}
+
 // Bank account balance tracking from daily email alerts
 model BankBalance {
   id            String    @id @default(cuid())
