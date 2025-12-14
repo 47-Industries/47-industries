@@ -64,6 +64,7 @@ model User {
 
   // Expense tracking relations (for founders)
   billPayments  BillPayment[]
+  founderPayments FounderPayment[] @relation("FounderPayments")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1522,6 +1523,116 @@ model BankBalance {
   @@index([bank])
   @@index([accountType])
   @@index([createdAt])
+}
+
+// ============================================
+// NEW BILL MANAGEMENT SYSTEM
+// ============================================
+// RecurringBill: Define bills once (Rent, Duke Energy, etc.)
+// BillInstance: Each month's actual bill
+// FounderPayment: Track each founder's share
+
+// Recurring bill definitions - set up once
+model RecurringBill {
+  id            String    @id @default(cuid())
+  name          String    // "Rent", "Duke Energy", "Trash"
+  vendor        String    // "Monique Roberts", "Duke Energy", "Tote Enterprises"
+
+  // Amount handling
+  amountType    String    // "FIXED" or "VARIABLE"
+  fixedAmount   Decimal?  @db.Decimal(10, 2) // For FIXED: $3000 for rent
+
+  // Schedule
+  frequency     String    // "MONTHLY", "QUARTERLY", "ANNUAL"
+  dueDay        Int       // Day of month (1-28)
+
+  // Email matching (for auto-detection)
+  emailPatterns Json      // ["zelle", "monique"] or ["duke", "energy"]
+  paymentMethod String?   // "Zelle", "Autopay", "Manual"
+
+  // Metadata
+  vendorType    String    // "RENT", "UTILITY", "CREDIT_CARD", "SUBSCRIPTION", "OTHER"
+  active        Boolean   @default(true)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  instances     BillInstance[]
+
+  @@index([active])
+  @@index([vendor])
+}
+
+// Individual bill instances - each occurrence of a recurring bill
+model BillInstance {
+  id              String         @id @default(cuid())
+  recurringBillId String?        // null if one-time/manual
+  recurringBill   RecurringBill? @relation(fields: [recurringBillId], references: [id], onDelete: SetNull)
+
+  // Bill details
+  vendor          String
+  vendorType      String
+  amount          Decimal        @db.Decimal(10, 2)
+  dueDate         DateTime
+  period          String?        // "2025-01" for January 2025
+
+  // Status
+  status          String         @default("PENDING") // "PENDING", "PAID", "OVERDUE"
+  paidDate        DateTime?
+  paidVia         String?        // "Zelle confirmation", "Autopay", "Manual"
+
+  // Email source (if detected from email)
+  emailId         String?        @unique
+  emailSubject    String?
+  emailFrom       String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  founderPayments FounderPayment[]
+
+  @@index([recurringBillId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([period])
+  @@index([emailId])
+}
+
+// Track each founder's share of a bill
+model FounderPayment {
+  id             String       @id @default(cuid())
+  billInstanceId String
+  billInstance   BillInstance @relation(fields: [billInstanceId], references: [id], onDelete: Cascade)
+  userId         String       // Must be a User with isFounder=true
+  user           User         @relation("FounderPayments", fields: [userId], references: [id])
+
+  amount         Decimal      @db.Decimal(10, 2) // bill.amount / founderCount
+  status         String       @default("PENDING") // "PENDING", "PAID"
+  paidDate       DateTime?
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([billInstanceId, userId])
+  @@index([billInstanceId])
+  @@index([userId])
+  @@index([status])
+}
+
+// Push notification tokens for mobile app
+model PushToken {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  platform    String    // "ios", "android"
+  deviceName  String?
+  active      Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([active])
 }
 
 // ============================================
