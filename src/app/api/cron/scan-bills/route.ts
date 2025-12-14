@@ -16,16 +16,22 @@ export async function GET(request: NextRequest) {
   const isVercelCron = authHeader === `Bearer ${cronSecret}`
   const isAdminAuth = request.headers.get('x-api-key') === process.env.ADMIN_API_KEY
 
+  // For manual scans from admin panel, we'll skip auth check if no CRON_SECRET is set
   if (!isVercelCron && !isAdminAuth && cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  try {
-    console.log('[CRON] Starting bill scan...')
+  // Get daysBack from query params (default 1 for cron, can be up to 60 for deep scan)
+  const { searchParams } = new URL(request.url)
+  const daysBackParam = searchParams.get('daysBack')
+  const daysBack = Math.min(Math.max(parseInt(daysBackParam || '1') || 1, 1), 60)
 
-    // Fetch emails from last 24 hours
-    const emails = await gmailScanner.fetchFromAllAccounts(1)
-    console.log(`[CRON] Found ${emails.length} emails to process`)
+  try {
+    console.log(`[SCAN] Starting bill scan (${daysBack} days back)...`)
+
+    // Fetch emails from specified days back
+    const emails = await gmailScanner.fetchFromAllAccounts(daysBack)
+    console.log(`[SCAN] Found ${emails.length} emails to process`)
 
     const results = {
       processed: 0,
@@ -98,11 +104,13 @@ export async function GET(request: NextRequest) {
     // Generate any fixed recurring bills for current period
     await generateFixedBills()
 
-    console.log('[CRON] Scan complete:', results)
+    console.log('[SCAN] Scan complete:', results)
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
+      daysBack,
+      emailsFound: emails.length,
       results
     })
   } catch (error: any) {

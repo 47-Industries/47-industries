@@ -65,11 +65,14 @@ export default function ExpensesPage() {
   // Modal state
   const [showAddBillModal, setShowAddBillModal] = useState(false)
   const [showRecurringModal, setShowRecurringModal] = useState(false)
+  const [showScanModal, setShowScanModal] = useState(false)
   const [editingRecurring, setEditingRecurring] = useState<RecurringBill | null>(null)
   const [editingBillAmount, setEditingBillAmount] = useState<string | null>(null)
   const [tempAmount, setTempAmount] = useState('')
   const [formData, setFormData] = useState<any>({})
   const [submitting, setSubmitting] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanResults, setScanResults] = useState<any>(null)
 
   useEffect(() => {
     fetchData()
@@ -269,6 +272,26 @@ export default function ExpensesPage() {
     }
   }
 
+  const handleScanEmails = async (daysBack: number) => {
+    setScanning(true)
+    setScanResults(null)
+    try {
+      const res = await fetch(`/api/cron/scan-bills?daysBack=${daysBack}`)
+      const data = await res.json()
+      setScanResults(data)
+      if (data.success) {
+        setSuccess(`Scan complete: ${data.emailsFound} emails found, ${data.results.processed} processed, ${data.results.created} bills created`)
+        fetchData() // Refresh the bills list
+      } else {
+        setError(data.error || 'Scan failed')
+      }
+    } catch (err) {
+      setError('Failed to run scan')
+    } finally {
+      setScanning(false)
+    }
+  }
+
   const openRecurringModal = (recurring?: RecurringBill) => {
     if (recurring) {
       setEditingRecurring(recurring)
@@ -361,9 +384,14 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <button onClick={() => { setFormData({ vendorType: 'OTHER' }); setShowAddBillModal(true) }} style={{
-              padding: '12px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500
-            }}>+ Add Bill</button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowScanModal(true)} style={{
+                padding: '12px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 500
+              }}>Scan Emails</button>
+              <button onClick={() => { setFormData({ vendorType: 'OTHER' }); setShowAddBillModal(true) }} style={{
+                padding: '12px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500
+              }}>+ Add Bill</button>
+            </div>
           </div>
 
           {/* Founder Summary */}
@@ -610,6 +638,88 @@ export default function ExpensesPage() {
               <button onClick={() => setShowAddBillModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleCreateBill} disabled={submitting} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, opacity: submitting ? 0.5 : 1 }}>
                 {submitting ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scan Emails Modal */}
+      {showScanModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '450px', border: '1px solid #27272a' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>Scan Emails for Bills</h2>
+            <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '20px' }}>
+              Scan your Gmail for bill notifications and payment confirmations. This will update variable bill amounts and mark paid bills.
+            </p>
+
+            {scanning ? (
+              <div style={{ textAlign: 'center', padding: '32px' }}>
+                <div style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>Scanning emails...</div>
+                <div style={{ fontSize: '12px', color: '#71717a' }}>This may take a minute for deep scans</div>
+              </div>
+            ) : scanResults ? (
+              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: scanResults.success ? '#10b981' : '#ef4444' }}>
+                  {scanResults.success ? 'Scan Complete' : 'Scan Failed'}
+                </div>
+                {scanResults.success && (
+                  <div style={{ fontSize: '13px', color: '#a1a1aa' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>Days scanned: <span style={{ color: '#fff' }}>{scanResults.daysBack}</span></div>
+                      <div>Emails found: <span style={{ color: '#fff' }}>{scanResults.emailsFound}</span></div>
+                      <div>Processed: <span style={{ color: '#fff' }}>{scanResults.results.processed}</span></div>
+                      <div>Bills created: <span style={{ color: '#10b981' }}>{scanResults.results.created}</span></div>
+                      <div>Marked paid: <span style={{ color: '#3b82f6' }}>{scanResults.results.paid}</span></div>
+                      <div>Skipped: <span style={{ color: '#71717a' }}>{scanResults.results.skipped}</span></div>
+                    </div>
+                  </div>
+                )}
+                {!scanResults.success && (
+                  <div style={{ fontSize: '13px', color: '#ef4444' }}>{scanResults.error || scanResults.message}</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+                <button
+                  onClick={() => handleScanEmails(1)}
+                  style={{ padding: '16px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#27272a', color: '#fff', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>Quick Scan (1 day)</div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>Check for new bills from the last 24 hours</div>
+                </button>
+                <button
+                  onClick={() => handleScanEmails(7)}
+                  style={{ padding: '16px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#27272a', color: '#fff', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>Week Scan (7 days)</div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>Check the past week for missed bills</div>
+                </button>
+                <button
+                  onClick={() => handleScanEmails(30)}
+                  style={{ padding: '16px', borderRadius: '8px', border: '1px solid #3b82f6', background: 'rgba(59,130,246,0.1)', color: '#fff', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>Deep Scan (30 days)</div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>Full month scan to catch all bills</div>
+                </button>
+                <button
+                  onClick={() => handleScanEmails(60)}
+                  style={{ padding: '16px', borderRadius: '8px', border: '1px solid #f59e0b', background: 'rgba(245,158,11,0.1)', color: '#fff', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>Extended Scan (60 days)</div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>Two month scan for initial setup</div>
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              {scanResults && (
+                <button onClick={() => setScanResults(null)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer' }}>
+                  Scan Again
+                </button>
+              )}
+              <button onClick={() => { setShowScanModal(false); setScanResults(null) }} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+                {scanResults ? 'Done' : 'Cancel'}
               </button>
             </div>
           </div>
