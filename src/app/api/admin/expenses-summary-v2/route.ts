@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
       orderBy: { dueDate: 'asc' },
       include: {
         recurringBill: {
-          select: { name: true, paymentMethod: true }
+          select: { id: true, name: true, paymentMethod: true, amountType: true }
         },
         founderPayments: {
           include: {
             user: {
-              select: { id: true, name: true }
+              select: { id: true, name: true, email: true }
             }
           }
         }
