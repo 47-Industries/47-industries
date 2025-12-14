@@ -154,8 +154,22 @@ If this is not a bill or payment, return confidence: 0.`
       return { created: false, action: 'not_a_bill' }
     }
 
-    // Get current period (YYYY-MM)
-    const period = new Date().toISOString().slice(0, 7)
+    // Determine period from email date or parsed due date (not current date)
+    // This ensures historical scans put bills in the correct month
+    let period: string
+    if (parsed.dueDate) {
+      // Use due date month as the period
+      period = parsed.dueDate.slice(0, 7)
+    } else if (email.date) {
+      // Fall back to email date
+      const emailDate = new Date(email.date)
+      period = emailDate.toISOString().slice(0, 7)
+    } else {
+      // Last resort: current date
+      period = new Date().toISOString().slice(0, 7)
+    }
+
+    console.log(`[PARSER] Processing ${parsed.vendor} for period ${period}`)
 
     // Get founder count for splitting
     const founderCount = await prisma.user.count({ where: { isFounder: true } })

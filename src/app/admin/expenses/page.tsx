@@ -66,6 +66,7 @@ export default function ExpensesPage() {
   const [showAddBillModal, setShowAddBillModal] = useState(false)
   const [showRecurringModal, setShowRecurringModal] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [editingRecurring, setEditingRecurring] = useState<RecurringBill | null>(null)
   const [editingBillAmount, setEditingBillAmount] = useState<string | null>(null)
   const [tempAmount, setTempAmount] = useState('')
@@ -73,6 +74,9 @@ export default function ExpensesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanResults, setScanResults] = useState<any>(null)
+  const [historyBill, setHistoryBill] = useState<RecurringBill | null>(null)
+  const [billHistory, setBillHistory] = useState<BillInstance[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -269,6 +273,23 @@ export default function ExpensesPage() {
       fetchData()
     } catch (err) {
       setError('Failed to delete')
+    }
+  }
+
+  const openHistoryModal = async (recurring: RecurringBill) => {
+    setHistoryBill(recurring)
+    setShowHistoryModal(true)
+    setLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/admin/recurring-bills/${recurring.id}/history`)
+      if (res.ok) {
+        const data = await res.json()
+        setBillHistory(data.instances || [])
+      }
+    } catch (err) {
+      setError('Failed to load history')
+    } finally {
+      setLoadingHistory(false)
     }
   }
 
@@ -588,6 +609,9 @@ export default function ExpensesPage() {
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => openHistoryModal(r)} style={{
+                        padding: '4px 10px', borderRadius: '4px', border: '1px solid #3b82f6', background: 'transparent', color: '#3b82f6', cursor: 'pointer', fontSize: '12px'
+                      }}>History</button>
                       <button onClick={() => openRecurringModal(r)} style={{
                         padding: '4px 10px', borderRadius: '4px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer', fontSize: '12px'
                       }}>Edit</button>
@@ -722,6 +746,112 @@ export default function ExpensesPage() {
                 {scanResults ? 'Done' : 'Cancel'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bill History Modal */}
+      {showHistoryModal && historyBill && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '550px', border: '1px solid #27272a', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{historyBill.name} History</h2>
+              <p style={{ fontSize: '13px', color: '#71717a' }}>
+                {historyBill.vendor} • {historyBill.amountType === 'FIXED' ? formatCurrency(historyBill.fixedAmount || 0) + '/mo' : 'Variable'} • Due {historyBill.dueDay}th
+              </p>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
+              {loadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#71717a' }}>Loading history...</div>
+              ) : billHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#71717a' }}>No bill history yet</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {billHistory.map((instance, idx) => {
+                    const isLatest = idx === 0
+                    const prevInstance = billHistory[idx + 1]
+                    const amountChange = prevInstance ? Number(instance.amount) - Number(prevInstance.amount) : 0
+                    const changePercent = prevInstance && Number(prevInstance.amount) > 0
+                      ? ((amountChange / Number(prevInstance.amount)) * 100).toFixed(1)
+                      : null
+
+                    return (
+                      <div key={instance.id} style={{
+                        background: isLatest ? 'rgba(59,130,246,0.1)' : '#0a0a0a',
+                        border: isLatest ? '1px solid rgba(59,130,246,0.3)' : '1px solid #27272a',
+                        borderRadius: '8px', padding: '12px 16px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 600 }}>
+                              {instance.period?.includes('Q')
+                                ? instance.period
+                                : new Date(instance.period + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                            {isLatest && (
+                              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#3b82f6', color: '#fff' }}>Current</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '18px', fontWeight: 700 }}>
+                              {Number(instance.amount) > 0 ? formatCurrency(Number(instance.amount)) : 'Pending'}
+                            </span>
+                            {changePercent && Number(changePercent) !== 0 && (
+                              <span style={{
+                                fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                                background: amountChange > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+                                color: amountChange > 0 ? '#ef4444' : '#10b981'
+                              }}>
+                                {amountChange > 0 ? '+' : ''}{changePercent}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#71717a' }}>
+                          <span>Due: {instance.dueDate ? formatDate(instance.dueDate) : '-'}</span>
+                          <span style={{
+                            color: instance.status === 'PAID' ? '#10b981' : '#f59e0b'
+                          }}>
+                            {instance.status === 'PAID' ? `Paid ${instance.paidDate ? formatDate(instance.paidDate) : ''}` : 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Stats summary */}
+            {billHistory.length > 1 && (
+              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', fontSize: '13px' }}>
+                  <div>
+                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Average</div>
+                    <div style={{ fontWeight: 600 }}>
+                      {formatCurrency(billHistory.reduce((sum, b) => sum + Number(b.amount), 0) / billHistory.length)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Highest</div>
+                    <div style={{ fontWeight: 600, color: '#ef4444' }}>
+                      {formatCurrency(Math.max(...billHistory.map(b => Number(b.amount))))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Lowest</div>
+                    <div style={{ fontWeight: 600, color: '#10b981' }}>
+                      {formatCurrency(Math.min(...billHistory.filter(b => Number(b.amount) > 0).map(b => Number(b.amount))) || 0)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => { setShowHistoryModal(false); setHistoryBill(null); setBillHistory([]) }} style={{
+              padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, alignSelf: 'flex-end'
+            }}>Close</button>
           </div>
         </div>
       )}
