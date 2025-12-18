@@ -11,15 +11,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Allow public access to OpenID Connect discovery endpoint
+  if (url.pathname === '/.well-known/openid-configuration') {
+    return NextResponse.next()
+  }
+
   // Handle admin subdomain - rewrite page routes to /admin path
   if (hostname.startsWith('admin.')) {
-    // Only rewrite if not already on an /admin path
-    if (!url.pathname.startsWith('/admin')) {
+    // Only rewrite if not already on an /admin path (and not .well-known)
+    if (!url.pathname.startsWith('/admin') && !url.pathname.startsWith('/.well-known')) {
       url.pathname = '/admin' + url.pathname
     }
 
-    // SECURITY: Check authentication for ALL admin routes except login page
-    if (!url.pathname.startsWith('/admin/login')) {
+    // SECURITY: Check authentication for ALL admin routes except login page and .well-known
+    if (!url.pathname.startsWith('/admin/login') && !url.pathname.startsWith('/.well-known')) {
       const token = await getToken({
         req: request,
         secret: process.env.NEXTAUTH_SECRET
