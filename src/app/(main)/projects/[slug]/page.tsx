@@ -6,6 +6,7 @@ import ImageLightbox from '@/components/projects/ImageLightbox'
 
 // Force dynamic rendering - database not available at build time
 export const dynamic = 'force-dynamic'
+export const revalidate = 0 // Disable caching completely
 
 const CATEGORY_LABELS: Record<string, string> = {
   WEB_DEVELOPMENT: 'Web Development',
