@@ -36,6 +36,19 @@ export async function POST(req: NextRequest) {
       code_verifier = body.code_verifier
     }
 
+    // Check for client credentials in Authorization header (Basic auth)
+    // OAuth 2.0 allows client credentials via Authorization: Basic header
+    if (!client_id || !client_secret) {
+      const authHeader = req.headers.get('authorization')
+      if (authHeader?.startsWith('Basic ')) {
+        const base64Credentials = authHeader.substring(6)
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8')
+        const [headerClientId, headerClientSecret] = credentials.split(':')
+        client_id = client_id || headerClientId
+        client_secret = client_secret || headerClientSecret
+      }
+    }
+
     // Debug logging
     console.log('OAuth token request:', {
       contentType,
