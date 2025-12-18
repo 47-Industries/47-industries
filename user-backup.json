@@ -1,0 +1,177 @@
+[
+  {
+    "id": "cmii0fqaj0000rx3m7wozbcjf",
+    "email": "kyle@47industries.com",
+    "name": "Kyle Rivers",
+    "password": "$2b$12$vP3wSM9EjBwN/WvlaoyWeOo6sgqhwlcNaR2ULGcO.jvqnt5gT2PRi",
+    "image": null,
+    "role": "ADMIN",
+    "emailVerified": "2025-12-14T23:24:19.010Z",
+    "createdAt": "2025-11-28T03:33:37.000Z",
+    "updatedAt": "2025-12-18T15:37:09.092Z",
+    "username": "kylerivers",
+    "emailAccess": [
+      "support@47industries.com",
+      "sales@47industries.com",
+      "admin@47industries.com",
+      "info@47industries.com"
+    ],
+    "permissions": [
+      "products",
+      "orders",
+      "users",
+      "settings",
+      "email",
+      "custom_requests",
+      "analytics",
+      "expenses"
+    ],
+    "isFounder": 1
+  },
+  {
+    "id": "cmimjr7ag008up35fn7vgh379",
+    "email": "deansabrwork@gmail.com",
+    "name": "Dean Sabr",
+    "password": "$2b$12$rTUn1mh4erZuLxrrjUSG6uxj/cvooAhRxpn7oOJv/Rtti25wQ05.m",
+    "image": null,
+    "role": "SUPER_ADMIN",
+    "emailVerified": null,
+    "createdAt": "2025-12-01T07:45:29.897Z",
+    "updatedAt": "2025-12-14T22:33:42.742Z",
+    "username": "deansabr",
+    "emailAccess": [
+      "support@47industries.com",
+      "sales@47industries.com",
+      "admin@47industries.com",
+      "info@47industries.com"
+    ],
+    "permissions": [
+      "products",
+      "orders",
+      "users",
+      "settings",
+      "email",
+      "custom_requests",
+      "analytics",
+      "expenses"
+    ],
+    "isFounder": 1
+  },
+  {
+    "id": "cmiolhqy0000imv5g11skynmj",
+    "email": "dylanryan0208@gmail.com",
+    "name": "dylanryan",
+    "password": "$2b$10$ansj.tQE6FGT33lYFZKDCuVqpe5e749v8OjKXw6IjV6abH2ge/xZm",
+    "image": null,
+    "role": "SUPER_ADMIN",
+    "emailVerified": null,
+    "createdAt": "2025-12-02T18:09:40.392Z",
+    "updatedAt": "2025-12-16T06:19:50.395Z",
+    "username": "dylanryan",
+    "emailAccess": [
+      "support@47industries.com",
+      "sales@47industries.com",
+      "admin@47industries.com",
+      "info@47industries.com"
+    ],
+    "permissions": [
+      "products",
+      "orders",
+      "users",
+      "settings",
+      "email",
+      "custom_requests",
+      "analytics",
+      "expenses"
+    ],
+    "isFounder": 1
+  },
+  {
+    "id": "cmiolj1h4000mmv5g640a30nt",
+    "email": "wesleychuston@gmail.com",
+    "name": "wesleyhuston",
+    "password": "$2b$10$Xuqp/YleiWu26mVGknFncuUx2wpMJM9.o.SQP1aVptNMHN3.X8wW.",
+    "image": null,
+    "role": "SUPER_ADMIN",
+    "emailVerified": null,
+    "createdAt": "2025-12-02T18:10:40.697Z",
+    "updatedAt": "2025-12-14T22:33:43.039Z",
+    "username": "wesleyhuston",
+    "emailAccess": [
+      "support@47industries.com",
+      "sales@47industries.com",
+      "admin@47industries.com",
+      "info@47industries.com"
+    ],
+    "permissions": [
+      "products",
+      "orders",
+      "users",
+      "settings",
+      "email",
+      "custom_requests",
+      "analytics",
+      "expenses"
+    ],
+    "isFounder": 1
+  },
+  {
+    "id": "cmj1velj9000bms5enxivhb7p",
+    "email": "rafaseminole13@gmail.com",
+    "name": "TDxzFFBVwNosjLMQHhZ",
+    "password": "$2b$12$FsVtq.BFGwREYamnvrMw7eY2WDMJv8bj5dLthwDb8QiId1uI.qDOC",
+    "image": null,
+    "role": "CUSTOMER",
+    "emailVerified": null,
+    "createdAt": "2025-12-12T01:08:09.861Z",
+    "updatedAt": "2025-12-12T01:08:09.861Z",
+    "username": null,
+    "emailAccess": null,
+    "permissions": null,
+    "isFounder": 0
+  },
+  {
+    "id": "cmj1wwg2b0018ms5e99r51apn",
+    "email": "test@47industries.com",
+    "name": "Test USER",
+    "password": "$2b$10$lLcicl4NAP/ReKqVzXx1Seq7Sv90EEY.56J6q9Vm7sC6KX6Dg5TRK",
+    "image": null,
+    "role": "ADMIN",
+    "emailVerified": null,
+    "createdAt": "2025-12-12T01:50:02.195Z",
+    "updatedAt": "2025-12-14T22:33:43.736Z",
+    "username": "testuser",
+    "emailAccess": [
+      "support@47industries.com",
+      "sales@47industries.com",
+      "admin@47industries.com",
+      "info@47industries.com"
+    ],
+    "permissions": [
+      "products",
+      "orders",
+      "settings",
+      "users",
+      "email",
+      "custom_requests",
+      "analytics",
+      "expenses"
+    ],
+    "isFounder": 0
+  },
+  {
+    "id": "cmj4urahl00j4p75gbmun8sue",
+    "email": "idumunoyogah40@gmail.com",
+    "name": "kQJeODjWNDFXVmttaz",
+    "password": "$2b$12$.JO51uP8vYU739a2rewC3ewMA2SbyyrrhC5b2PUp/Dw4QCqsmwBEG",
+    "image": null,
+    "role": "CUSTOMER",
+    "emailVerified": null,
+    "createdAt": "2025-12-14T03:13:20.985Z",
+    "updatedAt": "2025-12-14T03:13:20.985Z",
+    "username": null,
+    "emailAccess": null,
+    "permissions": null,
+    "isFounder": 0
+  }
+]
