@@ -6,15 +6,33 @@ import crypto from 'crypto'
 // OAuth 2.0 Token Endpoint
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const {
-      grant_type,
-      code,
-      redirect_uri,
-      client_id,
-      client_secret,
-      code_verifier,
-    } = body
+    // OAuth 2.0 requires application/x-www-form-urlencoded
+    const contentType = req.headers.get('content-type') || ''
+    let grant_type: string | null = null
+    let code: string | null = null
+    let redirect_uri: string | null = null
+    let client_id: string | null = null
+    let client_secret: string | null = null
+    let code_verifier: string | null = null
+
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const formData = await req.formData()
+      grant_type = formData.get('grant_type') as string | null
+      code = formData.get('code') as string | null
+      redirect_uri = formData.get('redirect_uri') as string | null
+      client_id = formData.get('client_id') as string | null
+      client_secret = formData.get('client_secret') as string | null
+      code_verifier = formData.get('code_verifier') as string | null
+    } else {
+      // Fallback to JSON for compatibility
+      const body = await req.json()
+      grant_type = body.grant_type
+      code = body.code
+      redirect_uri = body.redirect_uri
+      client_id = body.client_id
+      client_secret = body.client_secret
+      code_verifier = body.code_verifier
+    }
 
     // Validate grant_type
     if (grant_type !== 'authorization_code') {
