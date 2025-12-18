@@ -1667,3 +1667,92 @@ model EmailLog {
   @@index([fromAddress])
   @@index([createdAt])
 }
+
+// ============================================
+// OAUTH 2.0 PROVIDER
+// ============================================
+// Allow external apps (like LeadChopper) to authenticate using 47industries.com accounts
+
+model OAuthApplication {
+  id                String   @id @default(cuid())
+  name              String   // "LeadChopper"
+  clientId          String   @unique @default(cuid())
+  clientSecret      String   @default(cuid())
+
+  // Redirect URIs (JSON array of allowed redirect URIs)
+  redirectUris      Json     // ["https://leadchopper.47industries.com/api/auth/callback/47industries"]
+
+  // Scopes (JSON array)
+  scopes            Json     @default("[\"openid\", \"email\", \"profile\"]")
+
+  // Application metadata
+  description       String?  @db.Text
+  logoUrl           String?
+  websiteUrl        String?
+
+  // Owner
+  ownerId           String?  // Admin user who created this
+
+  // Status
+  active            Boolean  @default(true)
+
+  // Relations
+  authorizationCodes OAuthAuthorizationCode[]
+  accessTokens       OAuthAccessToken[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([active])
+}
+
+// Temporary authorization codes (short-lived, single-use)
+model OAuthAuthorizationCode {
+  id            String            @id @default(cuid())
+  code          String            @unique @default(cuid())
+  applicationId String
+  application   OAuthApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  userId        String
+
+  // PKCE support
+  codeChallenge       String?
+  codeChallengeMethod String?  // "S256" or "plain"
+
+  redirectUri   String
+  scopes        Json             // Granted scopes
+
+  expiresAt     DateTime         // Usually 10 minutes
+  used          Boolean          @default(false)
+
+  createdAt     DateTime         @default(now())
+
+  @@index([applicationId])
+  @@index([code])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Access tokens (longer-lived)
+model OAuthAccessToken {
+  id            String            @id @default(cuid())
+  token         String            @unique @default(cuid())
+  applicationId String
+  application   OAuthApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  userId        String
+
+  scopes        Json             // Granted scopes
+
+  expiresAt     DateTime         // Usually 30 days
+  revoked       Boolean          @default(false)
+
+  createdAt     DateTime         @default(now())
+  lastUsedAt    DateTime?
+
+  @@index([applicationId])
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
