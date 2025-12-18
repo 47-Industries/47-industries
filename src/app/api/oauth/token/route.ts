@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
-import jwt from 'jsonwebtoken'
+import { signJWT } from '@/lib/oauth-keys'
 
 // POST /api/oauth/token
 // OAuth 2.0 Token Endpoint
@@ -229,8 +229,7 @@ export async function POST(req: NextRequest) {
       idTokenPayload.isFounder = user.isFounder
     }
 
-    const secret = process.env.NEXTAUTH_SECRET!
-    const idToken = jwt.sign(idTokenPayload, secret, { algorithm: 'HS256' })
+    const idToken = await signJWT(idTokenPayload)
 
     return NextResponse.json({
       access_token: accessToken,
