@@ -705,6 +705,9 @@ model ServiceProject {
   videoUrl      String?
   liveUrl       String?         // Link to live project
 
+  // Branding
+  accentColor   String?         // Hex color for project-specific branding (e.g., "#ff6600")
+
   // Tech stack used
   technologies  Json?           // Array of tech names
 

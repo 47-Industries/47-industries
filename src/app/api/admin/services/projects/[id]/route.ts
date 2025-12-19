@@ -98,6 +98,7 @@ export async function PATCH(
         ...(body.images !== undefined && { images: body.images }),
         ...(body.videoUrl !== undefined && { videoUrl: body.videoUrl || null }),
         ...(body.liveUrl !== undefined && { liveUrl: body.liveUrl || null }),
+        ...(body.accentColor !== undefined && { accentColor: body.accentColor || null }),
         ...(body.technologies !== undefined && { technologies: body.technologies }),
         ...(body.testimonial !== undefined && { testimonial: body.testimonial || null }),
         ...(body.testimonialAuthor !== undefined && { testimonialAuthor: body.testimonialAuthor || null }),

@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
         images: body.images || null,
         videoUrl: body.videoUrl || null,
         liveUrl: body.liveUrl || null,
+        accentColor: body.accentColor || null,
         technologies: body.technologies || null,
         testimonial: body.testimonial || null,
         testimonialAuthor: body.testimonialAuthor || null,

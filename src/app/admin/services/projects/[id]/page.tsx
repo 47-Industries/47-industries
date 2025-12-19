@@ -37,6 +37,7 @@ interface ProjectData {
   images: (string | ProjectImage)[] | null
   videoUrl: string | null
   liveUrl: string | null
+  accentColor: string | null
   technologies: string[] | null
   testimonial: string | null
   testimonialAuthor: string | null
@@ -82,6 +83,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     images: [] as ProjectImage[],
     videoUrl: '',
     liveUrl: '',
+    accentColor: '',
     technologies: [] as string[],
     testimonial: '',
     testimonialAuthor: '',
@@ -124,6 +126,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         images: normalizeImages(data.images),
         videoUrl: data.videoUrl || '',
         liveUrl: data.liveUrl || '',
+        accentColor: data.accentColor || '',
         technologies: data.technologies || [],
         testimonial: data.testimonial || '',
         testimonialAuthor: data.testimonialAuthor || '',
@@ -423,6 +426,28 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                   placeholder="https://example.com"
                   className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-blue-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Accent Color</label>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="color"
+                    name="accentColor"
+                    value={formData.accentColor || '#3b82f6'}
+                    onChange={handleChange}
+                    className="h-12 w-20 rounded-lg cursor-pointer bg-background border border-border"
+                  />
+                  <input
+                    type="text"
+                    name="accentColor"
+                    value={formData.accentColor}
+                    onChange={handleChange}
+                    placeholder="#3b82f6"
+                    pattern="^#[0-9A-Fa-f]{6}$"
+                    className="flex-1 px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-blue-500 font-mono text-sm"
+                  />
+                </div>
+                <p className="text-xs text-text-secondary mt-1">Custom brand color for this project page (leave blank for default blue)</p>
               </div>
             </div>
 

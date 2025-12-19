@@ -124,8 +124,24 @@ export default async function LeadChopperPage() {
   ]
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section - Standard Template */}
+    <>
+      {/* Custom Accent Color Styles */}
+      {project.accentColor && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            .text-accent { color: ${project.accentColor} !important; }
+            .bg-accent { background-color: ${project.accentColor} !important; }
+            .bg-accent\\/10 { background-color: ${project.accentColor}1a !important; }
+            .bg-accent\\/5 { background-color: ${project.accentColor}0d !important; }
+            .border-accent { border-color: ${project.accentColor} !important; }
+            .border-accent\\/20 { border-color: ${project.accentColor}33 !important; }
+            .hover\\:bg-accent\\/90:hover { background-color: ${project.accentColor}e6 !important; }
+            .ring-accent\\/50 { --tw-ring-color: ${project.accentColor}80 !important; }
+          `
+        }} />
+      )}
+      <div className="min-h-screen">
+        {/* Hero Section - Standard Template */}
       <div className="pt-20 pb-12 md:pt-24 md:pb-16">
         <div className="container mx-auto px-4 md:px-6">
           <div className="mb-6">
@@ -466,5 +482,6 @@ export default async function LeadChopperPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
