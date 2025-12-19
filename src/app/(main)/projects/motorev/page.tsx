@@ -71,9 +71,31 @@ export default async function MotoRevProjectPage() {
   ]
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section - Same as other projects */}
-      <div className="pt-20 pb-12 md:pt-24 md:pb-16">
+    <>
+      {/* Custom Brand Color Styles - MotoRev Red (#ff3b30) - Excludes navbar */}
+      {project.accentColor && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            /* MotoRev brand red - Scoped to page content only, NOT navbar */
+            main .text-accent { color: #ff3b30 !important; }
+            main .bg-accent { background-color: #ff3b30 !important; }
+            main .bg-accent\\/10 { background-color: rgba(255, 59, 48, 0.1) !important; }
+            main .bg-accent\\/5 { background-color: rgba(255, 59, 48, 0.05) !important; }
+            main .border-accent { border-color: #ff3b30 !important; }
+            main .border-accent\\/20 { border-color: rgba(255, 59, 48, 0.2) !important; }
+            main .hover\\:bg-accent\\/90:hover { background-color: #ff2d1f !important; }
+            main .ring-accent\\/50 { --tw-ring-color: rgba(255, 59, 48, 0.5) !important; }
+
+            /* Gradient backgrounds matching MotoRev brand */
+            main .from-accent { --tw-gradient-from: #ff3b30 !important; }
+            main .to-accent { --tw-gradient-to: #ff2d1f !important; }
+            main .via-accent { --tw-gradient-via: #ff3b30 !important; }
+          `
+        }} />
+      )}
+      <div className="min-h-screen">
+        {/* Hero Section - Same as other projects */}
+        <div className="pt-20 pb-12 md:pt-24 md:pb-16">
         <div className="container mx-auto px-4 md:px-6">
           {/* Breadcrumb */}
           <div className="mb-6">
@@ -496,5 +518,6 @@ export default async function MotoRevProjectPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
