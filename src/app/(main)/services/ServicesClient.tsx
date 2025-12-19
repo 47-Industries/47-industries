@@ -379,14 +379,16 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
                   )}
 
                   <Link
-                    href={`/start-project?service=${pkg.slug}`}
+                    href={pkg.slug === 'leadchopper-marketing' ? 'https://leadchopper.app' : `/start-project?service=${pkg.slug}`}
+                    target={pkg.slug === 'leadchopper-marketing' ? '_blank' : undefined}
+                    rel={pkg.slug === 'leadchopper-marketing' ? 'noopener noreferrer' : undefined}
                     className={`block w-full py-3 text-center rounded-lg font-medium transition-all ${
                       pkg.isPopular
                         ? 'bg-accent text-white hover:bg-accent/90'
                         : 'border border-border hover:bg-surface'
                     }`}
                   >
-                    Get Started
+                    {pkg.slug === 'leadchopper-marketing' ? 'Visit LeadChopper' : 'Get Started'}
                   </Link>
                 </div>
               ))}
