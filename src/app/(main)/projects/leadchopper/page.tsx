@@ -125,18 +125,24 @@ export default async function LeadChopperPage() {
 
   return (
     <>
-      {/* Custom Accent Color Styles */}
+      {/* Custom Brand Color Styles - LeadChopper Orange (#f97316) */}
       {project.accentColor && (
         <style dangerouslySetInnerHTML={{
           __html: `
-            .text-accent { color: ${project.accentColor} !important; }
-            .bg-accent { background-color: ${project.accentColor} !important; }
-            .bg-accent\\/10 { background-color: ${project.accentColor}1a !important; }
-            .bg-accent\\/5 { background-color: ${project.accentColor}0d !important; }
-            .border-accent { border-color: ${project.accentColor} !important; }
-            .border-accent\\/20 { border-color: ${project.accentColor}33 !important; }
-            .hover\\:bg-accent\\/90:hover { background-color: ${project.accentColor}e6 !important; }
-            .ring-accent\\/50 { --tw-ring-color: ${project.accentColor}80 !important; }
+            /* LeadChopper brand orange - Tailwind orange-500 */
+            .text-accent { color: #f97316 !important; }
+            .bg-accent { background-color: #f97316 !important; }
+            .bg-accent\\/10 { background-color: rgba(249, 115, 22, 0.1) !important; }
+            .bg-accent\\/5 { background-color: rgba(249, 115, 22, 0.05) !important; }
+            .border-accent { border-color: #f97316 !important; }
+            .border-accent\\/20 { border-color: rgba(249, 115, 22, 0.2) !important; }
+            .hover\\:bg-accent\\/90:hover { background-color: #ea580c !important; }
+            .ring-accent\\/50 { --tw-ring-color: rgba(249, 115, 22, 0.5) !important; }
+
+            /* Gradient backgrounds matching LeadChopper brand */
+            .from-accent { --tw-gradient-from: #f97316 !important; }
+            .to-accent { --tw-gradient-to: #ea580c !important; }
+            .via-accent { --tw-gradient-via: #f97316 !important; }
           `
         }} />
       )}

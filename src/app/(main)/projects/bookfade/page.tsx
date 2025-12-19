@@ -152,18 +152,24 @@ export default async function BookFadePage() {
 
   return (
     <>
-      {/* Custom Accent Color Styles */}
+      {/* Custom Brand Color Styles - BookFade Amber (#f59e0b) */}
       {project.accentColor && (
         <style dangerouslySetInnerHTML={{
           __html: `
-            .text-accent { color: ${project.accentColor} !important; }
-            .bg-accent { background-color: ${project.accentColor} !important; }
-            .bg-accent\\/10 { background-color: ${project.accentColor}1a !important; }
-            .bg-accent\\/5 { background-color: ${project.accentColor}0d !important; }
-            .border-accent { border-color: ${project.accentColor} !important; }
-            .border-accent\\/20 { border-color: ${project.accentColor}33 !important; }
-            .hover\\:bg-accent\\/90:hover { background-color: ${project.accentColor}e6 !important; }
-            .ring-accent\\/50 { --tw-ring-color: ${project.accentColor}80 !important; }
+            /* BookFade brand amber - Tailwind amber-500 */
+            .text-accent { color: #f59e0b !important; }
+            .bg-accent { background-color: #f59e0b !important; }
+            .bg-accent\\/10 { background-color: rgba(245, 158, 11, 0.1) !important; }
+            .bg-accent\\/5 { background-color: rgba(245, 158, 11, 0.05) !important; }
+            .border-accent { border-color: #f59e0b !important; }
+            .border-accent\\/20 { border-color: rgba(245, 158, 11, 0.2) !important; }
+            .hover\\:bg-accent\\/90:hover { background-color: #d97706 !important; }
+            .ring-accent\\/50 { --tw-ring-color: rgba(245, 158, 11, 0.5) !important; }
+
+            /* Gradient backgrounds matching BookFade brand */
+            .from-accent { --tw-gradient-from: #f59e0b !important; }
+            .to-accent { --tw-gradient-to: #d97706 !important; }
+            .via-accent { --tw-gradient-via: #f59e0b !important; }
           `
         }} />
       )}
