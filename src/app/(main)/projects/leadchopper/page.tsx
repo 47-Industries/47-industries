@@ -125,24 +125,24 @@ export default async function LeadChopperPage() {
 
   return (
     <>
-      {/* Custom Brand Color Styles - LeadChopper Orange (#f97316) */}
+      {/* Custom Brand Color Styles - LeadChopper Orange (#f97316) - Excludes navbar */}
       {project.accentColor && (
         <style dangerouslySetInnerHTML={{
           __html: `
-            /* LeadChopper brand orange - Tailwind orange-500 */
-            .text-accent { color: #f97316 !important; }
-            .bg-accent { background-color: #f97316 !important; }
-            .bg-accent\\/10 { background-color: rgba(249, 115, 22, 0.1) !important; }
-            .bg-accent\\/5 { background-color: rgba(249, 115, 22, 0.05) !important; }
-            .border-accent { border-color: #f97316 !important; }
-            .border-accent\\/20 { border-color: rgba(249, 115, 22, 0.2) !important; }
-            .hover\\:bg-accent\\/90:hover { background-color: #ea580c !important; }
-            .ring-accent\\/50 { --tw-ring-color: rgba(249, 115, 22, 0.5) !important; }
+            /* LeadChopper brand orange - Scoped to page content only, NOT navbar */
+            main .text-accent { color: #f97316 !important; }
+            main .bg-accent { background-color: #f97316 !important; }
+            main .bg-accent\\/10 { background-color: rgba(249, 115, 22, 0.1) !important; }
+            main .bg-accent\\/5 { background-color: rgba(249, 115, 22, 0.05) !important; }
+            main .border-accent { border-color: #f97316 !important; }
+            main .border-accent\\/20 { border-color: rgba(249, 115, 22, 0.2) !important; }
+            main .hover\\:bg-accent\\/90:hover { background-color: #ea580c !important; }
+            main .ring-accent\\/50 { --tw-ring-color: rgba(249, 115, 22, 0.5) !important; }
 
             /* Gradient backgrounds matching LeadChopper brand */
-            .from-accent { --tw-gradient-from: #f97316 !important; }
-            .to-accent { --tw-gradient-to: #ea580c !important; }
-            .via-accent { --tw-gradient-via: #f97316 !important; }
+            main .from-accent { --tw-gradient-from: #f97316 !important; }
+            main .to-accent { --tw-gradient-to: #ea580c !important; }
+            main .via-accent { --tw-gradient-via: #f97316 !important; }
           `
         }} />
       )}
