@@ -164,8 +164,17 @@ export default async function LeadChopperPage() {
 
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">{project.title}</h1>
 
-              {/* Client info */}
-              <p className="text-lg text-text-secondary mb-6">{project.clientName}</p>
+              {/* Client info with optional logo */}
+              <div className="flex items-center gap-4 mb-6">
+                {project.clientLogo && (
+                  <img
+                    src={project.clientLogo}
+                    alt={project.clientName}
+                    className="h-14 w-auto object-contain"
+                  />
+                )}
+                <p className="text-lg text-text-secondary">{project.clientName}</p>
+              </div>
 
               {/* Description */}
               <p className="text-text-secondary mb-6">
@@ -221,22 +230,22 @@ export default async function LeadChopperPage() {
       {/* Key Metrics - Custom Section */}
       <div className="py-12 bg-surface/30">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            <div className="bg-background/50 rounded-xl p-6 text-center border border-border">
-              <div className="text-4xl font-bold text-accent mb-2">85%</div>
-              <div className="text-sm text-text-secondary">Open Rate</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            <div className="bg-background/50 rounded-lg p-4 text-center border border-border">
+              <div className="text-2xl font-bold text-accent mb-1">85%</div>
+              <div className="text-xs text-text-secondary">Open Rate</div>
             </div>
-            <div className="bg-background/50 rounded-xl p-6 text-center border border-border">
-              <div className="text-4xl font-bold text-accent mb-2">32%</div>
-              <div className="text-sm text-text-secondary">Reply Rate</div>
+            <div className="bg-background/50 rounded-lg p-4 text-center border border-border">
+              <div className="text-2xl font-bold text-accent mb-1">32%</div>
+              <div className="text-xs text-text-secondary">Reply Rate</div>
             </div>
-            <div className="bg-background/50 rounded-xl p-6 text-center border border-border">
-              <div className="text-4xl font-bold text-accent mb-2">3</div>
-              <div className="text-sm text-text-secondary">Channels</div>
+            <div className="bg-background/50 rounded-lg p-4 text-center border border-border">
+              <div className="text-2xl font-bold text-accent mb-1">3</div>
+              <div className="text-xs text-text-secondary">Channels</div>
             </div>
-            <div className="bg-background/50 rounded-xl p-6 text-center border border-border">
-              <div className="text-4xl font-bold text-accent mb-2">24/7</div>
-              <div className="text-sm text-text-secondary">Autopilot</div>
+            <div className="bg-background/50 rounded-lg p-4 text-center border border-border">
+              <div className="text-2xl font-bold text-accent mb-1">24/7</div>
+              <div className="text-xs text-text-secondary">Autopilot</div>
             </div>
           </div>
         </div>
