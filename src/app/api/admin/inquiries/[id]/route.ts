@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Inquiry not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ inquiry })
+    return NextResponse.json(inquiry)
   } catch (error) {
     console.error('Error fetching inquiry:', error)
     return NextResponse.json(
@@ -64,7 +64,7 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json({ inquiry })
+    return NextResponse.json(inquiry)
   } catch (error) {
     console.error('Error updating inquiry:', error)
     return NextResponse.json(

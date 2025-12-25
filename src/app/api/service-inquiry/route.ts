@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
         type: 'service_inquiry',
         title: `New ${serviceLabel} Inquiry from ${body.name}`,
         details: `Name: ${body.name}\nEmail: ${body.email}\nCompany: ${body.company || 'N/A'}\nPhone: ${body.phone || 'N/A'}\nBudget: ${body.budget || 'Not specified'}\nTimeline: ${body.timeline || 'Not specified'}\n\nProject Description:\n${body.description}`,
-        link: `https://47industries.com/admin/inquiries?tab=service`,
+        link: `https://47industries.com/admin/inquiries/${inquiry.id}`,
       })
     } catch (emailError) {
       console.error('Failed to send admin notification:', emailError)
