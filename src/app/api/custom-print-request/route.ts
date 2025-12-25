@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       type: 'custom_request',
       title: `${body.name} - 3D Print Request`,
       details: `Name: ${body.name}\nEmail: ${body.email}\nCompany: ${body.company || 'N/A'}\nPhone: ${body.phone || 'N/A'}\n\nFile: ${body.fileName}\nMaterial: ${body.material}\nFinish: ${body.finish}\nColor: ${body.color}\nQuantity: ${body.quantity}\n\nNotes:\n${body.notes || 'None'}`,
-      link: `https://47industries.com/admin/custom-requests/${customRequest.id}`,
+      link: `https://admin.47industries.com/admin/custom-requests/${customRequest.id}`,
     })
 
     return NextResponse.json({

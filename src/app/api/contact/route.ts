@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       type: 'contact',
       title: `${body.name} - ${body.subject}`,
       details: `Name: ${body.name}\nEmail: ${body.email}\nCompany: ${body.company || 'N/A'}\nPhone: ${body.phone || 'N/A'}\n\nMessage:\n${body.message}`,
-      link: `https://47industries.com/admin/inquiries/${inquiry.id}`,
+      link: `https://admin.47industries.com/admin/inquiries/${inquiry.id}`,
     })
 
     return NextResponse.json({
