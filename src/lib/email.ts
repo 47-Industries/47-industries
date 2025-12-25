@@ -43,13 +43,13 @@ function getEmailTemplate(content: string, title: string = '47 Industries') {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="color-scheme" content="light dark">
-      <meta name="supported-color-schemes" content="light dark">
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
       <title>${title}</title>
       <style>
         :root {
-          color-scheme: light dark;
-          supported-color-schemes: light dark;
+          color-scheme: light;
+          supported-color-schemes: light;
         }
 
         * {
@@ -59,57 +59,23 @@ function getEmailTemplate(content: string, title: string = '47 Industries') {
 
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-          background-color: #ffffff;
-          color: #18181b;
+          background-color: #ffffff !important;
+          color: #18181b !important;
           line-height: 1.6;
-        }
-
-        /* Dark mode */
-        @media (prefers-color-scheme: dark) {
-          body {
-            background-color: #000000 !important;
-            color: #ffffff !important;
-          }
-          .email-header {
-            background: #000000 !important;
-            border-bottom-color: #27272a !important;
-          }
-          .email-body {
-            background-color: #000000 !important;
-          }
-          .card {
-            background-color: #0a0a0a !important;
-            border-color: #27272a !important;
-          }
-          .text-primary {
-            color: #ffffff !important;
-          }
-          .text-secondary {
-            color: #a1a1aa !important;
-          }
-          .text-muted {
-            color: #71717a !important;
-          }
-          .divider {
-            border-color: #27272a !important;
-          }
-          a {
-            color: #60a5fa !important;
-          }
-          .footer-divider {
-            background-color: #27272a !important;
-          }
         }
       </style>
     </head>
     <body>
       <!-- Header -->
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #000000 !important;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #000000 !important; background: #000000;">
         <tr>
-          <td style="padding: 24px 32px; background-color: #000000;">
+          <td style="padding: 24px 32px; background-color: #000000 !important; background: #000000;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                <td style="padding-right: 12px; vertical-align: middle;">
+                  <img src="https://47industries.com/logo.png" alt="47 Industries" width="40" height="40" style="display: block; border: 0; border-radius: 8px; width: 40px; height: 40px;" />
+                </td>
+                <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 20px; font-weight: 700; color: #ffffff !important; letter-spacing: -0.5px; vertical-align: middle;">
                   47 Industries
                 </td>
               </tr>
@@ -119,9 +85,9 @@ function getEmailTemplate(content: string, title: string = '47 Industries') {
       </table>
 
       <!-- Body -->
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="email-body" style="background-color: #ffffff;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="email-body" style="background-color: #ffffff; background: #ffffff;">
         <tr>
-          <td align="center" style="padding: 40px 20px;">
+          <td align="center" style="padding: 40px 20px; background-color: #ffffff; background: #ffffff;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%;">
               <tr>
                 <td>
@@ -134,22 +100,22 @@ function getEmailTemplate(content: string, title: string = '47 Industries') {
       </table>
 
       <!-- Footer -->
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fafafa;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fafafa !important; background: #fafafa;">
         <tr>
-          <td align="center" style="padding: 0 20px;">
+          <td align="center" style="padding: 0 20px; background-color: #fafafa; background: #fafafa;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%;">
               <tr>
                 <td style="padding: 32px 0;">
                   <div class="footer-divider" style="height: 1px; background-color: #e4e4e7; margin-bottom: 24px;"></div>
-                  <p style="margin: 0 0 12px 0; color: #71717a; font-size: 13px; text-align: center;" class="text-muted">
+                  <p style="margin: 0 0 12px 0; color: #71717a !important; font-size: 13px; text-align: center;" class="text-muted">
                     47 Industries - Digital Solutions
                   </p>
                   <p style="margin: 0 0 20px 0; text-align: center;">
-                    <a href="https://47industries.com" style="color: #3b82f6; text-decoration: none; font-size: 14px; font-weight: 500;">47industries.com</a>
+                    <a href="https://47industries.com" style="color: #3b82f6 !important; text-decoration: none; font-size: 14px; font-weight: 500;">47industries.com</a>
                   </p>
-                  <p style="margin: 0; color: #a1a1aa; font-size: 12px; text-align: center; line-height: 1.6;" class="text-muted">
+                  <p style="margin: 0; color: #a1a1aa !important; font-size: 12px; text-align: center; line-height: 1.6;" class="text-muted">
                     Have questions? Contact us at<br>
-                    <a href="mailto:support@47industries.com" style="color: #3b82f6; text-decoration: none;">support@47industries.com</a>
+                    <a href="mailto:support@47industries.com" style="color: #3b82f6 !important; text-decoration: none;">support@47industries.com</a>
                   </p>
                 </td>
               </tr>
@@ -182,7 +148,7 @@ function getCard(content: string) {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 24px 0;" class="card">
       <tr>
-        <td style="background-color: #fafafa; border: 1px solid #e4e4e7; border-radius: 16px; padding: 24px;">
+        <td style="background-color: #fafafa !important; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 16px; padding: 24px;">
           ${content}
         </td>
       </tr>
@@ -212,8 +178,8 @@ function getDetailRow(label: string, value: string, isLast: boolean = false) {
   return `
     <tr>
       <td style="padding: 16px 0; ${borderStyle}" class="divider">
-        <p style="margin: 0 0 6px 0; color: #71717a; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;" class="text-muted">${label}</p>
-        <p style="margin: 0; color: #18181b; font-size: 16px; font-weight: 500; line-height: 1.4;" class="text-primary">${value}</p>
+        <p style="margin: 0 0 6px 0; color: #71717a !important; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;" class="text-muted">${label}</p>
+        <p style="margin: 0; color: #18181b !important; font-size: 16px; font-weight: 500; line-height: 1.4;" class="text-primary">${value}</p>
       </td>
     </tr>
   `
@@ -234,8 +200,8 @@ function getTimeline(steps: Array<{ number: number, title: string, description: 
             </div>
           </td>
           <td valign="top" style="padding-left: 20px;">
-            <p style="margin: 0 0 6px 0; color: #18181b; font-size: 17px; font-weight: 600;" class="text-primary">${step.title}</p>
-            <p style="margin: 0; color: #71717a; font-size: 15px; line-height: 1.5;" class="text-muted">${step.description}</p>
+            <p style="margin: 0 0 6px 0; color: #18181b !important; font-size: 17px; font-weight: 600;" class="text-primary">${step.title}</p>
+            <p style="margin: 0; color: #71717a !important; font-size: 15px; line-height: 1.5;" class="text-muted">${step.description}</p>
           </td>
         </tr>
       </table>
@@ -248,7 +214,7 @@ function getTimeline(steps: Array<{ number: number, title: string, description: 
 // Section heading
 function getSectionHeading(text: string) {
   return `
-    <h3 style="margin: 40px 0 20px 0; color: #18181b; font-size: 20px; font-weight: 700;" class="text-primary">
+    <h3 style="margin: 40px 0 20px 0; color: #18181b !important; font-size: 20px; font-weight: 700;" class="text-primary">
       ${text}
     </h3>
   `
