@@ -50,24 +50,27 @@ export default function HomeClient({
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
-  // Scroll reveal effect
+  // Scroll reveal effect with staggered animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('revealed')
+            const delay = entry.target.getAttribute('data-delay') || '0'
+            setTimeout(() => {
+              entry.target.classList.add('revealed')
+            }, parseInt(delay))
           }
         })
       },
-      { threshold: 0.15 }
+      { threshold: 0.1, rootMargin: '-50px' }
     )
 
     const elements = document.querySelectorAll('.reveal')
     elements.forEach((el) => observer.observe(el))
 
     return () => observer.disconnect()
-  }, [])
+  }, [featuredProjects])
 
   return (
     <div className="min-h-screen">
@@ -134,7 +137,7 @@ export default function HomeClient({
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Web Apps */}
-            <Link href="/services?category=web" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col">
+            <Link href="/services?category=web" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col" data-delay="0">
               <h3 className="text-xl md:text-2xl font-bold mb-3">Web Apps</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm flex-grow">
                 Full-featured web applications with modern frameworks and scalable architecture.
@@ -148,7 +151,7 @@ export default function HomeClient({
             </Link>
 
             {/* Websites */}
-            <Link href="/services?category=web" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col">
+            <Link href="/services?category=web" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col" data-delay="100">
               <h3 className="text-xl md:text-2xl font-bold mb-3">Websites</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm flex-grow">
                 Custom websites built with modern technologies. Fast, secure, and beautifully designed.
@@ -162,7 +165,7 @@ export default function HomeClient({
             </Link>
 
             {/* Mobile Development */}
-            <Link href="/services?category=app" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col">
+            <Link href="/services?category=app" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col" data-delay="200">
               <h3 className="text-xl md:text-2xl font-bold mb-3">Mobile Development</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm flex-grow">
                 Native and cross-platform mobile apps for iOS and Android.
@@ -176,7 +179,7 @@ export default function HomeClient({
             </Link>
 
             {/* Custom Manufacturing */}
-            <Link href="/custom-3d-printing" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col">
+            <Link href="/custom-3d-printing" className="reveal group p-6 md:p-8 bg-background border border-border rounded-2xl hover:border-text-primary transition-all flex flex-col" data-delay="300">
               <h3 className="text-xl md:text-2xl font-bold mb-3">Custom Manufacturing</h3>
               <p className="text-text-secondary mb-6 leading-relaxed text-sm flex-grow">
                 Upload your designs and receive instant quotes. From prototypes to production runs.
@@ -204,11 +207,12 @@ export default function HomeClient({
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-              {featuredProjects.slice(0, 3).map((project) => (
+              {featuredProjects.slice(0, 3).map((project, index) => (
                 <Link
                   key={project.id}
                   href={`/projects/${project.slug}`}
                   className="reveal group block bg-surface border border-border rounded-2xl overflow-hidden hover:border-text-primary transition-all"
+                  data-delay={index * 100}
                 >
                   <div className="aspect-video bg-background relative overflow-hidden">
                     {project.thumbnailUrl ? (
@@ -263,8 +267,8 @@ export default function HomeClient({
       <style jsx>{`
         .reveal {
           opacity: 0;
-          transform: translateY(20px);
-          transition: opacity 0.6s ease, transform 0.6s ease;
+          transform: translateY(50px);
+          transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .reveal.revealed {
