@@ -25,6 +25,27 @@ type Project = {
   liveUrl: string | null
 }
 
+// Format category for display
+function formatCategory(category: string): string {
+  // Handle special cases
+  const specialCases: Record<string, string> = {
+    'IOS_APP': 'iOS App',
+    'ANDROID_APP': 'Android App',
+    'WEB_APP': 'Web App',
+    'MOBILE_APP': 'Mobile App',
+  }
+
+  if (specialCases[category]) {
+    return specialCases[category]
+  }
+
+  // Default: replace underscores with spaces and title case
+  return category
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
 export default function HomeClient({
   featuredProducts,
   featuredProjects,
@@ -128,9 +149,9 @@ export default function HomeClient({
       {/* Services Section */}
       <section className="py-16 md:py-32 bg-surface">
         <div className="container mx-auto px-6">
-          <div className="mb-12 md:mb-20 reveal">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Services</h2>
-            <p className="text-lg md:text-xl text-text-secondary max-w-2xl">
+          <div className="mb-12 md:mb-20">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 reveal">Services</h2>
+            <p className="text-lg md:text-xl text-text-secondary max-w-2xl reveal" data-delay="100">
               Comprehensive solutions for modern manufacturing and development
             </p>
           </div>
@@ -199,9 +220,9 @@ export default function HomeClient({
       {featuredProjects.length > 0 && (
         <section className="py-16 md:py-32">
           <div className="container mx-auto px-6">
-            <div className="mb-12 md:mb-20 reveal">
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">Featured Work</h2>
-              <p className="text-lg md:text-xl text-text-secondary max-w-2xl">
+            <div className="mb-12 md:mb-20">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 reveal">Featured Work</h2>
+              <p className="text-lg md:text-xl text-text-secondary max-w-2xl reveal" data-delay="100">
                 Recent projects we're proud of
               </p>
             </div>
@@ -229,7 +250,7 @@ export default function HomeClient({
                     )}
                   </div>
                   <div className="p-6">
-                    <div className="text-xs font-semibold text-accent mb-2 tracking-wider uppercase">{project.category}</div>
+                    <div className="text-xs font-semibold text-accent mb-2 tracking-wider uppercase">{formatCategory(project.category)}</div>
                     <h3 className="text-xl font-bold mb-2">{project.title}</h3>
                     <p className="text-text-secondary text-sm leading-relaxed line-clamp-2">{project.description}</p>
                   </div>
@@ -243,17 +264,18 @@ export default function HomeClient({
       {/* CTA Section */}
       <section className="py-16 md:py-32 bg-surface">
         <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center reveal">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 reveal">
               Ready to get started?
             </h2>
-            <p className="text-lg md:text-xl text-text-secondary mb-10 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-text-secondary mb-10 max-w-2xl mx-auto reveal" data-delay="100">
               Whether you need custom manufacturing, a new website, or an innovative app,
               we're here to help bring your vision to life.
             </p>
             <Link
               href="/contact"
-              className="inline-flex items-center px-10 py-5 bg-text-primary text-background rounded-lg text-lg font-medium hover:bg-text-secondary transition-all"
+              className="reveal inline-flex items-center px-10 py-5 bg-text-primary text-background rounded-lg text-lg font-medium hover:bg-text-secondary transition-all"
+              data-delay="200"
             >
               Contact us
               <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
