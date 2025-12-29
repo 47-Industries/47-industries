@@ -31,7 +31,78 @@ export async function POST(req: NextRequest) {
 
     console.log('Found reference number:', referenceNumber)
 
-    // Find the inquiry by reference number
+    // Parse sender info from 'from' field
+    let senderEmail = from
+    let senderName = from
+
+    const emailMatch = from.match(/<([^>]+)>/)
+    if (emailMatch) {
+      senderEmail = emailMatch[1]
+      senderName = from.replace(/<[^>]+>/, '').trim()
+    }
+
+    // Check if it's a CustomRequest (3D printing, starts with REQ-)
+    if (referenceNumber.startsWith('REQ-')) {
+      const customRequest = await prisma.customRequest.findFirst({
+        where: {
+          requestNumber: referenceNumber,
+        },
+      })
+
+      if (!customRequest) {
+        console.log('No custom request found for reference:', referenceNumber)
+        return NextResponse.json({
+          success: true,
+          message: 'Custom request not found',
+        })
+      }
+
+      // Check if this message already exists (to avoid duplicates from admin console sends)
+      const existingMessage = await prisma.customRequestMessage.findFirst({
+        where: {
+          requestId: customRequest.id,
+          emailMessageId: messageId,
+        },
+      })
+
+      if (existingMessage) {
+        console.log('Message already exists, skipping duplicate:', messageId)
+        return NextResponse.json({
+          success: true,
+          message: 'Message already recorded',
+        })
+      }
+
+      // Create CustomRequestMessage for the sent email
+      await prisma.customRequestMessage.create({
+        data: {
+          requestId: customRequest.id,
+          message: plainTextContent || content || 'No content',
+          isFromAdmin: true, // This is from the team
+          senderName,
+          senderEmail,
+          emailMessageId: messageId,
+          emailInReplyTo: inReplyTo,
+          emailSubject: subject,
+        },
+      })
+
+      // Update request's updatedAt timestamp
+      await prisma.customRequest.update({
+        where: { id: customRequest.id },
+        data: { updatedAt: new Date() },
+      })
+
+      console.log('Successfully created CustomRequestMessage for sent email:', referenceNumber)
+
+      return NextResponse.json({
+        success: true,
+        message: 'Sent email processed successfully',
+        requestNumber: referenceNumber,
+      })
+    }
+
+    // Otherwise, it's a ServiceInquiry (INQ- or CONTACT-)
     const inquiry = await prisma.serviceInquiry.findFirst({
       where: {
         inquiryNumber: referenceNumber,
@@ -44,16 +115,6 @@ export async function POST(req: NextRequest) {
         success: true,
         message: 'Inquiry not found',
       })
-    }
-
-    // Parse sender info from 'from' field
-    let senderEmail = from
-    let senderName = from
-
-    const emailMatch = from.match(/<([^>]+)>/)
-    if (emailMatch) {
-      senderEmail = emailMatch[1]
-      senderName = from.replace(/<[^>]+>/, '').trim()
     }
 
     // Check if this message already exists (to avoid duplicates from admin console sends)

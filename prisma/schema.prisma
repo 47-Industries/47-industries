@@ -496,12 +496,41 @@ model CustomRequest {
   // Admin Notes
   adminNotes    String?             @db.Text
 
+  // Email Conversation Threading
+  messages      CustomRequestMessage[]
+
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
   @@index([email])
   @@index([status])
   @@index([requestNumber])
+}
+
+// Custom Request Messages (email threading for 3D print requests)
+model CustomRequestMessage {
+  id          String         @id @default(cuid())
+  requestId   String
+  request     CustomRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  message     String         @db.Text
+  isFromAdmin Boolean        @default(false)
+  senderName  String?
+  senderEmail String?
+
+  // Email metadata for threading
+  emailMessageId String?      @unique
+  emailInReplyTo String?
+  emailSubject   String?
+
+  // Quote information (if this message includes a quote)
+  isQuote     Boolean        @default(false)
+  quoteAmount Decimal?       @db.Decimal(10, 2)
+  quoteValidDays Int?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([requestId])
+  @@index([emailMessageId])
 }
 
 // ============================================

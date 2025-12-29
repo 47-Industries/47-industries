@@ -67,12 +67,13 @@ export default function CustomRequestDetailPage() {
       const res = await fetch(`/api/admin/custom-requests/${params.id}`)
       if (res.ok) {
         const data = await res.json()
-        setRequest(data)
-        setStatus(data.status)
-        setEstimatedPrice(data.estimatedPrice?.toString() || '')
-        setEstimatedDays(data.estimatedDays?.toString() || '')
-        setQuoteNotes(data.quoteNotes || '')
-        setAdminNotes(data.adminNotes || '')
+        const requestData = data.request || data
+        setRequest(requestData)
+        setStatus(requestData.status)
+        setEstimatedPrice(requestData.estimatedPrice?.toString() || '')
+        setEstimatedDays(requestData.estimatedDays?.toString() || '')
+        setQuoteNotes(requestData.quoteNotes || '')
+        setAdminNotes(requestData.adminNotes || '')
       } else {
         router.push('/admin/custom-requests')
       }
@@ -101,7 +102,8 @@ export default function CustomRequestDetailPage() {
 
       if (res.ok) {
         const data = await res.json()
-        setRequest(data)
+        const requestData = data.request || data
+        setRequest(requestData)
         alert('Request updated successfully!')
       } else {
         alert('Failed to update request')
