@@ -143,6 +143,67 @@ function getAccentBox(title: string, value: string, subtitle?: string) {
   `
 }
 
+// Signature component
+export function getSignature(signature: { name: string; title?: string | null; email?: string | null; phone?: string | null }) {
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 32px 0 0 0; padding-top: 24px; border-top: 1px solid #e4e4e7;">
+      <tr>
+        <td>
+          <p style="margin: 0 0 4px 0; color: #18181b; font-size: 15px; font-weight: 600; line-height: 1.4;">
+            ${signature.name}
+          </p>
+          ${signature.title ? `
+            <p style="margin: 0 0 12px 0; color: #71717a; font-size: 14px; line-height: 1.4;">
+              ${signature.title}
+            </p>
+          ` : ''}
+          <p style="margin: 0; color: #18181b; font-size: 14px; font-weight: 600; line-height: 1.8;">
+            47 Industries
+          </p>
+          ${signature.email ? `
+            <p style="margin: 0; color: #3b82f6; font-size: 14px; line-height: 1.8;">
+              <a href="mailto:${signature.email}" style="color: #3b82f6; text-decoration: none;">${signature.email}</a>
+            </p>
+          ` : ''}
+          ${signature.phone ? `
+            <p style="margin: 0; color: #52525b; font-size: 14px; line-height: 1.8;">
+              ${signature.phone}
+            </p>
+          ` : ''}
+          <p style="margin: 8px 0 0 0; color: #3b82f6; font-size: 14px; line-height: 1.8;">
+            <a href="https://47industries.com" style="color: #3b82f6; text-decoration: none;">47industries.com</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  `
+}
+
+// Format a reply email with message content and signature
+export function formatReplyEmail(options: {
+  message: string
+  signature?: { name: string; title?: string | null; email?: string | null; phone?: string | null }
+  referenceNumber?: string
+}) {
+  const { message, signature, referenceNumber } = options
+
+  const content = `
+    ${getCard(`
+      <div style="margin: 0; color: #18181b; font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</div>
+    `)}
+
+    ${signature ? getSignature(signature) : ''}
+
+    ${referenceNumber ? `
+      <p style="margin: 32px 0 0 0; color: #71717a; font-size: 14px; text-align: center;" class="text-muted">
+        Reference: <strong style="color: #52525b;" class="text-secondary">${referenceNumber}</strong>
+      </p>
+    ` : ''}
+  `
+
+  return getEmailTemplate(content, '47 Industries')
+}
+
 // Card component for details
 function getCard(content: string) {
   return `

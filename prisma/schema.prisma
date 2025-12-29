@@ -1200,8 +1200,14 @@ model AbandonedCart {
 model EmailSignature {
   id          String   @id @default(cuid())
   userId      String
-  name        String
-  content     String   @db.Text
+  name        String   // Display name for signature (e.g., "Kyle Rivers", "Dean Smith")
+  content     String   @db.Text  // HTML signature content (legacy/custom format)
+
+  // User details for automatic signature generation
+  title       String?  // Job title (e.g., "CEO", "Lead Developer")
+  phone       String?  // Phone number
+  email       String?  // Email address to show in signature
+
   isDefault   Boolean  @default(false)
   forAddress  String?  // Optional: specific email address this signature is for
 

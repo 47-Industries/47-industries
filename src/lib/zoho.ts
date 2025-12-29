@@ -255,20 +255,28 @@ export class ZohoMailClient {
     subject: string
     content: string
     isHtml?: boolean
+    headers?: Record<string, string>  // Custom email headers for threading
   }): Promise<any> {
     const accId = options.accountId || await this.getAccountId()
 
+    const requestBody: any = {
+      fromAddress: options.fromAddress,
+      toAddress: options.toAddress,
+      ccAddress: options.ccAddress,
+      bccAddress: options.bccAddress,
+      subject: options.subject,
+      content: options.content,
+      mailFormat: options.isHtml ? 'html' : 'plaintext',
+    }
+
+    // Add custom headers if provided (for email threading)
+    if (options.headers && Object.keys(options.headers).length > 0) {
+      requestBody.customHeaders = options.headers
+    }
+
     const data = await this.request(`/accounts/${accId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({
-        fromAddress: options.fromAddress,
-        toAddress: options.toAddress,
-        ccAddress: options.ccAddress,
-        bccAddress: options.bccAddress,
-        subject: options.subject,
-        content: options.content,
-        mailFormat: options.isHtml ? 'html' : 'plaintext',
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     return data.data
