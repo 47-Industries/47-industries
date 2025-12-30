@@ -162,10 +162,10 @@ export default function PortfolioClient({ projects, categories }: PortfolioClien
             Let's discuss your ideas and create something amazing together.
           </p>
           <Link
-            href="/contact"
+            href="/services/inquiry"
             className="inline-flex items-center px-8 py-4 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 transition-all"
           >
-            Get in Touch
+            Start Your Project
             <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
