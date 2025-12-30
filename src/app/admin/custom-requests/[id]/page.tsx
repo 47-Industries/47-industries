@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast'
 import ConversationThread from '@/components/admin/ConversationThread'
 import InlineReplyBox from '@/components/admin/InlineReplyBox'
 import QuoteModal from '@/components/admin/QuoteModal'
+import InvoiceModal from '@/components/admin/InvoiceModal'
 
 interface Message {
   id: string
@@ -60,6 +61,7 @@ export default function CustomRequestDetailPage() {
   const [saving, setSaving] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
 
   // Form state
   const [status, setStatus] = useState('')
@@ -479,6 +481,21 @@ export default function CustomRequestDetailPage() {
               >
                 Send Quote
               </button>
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                style={{
+                  padding: '12px 16px',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                Generate Invoice
+              </button>
               {request.phone && (
                 <a
                   href={`tel:${request.phone}`}
@@ -739,6 +756,17 @@ export default function CustomRequestDetailPage() {
         inquiryId={request.id}
         quantity={request.quantity}
         onQuoteSent={fetchRequest}
+      />
+
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        customRequestId={request.id}
+        customerName={request.name}
+        customerEmail={request.email}
+        customerCompany={request.company}
+        customerPhone={request.phone}
+        onInvoiceCreated={fetchRequest}
       />
     </div>
   )

@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!body.fileUrl || !body.fileName || !body.fileSize) {
+    // Either file OR description is required
+    if (!body.fileUrl && !body.description) {
       return NextResponse.json(
-        { error: 'File upload is required' },
+        { error: 'Please upload a 3D file OR provide a detailed description' },
         { status: 400 }
       )
     }
@@ -68,9 +69,10 @@ export async function POST(req: NextRequest) {
         email: body.email,
         phone: body.phone || null,
         company: body.company || null,
-        fileUrl: body.fileUrl,
-        fileName: body.fileName,
-        fileSize: body.fileSize,
+        fileUrl: body.fileUrl || null,
+        fileName: body.fileName || null,
+        fileSize: body.fileSize || null,
+        description: body.description || null,
         material: body.material,
         finish: body.finish,
         color: body.color,
@@ -79,6 +81,10 @@ export async function POST(req: NextRequest) {
         scale: body.scale || null,
         notes: body.notes || null,
         deadline: body.deadline ? new Date(body.deadline) : null,
+        expedited: body.expedited || false,
+        assembly: body.assembly || false,
+        packaging: body.packaging || false,
+        estimatedCost: body.estimatedCost || null,
         status: CustomRequestStatus.PENDING,
       },
     })

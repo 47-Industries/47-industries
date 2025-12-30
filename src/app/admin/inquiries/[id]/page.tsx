@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast'
 import ConversationThread from '@/components/admin/ConversationThread'
 import InlineReplyBox from '@/components/admin/InlineReplyBox'
 import QuoteModal from '@/components/admin/QuoteModal'
+import InvoiceModal from '@/components/admin/InvoiceModal'
 
 interface InquiryMessage {
   id: string
@@ -80,6 +81,9 @@ export default function InquiryDetailPage() {
 
   // Quote state
   const [showQuoteModal, setShowQuoteModal] = useState(false)
+
+  // Invoice state
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -693,6 +697,21 @@ export default function InquiryDetailPage() {
               >
                 Send Quote
               </button>
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                style={{
+                  padding: '12px 16px',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                Generate Invoice
+              </button>
               {inquiry.phone && (
                 <a
                   href={`tel:${inquiry.phone}`}
@@ -901,6 +920,17 @@ export default function InquiryDetailPage() {
         referenceNumber={inquiry.inquiryNumber}
         inquiryId={inquiry.id}
         onQuoteSent={fetchInquiry}
+      />
+
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        inquiryId={inquiry.id}
+        customerName={inquiry.name}
+        customerEmail={inquiry.email}
+        customerCompany={inquiry.company}
+        customerPhone={inquiry.phone}
+        onInvoiceCreated={fetchInquiry}
       />
     </div>
   )

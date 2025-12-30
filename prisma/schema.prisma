@@ -466,10 +466,11 @@ model CustomRequest {
   phone         String?
   company       String?
 
-  // File Upload
-  fileUrl       String
-  fileName      String
-  fileSize      Int                 // in bytes
+  // File Upload (optional - customer can provide description instead)
+  fileUrl       String?
+  fileName      String?
+  fileSize      Int?                // in bytes
+  description   String?             @db.Text
 
   // Specifications
   material      String
@@ -482,6 +483,12 @@ model CustomRequest {
   // Additional Info
   notes         String?             @db.Text
   deadline      DateTime?
+
+  // Add-on Services
+  expedited     Boolean             @default(false)  // Expedited production (+50%)
+  assembly      Boolean             @default(false)  // Assembly service
+  packaging     Boolean             @default(false)  // Premium packaging
+  estimatedCost Decimal?            @db.Decimal(10, 2)  // Customer's estimated cost from form
 
   // Quote
   estimatedPrice Decimal?           @db.Decimal(10, 2)
@@ -498,6 +505,9 @@ model CustomRequest {
 
   // Email Conversation Threading
   messages      CustomRequestMessage[]
+
+  // Invoices
+  invoices      Invoice[]
 
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -593,6 +603,9 @@ model ServiceInquiry {
 
   // Messages/Responses
   messages      InquiryMessage[]
+
+  // Invoices
+  invoices      Invoice[]
 
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -1800,4 +1813,79 @@ model OAuthAccessToken {
   @@index([token])
   @@index([userId])
   @@index([expiresAt])
+}
+
+// ============================================
+// INVOICING & PAYMENTS
+// ============================================
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PAID
+  CANCELLED
+  OVERDUE
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNumber   String        @unique
+  
+  // Link to related inquiry or request
+  inquiryId       String?
+  inquiry         ServiceInquiry? @relation(fields: [inquiryId], references: [id])
+  customRequestId String?
+  customRequest   CustomRequest? @relation(fields: [customRequestId], references: [id])
+  
+  // Customer info
+  customerName    String
+  customerEmail   String
+  customerCompany String?
+  customerPhone   String?
+  
+  // Billing details
+  items           InvoiceItem[]
+  subtotal        Decimal       @db.Decimal(10, 2)
+  taxRate         Decimal       @db.Decimal(5, 2) @default(0.00)
+  taxAmount       Decimal       @db.Decimal(10, 2) @default(0.00)
+  total           Decimal       @db.Decimal(10, 2)
+  
+  // Payment
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime?
+  paidAt          DateTime?
+  stripePaymentLink String?     // Stripe payment link URL
+  stripePaymentId   String?     // Stripe payment intent/charge ID
+  
+  // Additional info
+  notes           String?       @db.Text
+  internalNotes   String?       @db.Text
+  
+  // Tracking
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  createdBy       String        // User ID who created the invoice
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([invoiceNumber])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([inquiryId])
+  @@index([customRequestId])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  
+  @@index([invoiceId])
 }
