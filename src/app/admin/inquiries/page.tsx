@@ -1093,19 +1093,221 @@ function ServiceInquiriesTab() {
   )
 }
 
+// ============ CONTACT FORMS TAB ============
+function ContactFormsTab() {
+  const [inquiries, setInquiries] = useState<ServiceInquiry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
+    fetchInquiries()
+  }, [statusFilter])
+
+  const fetchInquiries = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      params.append('inquiryType', 'contact')
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (searchQuery) params.append('search', searchQuery)
+
+      const res = await fetch(`/api/admin/inquiries?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setInquiries(data.inquiries)
+      }
+    } catch (error) {
+      console.error('Error fetching contact forms:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchInquiries()
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      NEW: '#3b82f6',
+      CONTACTED: '#8b5cf6',
+      PROPOSAL_SENT: '#f59e0b',
+      NEGOTIATING: '#f59e0b',
+      ACCEPTED: '#10b981',
+      DECLINED: '#ef4444',
+      COMPLETED: '#10b981',
+    }
+    return colors[status] || '#6b7280'
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  return (
+    <div>
+      {/* Filters */}
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: '12px',
+        marginBottom: '24px',
+      }}>
+        <form onSubmit={handleSearch} style={{ flex: 1, display: 'flex', gap: '8px' }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email, or reference number..."
+            style={{
+              flex: 1,
+              padding: '10px 14px',
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '8px',
+              color: '#fff',
+              fontSize: '14px',
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              padding: '10px 20px',
+              background: '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Search
+          </button>
+        </form>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{
+            padding: '10px 14px',
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '14px',
+            minWidth: '150px',
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="NEW">New</option>
+          <option value="CONTACTED">Contacted</option>
+          <option value="PROPOSAL_SENT">Proposal Sent</option>
+          <option value="ACCEPTED">Accepted</option>
+          <option value="DECLINED">Declined</option>
+          <option value="COMPLETED">Completed</option>
+        </select>
+      </div>
+
+      {/* Contact Forms List */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#a1a1aa' }}>
+          Loading contact forms...
+        </div>
+      ) : inquiries.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#a1a1aa' }}>
+          No contact forms found
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {inquiries.map((inquiry) => (
+            <Link
+              key={inquiry.id}
+              href={`/admin/inquiries/${inquiry.id}`}
+              style={{
+                display: 'block',
+                background: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '12px',
+                padding: '16px',
+                textDecoration: 'none',
+                color: '#fff',
+                transition: 'all 0.2s',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', fontWeight: 600 }}>
+                    {inquiry.name}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#71717a' }}>
+                    {inquiry.inquiryNumber}
+                  </p>
+                </div>
+                <span
+                  style={{
+                    padding: '4px 12px',
+                    background: `${getStatusColor(inquiry.status)}20`,
+                    color: getStatusColor(inquiry.status),
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {inquiry.status.replace('_', ' ')}
+                </span>
+              </div>
+
+              <p style={{ margin: '0 0 12px 0', color: '#a1a1aa', fontSize: '14px', lineHeight: 1.5 }}>
+                {inquiry.description?.substring(0, 120)}...
+              </p>
+
+              <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: '#71717a' }}>
+                <span>{inquiry.email}</span>
+                {inquiry.phone && <span>{inquiry.phone}</span>}
+                <span style={{ marginLeft: 'auto' }}>{formatDate(inquiry.createdAt)}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ============ MAIN PAGE ============
 export default function InquiriesPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const tabParam = searchParams.get('tab')
-  const activeTab = (tabParam === 'service-inquiries' ? 'service-inquiries' : 'print-requests') as 'print-requests' | 'service-inquiries'
+  const activeTab = (
+    tabParam === 'service-inquiries' ? 'service-inquiries' :
+    tabParam === 'contact-forms' ? 'contact-forms' :
+    'print-requests'
+  ) as 'print-requests' | 'service-inquiries' | 'contact-forms'
 
   const tabs = [
     { id: 'print-requests' as const, label: '3D Print Requests' },
     { id: 'service-inquiries' as const, label: 'Service Inquiries' },
+    { id: 'contact-forms' as const, label: 'Contact Forms' },
   ]
 
-  const handleTabChange = (tabId: 'print-requests' | 'service-inquiries') => {
+  const handleTabChange = (tabId: 'print-requests' | 'service-inquiries' | 'contact-forms') => {
     router.push(`/admin/inquiries?tab=${tabId}`)
   }
 
@@ -1155,6 +1357,7 @@ export default function InquiriesPage() {
       {/* Tab Content */}
       {activeTab === 'print-requests' && <PrintRequestsTab />}
       {activeTab === 'service-inquiries' && <ServiceInquiriesTab />}
+      {activeTab === 'contact-forms' && <ContactFormsTab />}
     </div>
   )
 }

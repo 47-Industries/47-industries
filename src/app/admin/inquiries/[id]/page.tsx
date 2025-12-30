@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
+import ConversationThread from '@/components/admin/ConversationThread'
+import InlineReplyBox from '@/components/admin/InlineReplyBox'
+import QuoteModal from '@/components/admin/QuoteModal'
 
 interface InquiryMessage {
   id: string
@@ -75,20 +78,8 @@ export default function InquiryDetailPage() {
   const [proposalUrl, setProposalUrl] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
 
-  // Email reply state
-  const [showEmailModal, setShowEmailModal] = useState(false)
-  const [emailSubject, setEmailSubject] = useState('')
-  const [emailMessage, setEmailMessage] = useState('')
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [emailSuccess, setEmailSuccess] = useState('')
-
   // Quote state
   const [showQuoteModal, setShowQuoteModal] = useState(false)
-  const [quoteAmount, setQuoteAmount] = useState('')
-  const [quoteMonthly, setQuoteMonthly] = useState('')
-  const [quoteNotes, setQuoteNotes] = useState('')
-  const [quoteValidDays, setQuoteValidDays] = useState('14')
-  const [sendingQuote, setSendingQuote] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -203,91 +194,6 @@ export default function InquiryDetailPage() {
     }
   }
 
-  const handleSendEmail = async () => {
-    if (!emailSubject || !emailMessage) {
-      showToast('Please fill in subject and message', 'warning')
-      return
-    }
-
-    try {
-      setSendingEmail(true)
-      const res = await fetch('/api/admin/inquiries/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inquiryId: inquiry?.id,
-          to: inquiry?.email,
-          subject: emailSubject,
-          message: emailMessage,
-          referenceNumber: inquiry?.inquiryNumber,
-        }),
-      })
-
-      if (res.ok) {
-        setEmailSuccess('Email sent successfully!')
-        setEmailSubject('')
-        setEmailMessage('')
-        // Refresh inquiry to show new message in thread
-        await fetchInquiry()
-        setTimeout(() => {
-          setShowEmailModal(false)
-          setEmailSuccess('')
-        }, 2000)
-      } else {
-        const data = await res.json()
-        showToast(data.error || 'Failed to send email', 'error')
-      }
-    } catch (error) {
-      console.error('Error sending email:', error)
-      showToast('Failed to send email', 'error')
-    } finally {
-      setSendingEmail(false)
-    }
-  }
-
-  const handleSendQuote = async () => {
-    if (!quoteAmount && !quoteMonthly) {
-      showToast('Please enter at least one quote amount', 'warning')
-      return
-    }
-
-    try {
-      setSendingQuote(true)
-      const res = await fetch('/api/admin/inquiries/send-quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inquiryId: inquiry?.id,
-          to: inquiry?.email,
-          name: inquiry?.name,
-          inquiryNumber: inquiry?.inquiryNumber,
-          oneTimeAmount: quoteAmount ? parseFloat(quoteAmount) : null,
-          monthlyAmount: quoteMonthly ? parseFloat(quoteMonthly) : null,
-          notes: quoteNotes,
-          validDays: parseInt(quoteValidDays),
-        }),
-      })
-
-      if (res.ok) {
-        showToast('Quote sent successfully!', 'success')
-        setShowQuoteModal(false)
-        // Update status to PROPOSAL_SENT
-        setStatus('PROPOSAL_SENT')
-        setEstimatedCost(quoteAmount || quoteMonthly || '')
-        // Refresh inquiry to show new message in thread
-        await fetchInquiry()
-        await handleSave()
-      } else {
-        const data = await res.json()
-        showToast(data.error || 'Failed to send quote', 'error')
-      }
-    } catch (error) {
-      console.error('Error sending quote:', error)
-      showToast('Failed to send quote', 'error')
-    } finally {
-      setSendingQuote(false)
-    }
-  }
 
   const getStatusColor = (s: string) => {
     const colors: Record<string, string> = {
@@ -687,52 +593,8 @@ export default function InquiryDetailPage() {
             </div>
           )}
 
-          {/* Project Description */}
-          <div style={{
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '16px',
-            padding: '24px',
-          }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Project Description
-            </h2>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-              gap: '16px',
-              marginBottom: '16px',
-            }}>
-              <div>
-                <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Service Type</p>
-                <p style={{ margin: 0, fontWeight: 500 }}>{getServiceTypeLabel(inquiry.serviceType)}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Budget</p>
-                <p style={{ margin: 0 }}>{inquiry.budget || 'Not specified'}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Timeline</p>
-                <p style={{ margin: 0 }}>{inquiry.timeline || 'Flexible'}</p>
-              </div>
-            </div>
-
-            <div>
-              <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 8px 0', textTransform: 'uppercase' }}>Full Description</p>
-              <div style={{
-                padding: '16px',
-                background: '#09090b',
-                borderRadius: '12px',
-              }}>
-                <p style={{ margin: 0, color: '#a1a1aa', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                  {inquiry.description}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Conversation Thread */}
-          {inquiry.messages && inquiry.messages.length > 0 && (
+          {/* Project Details */}
+          {!inquiry.inquiryNumber.startsWith('CONTACT-') && (
             <div style={{
               background: '#18181b',
               border: '1px solid #27272a',
@@ -740,112 +602,67 @@ export default function InquiryDetailPage() {
               padding: '24px',
             }}>
               <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
-                Conversation History ({inquiry.messages.length})
+                Project Details
               </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {inquiry.messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    style={{
-                      padding: '16px',
-                      background: msg.isFromAdmin ? '#3b82f610' : '#09090b',
-                      border: `1px solid ${msg.isFromAdmin ? '#3b82f630' : '#27272a'}`,
-                      borderRadius: '12px',
-                      borderLeft: `4px solid ${msg.isFromAdmin ? '#3b82f6' : '#71717a'}`,
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'start',
-                      marginBottom: '8px',
-                      flexWrap: 'wrap',
-                      gap: '8px',
-                    }}>
-                      <div>
-                        <p style={{
-                          margin: 0,
-                          fontWeight: 600,
-                          fontSize: '14px',
-                          color: msg.isFromAdmin ? '#3b82f6' : '#ffffff',
-                        }}>
-                          {msg.senderName || (msg.isFromAdmin ? '47 Industries' : inquiry.name)}
-                        </p>
-                        {msg.senderEmail && (
-                          <p style={{
-                            margin: '2px 0 0 0',
-                            fontSize: '12px',
-                            color: '#71717a',
-                          }}>
-                            {msg.senderEmail}
-                          </p>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {msg.isQuote && (
-                          <span style={{
-                            padding: '3px 8px',
-                            background: '#10b98120',
-                            color: '#10b981',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                          }}>
-                            QUOTE
-                          </span>
-                        )}
-                        <span style={{ fontSize: '12px', color: '#71717a' }}>
-                          {new Date(msg.createdAt).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {msg.isQuote && (msg.quoteAmount || msg.quoteMonthly) && (
-                      <div style={{
-                        padding: '12px',
-                        background: '#10b98110',
-                        border: '1px solid #10b98130',
-                        borderRadius: '8px',
-                        marginBottom: '12px',
-                      }}>
-                        {msg.quoteAmount && (
-                          <div style={{ marginBottom: msg.quoteMonthly ? '8px' : 0 }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>One-Time Cost</p>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '20px', fontWeight: 700, color: '#10b981' }}>
-                              ${msg.quoteAmount.toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        {msg.quoteMonthly && (
-                          <div>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Monthly Cost</p>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '20px', fontWeight: 700, color: '#10b981' }}>
-                              ${msg.quoteMonthly.toLocaleString()}/mo
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <p style={{
-                      margin: 0,
-                      color: '#a1a1aa',
-                      fontSize: '14px',
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap',
-                    }}>
-                      {msg.message}
-                    </p>
-                  </div>
-                ))}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                gap: '16px',
+              }}>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Service Type</p>
+                  <p style={{ margin: 0, fontWeight: 500 }}>{getServiceTypeLabel(inquiry.serviceType)}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Budget</p>
+                  <p style={{ margin: 0 }}>{inquiry.budget || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Timeline</p>
+                  <p style={{ margin: 0 }}>{inquiry.timeline || 'Flexible'}</p>
+                </div>
               </div>
             </div>
           )}
+
+          {/* Conversation */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
+              Conversation
+            </h2>
+
+            <ConversationThread
+              messages={[
+                {
+                  id: 'initial',
+                  message: inquiry.description,
+                  isFromAdmin: false,
+                  senderName: inquiry.name,
+                  senderEmail: inquiry.email,
+                  createdAt: inquiry.createdAt,
+                  isQuote: false,
+                  quoteAmount: null,
+                  quoteMonthly: null,
+                },
+                ...(inquiry.messages || []),
+              ]}
+              inquiryType={inquiry.inquiryNumber.startsWith('CONTACT-') ? 'contact' : 'service'}
+            />
+
+            <InlineReplyBox
+              recipientEmail={inquiry.email}
+              recipientName={inquiry.name}
+              referenceNumber={inquiry.inquiryNumber}
+              inquiryType={inquiry.inquiryNumber.startsWith('CONTACT-') ? 'contact' : 'service'}
+              inquiryId={inquiry.id}
+              onReplySent={fetchInquiry}
+            />
+          </div>
         </div>
 
         {/* Right Column */}
@@ -862,28 +679,7 @@ export default function InquiryDetailPage() {
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
-                onClick={() => {
-                  setEmailSubject(`Re: Your ${getServiceTypeLabel(inquiry.serviceType)} Inquiry`)
-                  setShowEmailModal(true)
-                }}
-                style={{
-                  padding: '12px 16px',
-                  background: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                }}
-              >
-                Reply via Email
-              </button>
-              <button
-                onClick={() => {
-                  if (suggestedQuote) setQuoteAmount(suggestedQuote.toString())
-                  setShowQuoteModal(true)
-                }}
+                onClick={() => setShowQuoteModal(true)}
                 style={{
                   padding: '12px 16px',
                   background: '#10b981',
@@ -1096,297 +892,16 @@ export default function InquiryDetailPage() {
         </div>
       </div>
 
-      {/* Email Modal */}
-      {showEmailModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }}>
-          <div style={{
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '16px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '500px',
-          }}>
-            <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: 600 }}>
-              Send Email to {inquiry.name}
-            </h2>
-
-            {emailSuccess ? (
-              <div style={{
-                padding: '16px',
-                background: '#10b98120',
-                border: '1px solid #10b981',
-                borderRadius: '8px',
-                color: '#10b981',
-                textAlign: 'center',
-              }}>
-                {emailSuccess}
-              </div>
-            ) : (
-              <>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                    To
-                  </label>
-                  <input
-                    type="text"
-                    value={inquiry.email}
-                    disabled
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: '#09090b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: '#71717a',
-                      fontSize: '14px',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: '#09090b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '14px',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                    Message
-                  </label>
-                  <textarea
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                    rows={8}
-                    placeholder="Type your message..."
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: '#09090b',
-                      border: '1px solid #27272a',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '14px',
-                      resize: 'vertical',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={() => setShowEmailModal(false)}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: '#27272a',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSendEmail}
-                    disabled={sendingEmail}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      cursor: sendingEmail ? 'not-allowed' : 'pointer',
-                      opacity: sendingEmail ? 0.7 : 1,
-                    }}
-                  >
-                    {sendingEmail ? 'Sending...' : 'Send Email'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Quote Modal */}
-      {showQuoteModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }}>
-          <div style={{
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '16px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '500px',
-          }}>
-            <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: 600 }}>
-              Send Quote to {inquiry.name}
-            </h2>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                One-Time Amount ($)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={quoteAmount}
-                onChange={(e) => setQuoteAmount(e.target.value)}
-                placeholder="0.00"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#09090b',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                Monthly Amount ($) - optional
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={quoteMonthly}
-                onChange={(e) => setQuoteMonthly(e.target.value)}
-                placeholder="0.00"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#09090b',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                Valid For (days)
-              </label>
-              <select
-                value={quoteValidDays}
-                onChange={(e) => setQuoteValidDays(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#09090b',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                }}
-              >
-                <option value="7">7 days</option>
-                <option value="14">14 days</option>
-                <option value="30">30 days</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                Notes (optional)
-              </label>
-              <textarea
-                value={quoteNotes}
-                onChange={(e) => setQuoteNotes(e.target.value)}
-                rows={4}
-                placeholder="Any additional details about the quote..."
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#09090b',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowQuoteModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: '#27272a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendQuote}
-                disabled={sendingQuote}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: sendingQuote ? 'not-allowed' : 'pointer',
-                  opacity: sendingQuote ? 0.7 : 1,
-                }}
-              >
-                {sendingQuote ? 'Sending...' : 'Send Quote'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuoteModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        inquiryType={inquiry.inquiryNumber.startsWith('CONTACT-') ? 'contact' : 'service'}
+        recipientEmail={inquiry.email}
+        recipientName={inquiry.name}
+        referenceNumber={inquiry.inquiryNumber}
+        inquiryId={inquiry.id}
+        onQuoteSent={fetchInquiry}
+      />
     </div>
   )
 }

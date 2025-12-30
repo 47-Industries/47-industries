@@ -5,6 +5,21 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFile } from '@fortawesome/free-solid-svg-icons'
+import { useToast } from '@/components/ui/Toast'
+import ConversationThread from '@/components/admin/ConversationThread'
+import InlineReplyBox from '@/components/admin/InlineReplyBox'
+import QuoteModal from '@/components/admin/QuoteModal'
+
+interface Message {
+  id: string
+  message: string
+  isFromAdmin: boolean
+  senderName: string | null
+  senderEmail: string | null
+  createdAt: string
+  isQuote: boolean
+  quoteAmount: number | null
+}
 
 interface CustomRequest {
   id: string
@@ -33,15 +48,18 @@ interface CustomRequest {
   adminNotes?: string
   createdAt: string
   updatedAt: string
+  messages?: Message[]
 }
 
 export default function CustomRequestDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const { showToast } = useToast()
   const [request, setRequest] = useState<CustomRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showQuoteModal, setShowQuoteModal] = useState(false)
 
   // Form state
   const [status, setStatus] = useState('')
@@ -102,13 +120,13 @@ export default function CustomRequestDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setRequest(data)
-        alert('Request updated successfully!')
+        showToast('Request updated successfully!', 'success')
       } else {
-        alert('Failed to update request')
+        showToast('Failed to update request', 'error')
       }
     } catch (error) {
       console.error('Error updating request:', error)
-      alert('Failed to update request')
+      showToast('Failed to update request', 'error')
     } finally {
       setSaving(false)
     }
@@ -127,11 +145,11 @@ export default function CustomRequestDetailPage() {
       if (res.ok) {
         router.push('/admin/custom-requests')
       } else {
-        alert('Failed to delete request')
+        showToast('Failed to delete request', 'error')
       }
     } catch (error) {
       console.error('Error deleting request:', error)
-      alert('Failed to delete request')
+      showToast('Failed to delete request', 'error')
     }
   }
 
@@ -394,26 +412,127 @@ export default function CustomRequestDetailPage() {
             </div>
           </div>
 
-          {/* Customer Notes */}
-          {request.notes && (
-            <div style={{
-              background: '#18181b',
-              border: '1px solid #27272a',
-              borderRadius: '16px',
-              padding: '24px',
-            }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px', margin: '0 0 12px 0' }}>
-                Customer Notes
-              </h2>
-              <p style={{ color: '#a1a1aa', margin: 0, whiteSpace: 'pre-wrap' }}>
-                {request.notes}
-              </p>
-            </div>
-          )}
+          {/* Conversation */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
+              Conversation
+            </h2>
+
+            <ConversationThread
+              messages={[
+                ...(request.notes ? [{
+                  id: 'initial',
+                  message: `${request.notes}\n\n--- Specifications ---\nMaterial: ${request.material}\nFinish: ${request.finish}\nColor: ${request.color}\nQuantity: ${request.quantity}`,
+                  isFromAdmin: false,
+                  senderName: request.name,
+                  senderEmail: request.email,
+                  createdAt: request.createdAt,
+                  isQuote: false,
+                  quoteAmount: null,
+                }] : []),
+                ...(request.messages || []),
+              ]}
+              inquiryType="custom"
+            />
+
+            <InlineReplyBox
+              recipientEmail={request.email}
+              recipientName={request.name}
+              referenceNumber={request.requestNumber}
+              inquiryType="custom"
+              inquiryId={request.id}
+              onReplySent={fetchRequest}
+            />
+          </div>
         </div>
 
         {/* Right Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Quick Actions */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0' }}>
+              Quick Actions
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                onClick={() => setShowQuoteModal(true)}
+                style={{
+                  padding: '12px 16px',
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                Send Quote
+              </button>
+              {request.phone && (
+                <a
+                  href={`tel:${request.phone}`}
+                  style={{
+                    display: 'block',
+                    padding: '12px 16px',
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Call Customer
+                </a>
+              )}
+              <a
+                href={`mailto:${request.email}`}
+                style={{
+                  display: 'block',
+                  padding: '12px 16px',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  textAlign: 'center',
+                  textDecoration: 'none',
+                }}
+              >
+                Email Customer
+              </a>
+              <button
+                onClick={handleDelete}
+                style={{
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  color: '#ef4444',
+                  border: '1px solid #ef4444',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                Delete Request
+              </button>
+            </div>
+          </div>
+
           {/* Update Request */}
           <div style={{
             background: '#18181b',
@@ -609,6 +728,18 @@ export default function CustomRequestDetailPage() {
           )}
         </div>
       </div>
+
+      <QuoteModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        inquiryType="custom"
+        recipientEmail={request.email}
+        recipientName={request.name}
+        referenceNumber={request.requestNumber}
+        inquiryId={request.id}
+        quantity={request.quantity}
+        onQuoteSent={fetchRequest}
+      />
     </div>
   )
 }
