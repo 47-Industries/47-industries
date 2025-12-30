@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAdminAuthInfo } from '@/lib/admin-auth'
+import { verifyAdminAuth, getAdminAuthInfo } from '@/lib/auth-helper'
 
 // POST /api/admin/invoices - Create a new invoice
 export async function POST(req: NextRequest) {
   try {
-    const auth = await getAdminAuthInfo(req)
+    const isAuthorized = await verifyAdminAuth(req)
 
-    if (!auth.isFounder && !auth.isSuperAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const auth = await getAdminAuthInfo(req)
 
     const body = await req.json()
 
@@ -83,10 +85,10 @@ export async function POST(req: NextRequest) {
 // GET /api/admin/invoices - List all invoices
 export async function GET(req: NextRequest) {
   try {
-    const auth = await getAdminAuthInfo(req)
+    const isAuthorized = await verifyAdminAuth(req)
 
-    if (!auth.isFounder && !auth.isSuperAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { searchParams } = new URL(req.url)

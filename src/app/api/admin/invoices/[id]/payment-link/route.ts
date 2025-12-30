@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getAdminAuthInfo } from '@/lib/admin-auth'
+import { verifyAdminAuth } from '@/lib/auth-helper'
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -13,10 +13,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const auth = await getAdminAuthInfo(req)
+    const isAuthorized = await verifyAdminAuth(req)
 
-    if (!auth.isFounder && !auth.isSuperAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const invoice = await prisma.invoice.findUnique({
