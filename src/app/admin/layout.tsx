@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import NotificationBell from '@/components/admin/NotificationBell'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -16,6 +16,7 @@ interface NavItem {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session, status } = useSession()
   const [mounted, setMounted] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -63,6 +64,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       subItems: [
         { href: '/admin/inquiries?tab=print-requests', label: '3D Print Requests' },
         { href: '/admin/inquiries?tab=service-inquiries', label: 'Service Inquiries' },
+        { href: '/admin/inquiries?tab=contact-forms', label: 'General Inquiries' },
       ]
     },
     { href: '/admin/reports', label: 'Reports' },
@@ -356,7 +358,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         // Parse the href to check if this sub-item is active
                         const [basePath, queryString] = subItem.href.split('?')
                         const tabValue = queryString?.split('=')[1]
-                        const currentTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+                        const currentTab = searchParams.get('tab')
                         const isSubActive = pathname === basePath && currentTab === tabValue
 
                         return (
