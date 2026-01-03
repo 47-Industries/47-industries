@@ -4,9 +4,17 @@ import { ReactNode, useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { Space_Grotesk } from 'next/font/google'
 import NotificationBell from '@/components/admin/NotificationBell'
 import { ToastProvider } from '@/components/ui/Toast'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+
+// Modern, geometric font for branding
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['500', '700'],
+  variable: '--font-space-grotesk',
+})
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -106,14 +114,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     )
   }
 
-  const toggleExpanded = (href: string) => {
-    setExpandedItems(prev =>
-      prev.includes(href)
-        ? prev.filter(h => h !== href)
-        : [...prev, href]
-    )
-  }
-
   const closeMobileMenu = () => {
     if (isMobile) {
       setIsMobileMenuOpen(false)
@@ -145,6 +145,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           isMobile={showMobile}
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobile={closeMobileMenu}
+          brandingFontClass={spaceGrotesk.className}
         />
       </Suspense>
 

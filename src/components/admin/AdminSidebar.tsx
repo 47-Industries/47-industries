@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 interface NavItem {
@@ -20,9 +21,10 @@ interface AdminSidebarProps {
   isMobile: boolean
   isMobileMenuOpen: boolean
   onCloseMobile: () => void
+  brandingFontClass?: string
 }
 
-export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile }: AdminSidebarProps) {
+export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile, brandingFontClass }: AdminSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
@@ -169,18 +171,60 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
         }}
       >
         <div style={{ padding: '24px 16px' }}>
-          <Link href="/admin" style={{ textDecoration: 'none' }}>
-            <h1
-              style={{
-                fontSize: '20px',
-                fontWeight: 'bold',
-                color: 'white',
-                marginBottom: '24px',
-                paddingLeft: '8px',
-              }}
-            >
-              47 Admin
-            </h1>
+          {/* Logo and Branding */}
+          <Link href="/admin" style={{ textDecoration: 'none', display: 'block', marginBottom: '28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                  border: '1px solid #27272a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Image
+                  src="/logo.png"
+                  alt="47 Industries"
+                  width={32}
+                  height={32}
+                  style={{ objectFit: 'contain' }}
+                />
+              </div>
+              <div>
+                <h1
+                  className={brandingFontClass}
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: 700,
+                    color: 'white',
+                    margin: 0,
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  <span style={{ color: '#3b82f6' }}>47</span> Admin
+                </h1>
+                <p
+                  style={{
+                    fontSize: '10px',
+                    color: '#52525b',
+                    margin: 0,
+                    marginTop: '2px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    fontWeight: 500,
+                  }}
+                >
+                  Control Center
+                </p>
+              </div>
+            </div>
           </Link>
 
           <nav>
