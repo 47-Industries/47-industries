@@ -100,6 +100,36 @@ const technologies = [
   'Stripe', 'AWS', 'Firebase', 'Tailwind CSS',
 ]
 
+// Helper functions for package links
+function getPackageLink(pkg: Package): string {
+  // AI Automation packages link to product pages or external sites
+  if (pkg.category === 'AI_AUTOMATION') {
+    if (pkg.slug === 'leadchopper-marketing') {
+      return 'https://leadchopper.app'
+    }
+    if (pkg.slug === 'ringzero-receptionist') {
+      return '/projects/ringzero'
+    }
+    // Enterprise/custom packages go to inquiry form
+    return `/services/inquiry?type=${pkg.category}&package=${pkg.slug}`
+  }
+  // All other packages go to inquiry form
+  return `/services/inquiry?type=${pkg.category}`
+}
+
+function getPackageButtonText(pkg: Package): string {
+  if (pkg.slug === 'leadchopper-marketing') {
+    return 'Visit LeadChopper'
+  }
+  if (pkg.slug === 'ringzero-receptionist') {
+    return 'Learn More'
+  }
+  if (pkg.price === null) {
+    return 'Contact Us'
+  }
+  return 'Get Started'
+}
+
 export default function ServicesClient({ packages, projects }: ServicesClientProps) {
   const searchParams = useSearchParams()
   const [selectedType, setSelectedType] = useState('WEB_DEVELOPMENT')
@@ -379,7 +409,7 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
                   )}
 
                   <Link
-                    href={pkg.slug === 'leadchopper-marketing' ? 'https://leadchopper.app' : `/services/inquiry?type=${pkg.category}`}
+                    href={getPackageLink(pkg)}
                     target={pkg.slug === 'leadchopper-marketing' ? '_blank' : undefined}
                     rel={pkg.slug === 'leadchopper-marketing' ? 'noopener noreferrer' : undefined}
                     className={`block w-full py-3 text-center rounded-lg font-medium transition-all ${
@@ -388,7 +418,7 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
                         : 'border border-border hover:bg-surface'
                     }`}
                   >
-                    {pkg.slug === 'leadchopper-marketing' ? 'Visit LeadChopper' : 'Get Started'}
+                    {getPackageButtonText(pkg)}
                   </Link>
                 </div>
               ))}
