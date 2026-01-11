@@ -55,6 +55,7 @@ export default async function ServicesPage() {
     clientName: project.clientName,
     thumbnailUrl: project.thumbnailUrl,
     isFeatured: project.isFeatured,
+    accentColor: project.accentColor,
   }))
 
   return <ServicesClient packages={serializedPackages} projects={serializedProjects} />

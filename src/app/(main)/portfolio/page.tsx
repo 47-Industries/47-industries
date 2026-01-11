@@ -33,6 +33,7 @@ export default async function PortfolioPage() {
     thumbnailUrl: project.thumbnailUrl,
     liveUrl: project.liveUrl,
     isFeatured: project.isFeatured,
+    accentColor: project.accentColor,
   }))
 
   return (

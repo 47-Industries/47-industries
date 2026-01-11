@@ -67,6 +67,7 @@ export default async function Home() {
     description: project.description,
     thumbnailUrl: project.thumbnailUrl,
     liveUrl: project.liveUrl,
+    accentColor: project.accentColor,
   }))
 
   return (
