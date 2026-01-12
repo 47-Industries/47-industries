@@ -313,23 +313,26 @@ export default function ServiceInquiryForm() {
             </select>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Budget Range</label>
-              <select
-                value={formData.budget}
-                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-                disabled={submitting}
-              >
-                <option value="">Select a budget range...</option>
-                {BUDGET_RANGES.map((range) => (
-                  <option key={range.value} value={range.value}>
-                    {range.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className={`grid ${productConfig ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4`}>
+            {/* Hide budget for fixed-price products */}
+            {!productConfig && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Budget Range</label>
+                <select
+                  value={formData.budget}
+                  onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                  className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+                  disabled={submitting}
+                >
+                  <option value="">Select a budget range...</option>
+                  {BUDGET_RANGES.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-2">Timeline</label>
