@@ -136,7 +136,7 @@ export default function AboutPage() {
                   <span className="text-3xl font-bold text-white">K</span>
                 </div>
                 <h3 className="text-lg font-bold mb-1">Kyle Rivers</h3>
-                <p className="text-sm text-accent mb-3">Lead Developer</p>
+                <p className="text-sm text-accent mb-3">President</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Building the digital future of 47 Industries. From web platforms to mobile apps.
                 </p>
@@ -148,7 +148,7 @@ export default function AboutPage() {
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
                 <h3 className="text-lg font-bold mb-1">Dean</h3>
-                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-sm text-accent mb-3">Chief Executive Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Part of the original crew. Helping turn vision into reality.
                 </p>
@@ -160,7 +160,7 @@ export default function AboutPage() {
                   <span className="text-3xl font-bold text-white">W</span>
                 </div>
                 <h3 className="text-lg font-bold mb-1">Wesley</h3>
-                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-sm text-accent mb-3">Chief Product Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Part of the original crew. Helping turn vision into reality.
                 </p>
@@ -172,7 +172,7 @@ export default function AboutPage() {
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
                 <h3 className="text-lg font-bold mb-1">Dylan</h3>
-                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-sm text-accent mb-3">Executive Chairman</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Part of the original crew. Helping turn vision into reality.
                 </p>
