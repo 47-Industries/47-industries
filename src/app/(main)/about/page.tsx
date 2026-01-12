@@ -132,9 +132,9 @@ export default function AboutPage() {
                 </div>
                 <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
                   <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
-                  <h3 className="font-bold mb-2">The Loss</h3>
+                  <h3 className="font-bold mb-2">The Beginning</h3>
                   <p className="text-text-secondary text-sm">
-                    On December 17, 2022, we lost Bryce. But his company, his dream, his legacy - it all lived on.
+                    Bryce brought us all together to build his company. On December 17, we lost him - but his vision became our mission, and his company became our legacy to carry forward.
                   </p>
                 </div>
               </div>
