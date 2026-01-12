@@ -416,6 +416,7 @@ export default async function RingZeroPage() {
                     <span className="text-5xl font-bold">$497</span>
                     <span className="text-text-secondary">/month</span>
                   </div>
+                  <p className="text-sm text-text-muted mt-2">+ $500 one-time setup fee</p>
                 </div>
 
                 <ul className="space-y-3 mb-8">
@@ -426,7 +427,7 @@ export default async function RingZeroPage() {
                     'Lead capture + SMS/email alerts',
                     'Call recordings + transcripts',
                     'All integrations included',
-                    'Full setup included',
+                    'Custom AI setup for your business',
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3">
                       <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

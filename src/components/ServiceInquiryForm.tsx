@@ -33,6 +33,7 @@ const PRODUCT_CONFIGS: Record<string, {
   name: string
   tagline: string
   price: string
+  setupFee?: string
   description: string
   features: string[]
   demoPhone?: string
@@ -41,6 +42,7 @@ const PRODUCT_CONFIGS: Record<string, {
     name: 'RingZero',
     tagline: 'AI Receptionist - Never Miss Another Call',
     price: '$497/month',
+    setupFee: '$500 one-time setup',
     description: `I'm interested in RingZero AI Receptionist for my business.
 
 My business type: [e.g., HVAC, Plumbing, Electrical, etc.]
@@ -179,6 +181,11 @@ export default function ServiceInquiryForm() {
                 <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-sm font-semibold">
                   {productConfig.price}
                 </span>
+                {productConfig.setupFee && (
+                  <span className="px-3 py-1 bg-surface border border-border text-text-secondary rounded-full text-sm">
+                    + {productConfig.setupFee}
+                  </span>
+                )}
                 {productConfig.demoPhone && (
                   <a
                     href={`tel:${productConfig.demoPhone.replace(/[^0-9+]/g, '')}`}
