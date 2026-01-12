@@ -162,7 +162,7 @@ export default function AboutPage() {
                 <h3 className="text-lg font-bold mb-1">Wesley Huston</h3>
                 <p className="text-sm text-accent mb-3">Chief Product Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Traveled to Sturgis to validate MotoRev with real riders. Drives product vision and user experience.
+                  Oversees physical operations, product manufacturing, maintenance, and R&D. The hands that build what we design.
                 </p>
               </div>
 
