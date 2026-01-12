@@ -111,10 +111,14 @@ export default function AboutPage() {
                 </div>
 
                 <div className="pt-4 border-t border-border">
-                  <p className="text-lg italic text-text-secondary">
-                    "For Bryce. For us. For the future."
+                  <p className="text-xl italic text-white mb-1">
+                    "Failure is not an option."
                   </p>
-                  <p className="text-sm text-text-muted mt-2">- Dean, Kyle, Wesley, Dylan</p>
+                  <p className="text-sm text-text-muted mb-4">- Bryce Raiford</p>
+                  <p className="text-lg text-text-secondary">
+                    For Bryce. For us. For the future.
+                  </p>
+                  <p className="text-sm text-text-muted mt-1">- Dean, Kyle, Wesley, Dylan</p>
                 </div>
               </div>
             </div>
