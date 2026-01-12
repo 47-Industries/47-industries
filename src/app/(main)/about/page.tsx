@@ -135,7 +135,7 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">K</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Kyle Rivers</h3>
+                <h3 className="text-lg font-bold mb-1">Kyle</h3>
                 <p className="text-sm text-accent mb-3">President</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Taught himself to code with AI in 2025. Leads all development across MotoRev, BookFade, and 47 Industries.
@@ -147,7 +147,7 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dean Sabr</h3>
+                <h3 className="text-lg font-bold mb-1">Dean</h3>
                 <p className="text-sm text-accent mb-3">Chief Executive Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Stepped up to lead 47 Industries after Bryce's passing. Keeps the team united and the mission on track.
@@ -159,7 +159,7 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">W</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Wesley Huston</h3>
+                <h3 className="text-lg font-bold mb-1">Wesley</h3>
                 <p className="text-sm text-accent mb-3">Chief Product Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Oversees physical operations, product manufacturing, maintenance, and R&D. The hands that build what we design.
@@ -171,7 +171,7 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dylan Ryan</h3>
+                <h3 className="text-lg font-bold mb-1">Dylan</h3>
                 <p className="text-sm text-accent mb-3">Executive Chairman</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Joined full-time when all four brothers moved under one roof in May 2025. The final piece of the team.
