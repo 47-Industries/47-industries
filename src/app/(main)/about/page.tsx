@@ -138,7 +138,7 @@ export default function AboutPage() {
                 <h3 className="text-lg font-bold mb-1">Kyle Rivers</h3>
                 <p className="text-sm text-accent mb-3">President</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Building the digital future of 47 Industries. From web platforms to mobile apps.
+                  Taught himself to code with AI in 2025. Leads all development across MotoRev, BookFade, and 47 Industries.
                 </p>
               </div>
 
@@ -147,10 +147,10 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dean</h3>
+                <h3 className="text-lg font-bold mb-1">Dean Sabr</h3>
                 <p className="text-sm text-accent mb-3">Chief Executive Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Part of the original crew. Helping turn vision into reality.
+                  One of the original brothers. Moved in with Kyle in 2024 to build the first office and push the mission forward.
                 </p>
               </div>
 
@@ -159,10 +159,10 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">W</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Wesley</h3>
+                <h3 className="text-lg font-bold mb-1">Wesley Huston</h3>
                 <p className="text-sm text-accent mb-3">Chief Product Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Part of the original crew. Helping turn vision into reality.
+                  Traveled to Sturgis to validate MotoRev with real riders. Drives product vision and user experience.
                 </p>
               </div>
 
@@ -171,10 +171,10 @@ export default function AboutPage() {
                 <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
                   <span className="text-3xl font-bold text-white">D</span>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dylan</h3>
+                <h3 className="text-lg font-bold mb-1">Dylan Ryan</h3>
                 <p className="text-sm text-accent mb-3">Executive Chairman</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Part of the original crew. Helping turn vision into reality.
+                  Joined full-time when all four brothers moved under one roof in May 2025. The final piece of the team.
                 </p>
               </div>
             </div>
