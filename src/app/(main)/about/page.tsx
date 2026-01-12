@@ -121,6 +121,66 @@ export default function AboutPage() {
           </div>
         </div>
 
+        {/* Meet the Team */}
+        <div className="max-w-5xl mx-auto mb-16">
+          <div className="p-10 bg-surface border border-border rounded-2xl">
+            <div className="text-center mb-10">
+              <p className="text-sm font-semibold text-accent tracking-wider mb-4">THE PEOPLE BEHIND THE MISSION</p>
+              <h2 className="text-3xl md:text-4xl font-bold">Meet the Team</h2>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Kyle */}
+              <div className="p-6 bg-background border border-border rounded-xl text-center">
+                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">K</span>
+                </div>
+                <h3 className="text-lg font-bold mb-1">Kyle Rivers</h3>
+                <p className="text-sm text-accent mb-3">Lead Developer</p>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Building the digital future of 47 Industries. From web platforms to mobile apps.
+                </p>
+              </div>
+
+              {/* Dean */}
+              <div className="p-6 bg-background border border-border rounded-xl text-center">
+                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">D</span>
+                </div>
+                <h3 className="text-lg font-bold mb-1">Dean</h3>
+                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Part of the original crew. Helping turn vision into reality.
+                </p>
+              </div>
+
+              {/* Wesley */}
+              <div className="p-6 bg-background border border-border rounded-xl text-center">
+                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">W</span>
+                </div>
+                <h3 className="text-lg font-bold mb-1">Wesley</h3>
+                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Part of the original crew. Helping turn vision into reality.
+                </p>
+              </div>
+
+              {/* Dylan */}
+              <div className="p-6 bg-background border border-border rounded-xl text-center">
+                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">D</span>
+                </div>
+                <h3 className="text-lg font-bold mb-1">Dylan</h3>
+                <p className="text-sm text-accent mb-3">Team Member</p>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Part of the original crew. Helping turn vision into reality.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* The Journey */}
         <div className="max-w-5xl mx-auto mb-16">
           <div className="p-10 bg-surface border border-border rounded-2xl">
