@@ -86,27 +86,27 @@ export default function AboutPage() {
                 <div>
                   <h3 className="text-xl font-bold mb-3">The Visionary Who Started It All</h3>
                   <p className="text-text-secondary leading-relaxed">
-                    Bryce Raiford was a genius builder with a dream. He founded 47 Industries with 3D printers,
-                    creating a company that turned vision into reality. A brother, an innovator, a leader -
-                    Bryce built something from nothing.
+                    Bryce Raiford was the founder of 47 Industries. A genius builder with a dream, he brought
+                    a team together around his vision of turning ideas into reality. A brother, an innovator,
+                    a leader - Bryce built something from nothing.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold mb-3">His Legacy Lives On</h3>
+                  <h3 className="text-xl font-bold mb-3">A New Chapter</h3>
                   <p className="text-text-secondary leading-relaxed">
-                    When the world lost Bryce on December 17, 2022, the team stepped up to carry on what
-                    he started. No hierarchy - just a group united by a shared mission to honor his memory
-                    and build something meaningful.
+                    When we lost Bryce on December 17, 2022, the team founded a new age of 47 Industries in
+                    his name. We made it official. We made it real. His company would live on - not as a
+                    memory, but as a mission.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold mb-3">Building in His Memory</h3>
+                  <h3 className="text-xl font-bold mb-3">Three Years Later</h3>
                   <p className="text-text-secondary leading-relaxed">
-                    MotoRev, our flagship app, was born from Bryce's passion for motorcycles. Every commit,
-                    every feature, every line of code is built in his memory. Our mission: to prevent what
-                    happened to Bryce from happening to someone else.
+                    Now we're building. MotoRev, born from Bryce's passion for motorcycles, carries a purpose:
+                    to prevent what happened to him from happening to someone else. Every line of code honors
+                    his memory.
                   </p>
                 </div>
 
@@ -132,9 +132,9 @@ export default function AboutPage() {
                 </div>
                 <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
                   <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
-                  <h3 className="font-bold mb-2">The Beginning</h3>
+                  <h3 className="font-bold mb-2">The Beginning & The Loss</h3>
                   <p className="text-text-secondary text-sm">
-                    Bryce brought us all together to build his company. On December 17, we lost him - but his vision became our mission, and his company became our legacy to carry forward.
+                    Bryce founded 47 Industries and brought us together around his vision. On December 17, we lost him - but his dream would not die with him.
                   </p>
                 </div>
               </div>
@@ -145,9 +145,9 @@ export default function AboutPage() {
                 </div>
                 <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
                   <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
-                  <h3 className="font-bold mb-2">The Decision</h3>
+                  <h3 className="font-bold mb-2">The New Age</h3>
                   <p className="text-text-secondary text-sm">
-                    The team made a commitment: carry on Bryce's legacy. 47 Industries would not just survive - it would thrive.
+                    The team founded a new age of 47 Industries in Bryce's name. We made it official. We made it real.
                   </p>
                 </div>
               </div>
