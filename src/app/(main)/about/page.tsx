@@ -60,8 +60,8 @@ export default function AboutPage() {
           <div className="p-10 bg-gradient-to-br from-surface to-background border border-border rounded-2xl">
             <div className="text-center mb-10">
               <p className="text-sm font-semibold text-accent tracking-wider mb-4">IN MEMORY OF OUR FOUNDER</p>
-              <h2 className="text-3xl md:text-4xl font-bold">Bryce Raiford</h2>
-              <p className="text-text-muted mt-2">1999 - December 17, 2022</p>
+              <h2 className="text-3xl md:text-4xl font-bold">Bryce Leone Raiford</h2>
+              <p className="text-text-muted mt-2">August 9, 2000 - December 17, 2022</p>
             </div>
 
             <div className="grid lg:grid-cols-5 gap-10 items-start">
