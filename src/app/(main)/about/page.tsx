@@ -150,7 +150,7 @@ export default function AboutPage() {
                 <h3 className="text-lg font-bold mb-1">Dean Sabr</h3>
                 <p className="text-sm text-accent mb-3">Chief Executive Officer</p>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  One of the original brothers. Moved in with Kyle in 2024 to build the first office and push the mission forward.
+                  Stepped up to lead 47 Industries after Bryce's passing. Keeps the team united and the mission on track.
                 </p>
               </div>
 
