@@ -28,12 +28,49 @@ const TIMELINE_OPTIONS = [
   { value: 'FLEXIBLE', label: 'Flexible' },
 ]
 
+// Product-specific configurations
+const PRODUCT_CONFIGS: Record<string, {
+  name: string
+  tagline: string
+  price: string
+  description: string
+  features: string[]
+  demoPhone?: string
+}> = {
+  ringzero: {
+    name: 'RingZero',
+    tagline: 'AI Receptionist - Never Miss Another Call',
+    price: '$497/month',
+    description: `I'm interested in RingZero AI Receptionist for my business.
+
+My business type: [e.g., HVAC, Plumbing, Electrical, etc.]
+Current call volume: [estimated calls per day/week]
+Main goals: [e.g., capture more leads, book appointments, 24/7 availability]
+
+Additional notes:`,
+    features: [
+      'Answers every call in under 1 second',
+      '24/7/365 availability - no holidays or sick days',
+      'Natural AI voice conversations',
+      'Lead capture with instant SMS/email alerts',
+      'Real-time appointment booking',
+      'Call recordings and transcripts',
+      'Google Calendar, CRM, and Zapier integration',
+    ],
+    demoPhone: '(415) 969-4084',
+  },
+}
+
 export default function ServiceInquiryForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultServiceType = searchParams.get('type') || ''
   const defaultDescription = searchParams.get('description') || ''
   const projectReference = searchParams.get('projectTitle') || ''
+  const productParam = searchParams.get('product') || ''
+
+  // Get product-specific config
+  const productConfig = PRODUCT_CONFIGS[productParam.toLowerCase()]
 
   const [formData, setFormData] = useState({
     website_url: '', // Honeypot field
@@ -45,7 +82,7 @@ export default function ServiceInquiryForm() {
     serviceType: defaultServiceType,
     budget: '',
     timeline: '',
-    description: defaultDescription,
+    description: productConfig?.description || defaultDescription,
   })
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -126,6 +163,46 @@ export default function ServiceInquiryForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Product-specific info banner */}
+      {productConfig && (
+        <div className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 rounded-xl p-6 mb-2">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center">
+              <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-cyan-400 mb-1">{productConfig.name}</h3>
+              <p className="text-text-secondary text-sm mb-3">{productConfig.tagline}</p>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-sm font-semibold">
+                  {productConfig.price}
+                </span>
+                {productConfig.demoPhone && (
+                  <a
+                    href={`tel:${productConfig.demoPhone.replace(/[^0-9+]/g, '')}`}
+                    className="text-sm text-text-secondary hover:text-cyan-400 transition-colors"
+                  >
+                    Demo: {productConfig.demoPhone}
+                  </a>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {productConfig.features.slice(0, 6).map((feature, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs text-text-secondary">
+                    <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Honeypot field - hidden from humans, bots will fill it */}
       <div className="absolute -left-[9999px]" aria-hidden="true">
         <label htmlFor="website_url">Website URL</label>
