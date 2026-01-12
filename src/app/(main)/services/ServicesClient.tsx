@@ -343,8 +343,30 @@ export default function ServicesClient({ packages, projects }: ServicesClientPro
                         className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-12 h-12 text-text-secondary">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <div
+                        className="w-full h-full flex flex-col items-center justify-center p-4"
+                        style={{
+                          background: project.accentColor
+                            ? `linear-gradient(135deg, ${project.accentColor}20 0%, ${project.accentColor}08 100%)`
+                            : 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.03) 100%)'
+                        }}
+                      >
+                        <div
+                          className="mb-2"
+                          style={{ color: project.accentColor || '#3b82f6' }}
+                        >
+                          {PROJECT_ICONS[project.category] || (
+                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                          )}
+                        </div>
+                        <span
+                          className="text-sm font-semibold text-center"
+                          style={{ color: project.accentColor || '#3b82f6' }}
+                        >
+                          {project.title}
+                        </span>
                       </div>
                     )}
                   </div>
