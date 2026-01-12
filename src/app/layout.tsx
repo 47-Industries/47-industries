@@ -20,8 +20,12 @@ export const metadata: Metadata = {
   creator: "47 Industries",
   publisher: "47 Industries",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
   openGraph: {
     type: "website",
