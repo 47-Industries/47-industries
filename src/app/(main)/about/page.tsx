@@ -55,21 +55,130 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Our Story */}
-        <div className="max-w-4xl mx-auto mb-16">
+        {/* Tribute to Bryce */}
+        <div className="max-w-5xl mx-auto mb-16">
+          <div className="p-10 bg-gradient-to-br from-surface to-background border border-border rounded-2xl">
+            <div className="text-center mb-10">
+              <p className="text-sm font-semibold text-accent tracking-wider mb-4">IN MEMORY OF OUR FOUNDER</p>
+              <h2 className="text-3xl md:text-4xl font-bold">Bryce Raiford</h2>
+              <p className="text-text-muted mt-2">1999 - December 17, 2022</p>
+            </div>
+
+            <div className="grid lg:grid-cols-5 gap-10 items-start">
+              {/* Photo */}
+              <div className="lg:col-span-2 flex justify-center">
+                <div className="relative">
+                  <div className="w-64 h-64 md:w-72 md:h-72 rounded-2xl overflow-hidden border-2 border-border shadow-2xl">
+                    <img
+                      src="/bryce-raiford.jpg"
+                      alt="Bryce Raiford - Founder of 47 Industries"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-surface border border-border rounded-full">
+                    <span className="text-sm font-medium text-text-secondary">Founder & Visionary</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Story */}
+              <div className="lg:col-span-3 space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-3">The Visionary Who Started It All</h3>
+                  <p className="text-text-secondary leading-relaxed">
+                    Bryce Raiford was a genius builder with a dream. He founded 47 Industries with 3D printers,
+                    creating a company that turned vision into reality. A brother, an innovator, a leader -
+                    Bryce built something from nothing.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-3">His Legacy Lives On</h3>
+                  <p className="text-text-secondary leading-relaxed">
+                    When the world lost Bryce on December 17, 2022, four brothers stepped up to carry on what
+                    he started: Dean, Kyle, Wesley, and Dylan. No hierarchy - just brothers united by a shared
+                    mission to honor his memory.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-3">Building in His Memory</h3>
+                  <p className="text-text-secondary leading-relaxed">
+                    MotoRev, our flagship app, was born from Bryce's passion for motorcycles. Every commit,
+                    every feature, every line of code is built in his memory. Our mission: to prevent what
+                    happened to Bryce from happening to someone else.
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <p className="text-lg italic text-text-secondary">
+                    "For Bryce. For us. For the future."
+                  </p>
+                  <p className="text-sm text-text-muted mt-2">- Dean, Kyle, Wesley, Dylan</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* The Journey */}
+        <div className="max-w-5xl mx-auto mb-16">
           <div className="p-10 bg-surface border border-border rounded-2xl">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-center">Our Story</h2>
-            <div className="space-y-4 text-center">
-              <p className="text-text-secondary leading-relaxed">
-                47 Industries was founded by Bryce Raiford, a visionary who believed in the power of
-                technology to transform ideas into reality. Though Bryce tragically passed away on
-                December 17, 2022, his spirit and vision continue to drive everything we do.
-              </p>
-              <p className="text-text-secondary leading-relaxed">
-                Today, we carry forward Bryce's legacy by building innovative solutions that make a
-                difference. Every project we undertake, every line of code we write, and every product
-                we create honors his memory and commitment to excellence.
-              </p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-10 text-center">The Journey</h2>
+            <div className="space-y-8">
+              <div className="flex gap-6">
+                <div className="flex-shrink-0 w-24 text-right">
+                  <span className="text-sm font-bold text-accent">2022</span>
+                </div>
+                <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
+                  <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
+                  <h3 className="font-bold mb-2">The Beginning & The Loss</h3>
+                  <p className="text-text-secondary text-sm">
+                    Bryce founds 47 Industries. On December 17, 2022, we lose Bryce but his dream lives on.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-6">
+                <div className="flex-shrink-0 w-24 text-right">
+                  <span className="text-sm font-bold text-accent">2023-24</span>
+                </div>
+                <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
+                  <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
+                  <h3 className="font-bold mb-2">The Struggle</h3>
+                  <p className="text-text-secondary text-sm">
+                    Four brothers with day jobs, working 60+ hour weeks. Building in spare time, learning,
+                    failing, but never giving up on Bryce's vision.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-6">
+                <div className="flex-shrink-0 w-24 text-right">
+                  <span className="text-sm font-bold text-accent">2025</span>
+                </div>
+                <div className="flex-1 pb-8 border-l-2 border-border pl-6 relative">
+                  <div className="absolute w-3 h-3 bg-accent rounded-full -left-[7px] top-1"></div>
+                  <h3 className="font-bold mb-2">The Breakthrough</h3>
+                  <p className="text-text-secondary text-sm">
+                    All four brothers under one roof. Over 5,000 commits to production. MotoRev, BookFade,
+                    and a rebuilt 47 Industries - all self-taught using AI, all funded by day jobs.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-6">
+                <div className="flex-shrink-0 w-24 text-right">
+                  <span className="text-sm font-bold text-accent">2026</span>
+                </div>
+                <div className="flex-1 pl-6 relative">
+                  <div className="absolute w-3 h-3 bg-green-500 rounded-full -left-[7px] top-1"></div>
+                  <h3 className="font-bold mb-2">The Future</h3>
+                  <p className="text-text-secondary text-sm">
+                    2025 was building. 2026 is shipping. Bryce's company is thriving.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
