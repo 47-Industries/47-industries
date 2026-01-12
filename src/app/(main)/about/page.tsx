@@ -129,51 +129,55 @@ export default function AboutPage() {
               <h2 className="text-3xl md:text-4xl font-bold">Meet the Team</h2>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-2 gap-4">
               {/* Kyle */}
-              <div className="p-6 bg-background border border-border rounded-xl text-center">
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">K</span>
+              <div className="p-6 bg-background border-l-4 border-l-blue-500 border border-border rounded-xl">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-xl font-bold">Kyle</h3>
+                    <p className="text-sm text-blue-400">President</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Kyle</h3>
-                <p className="text-sm text-accent mb-3">President</p>
-                <p className="text-xs text-text-secondary leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   Taught himself to code with AI in 2025. Leads all development across MotoRev, BookFade, and 47 Industries.
                 </p>
               </div>
 
               {/* Dean */}
-              <div className="p-6 bg-background border border-border rounded-xl text-center">
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">D</span>
+              <div className="p-6 bg-background border-l-4 border-l-emerald-500 border border-border rounded-xl">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-xl font-bold">Dean</h3>
+                    <p className="text-sm text-emerald-400">Chief Executive Officer</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dean</h3>
-                <p className="text-sm text-accent mb-3">Chief Executive Officer</p>
-                <p className="text-xs text-text-secondary leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   Stepped up to lead 47 Industries after Bryce's passing. Keeps the team united and the mission on track.
                 </p>
               </div>
 
               {/* Wesley */}
-              <div className="p-6 bg-background border border-border rounded-xl text-center">
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">W</span>
+              <div className="p-6 bg-background border-l-4 border-l-purple-500 border border-border rounded-xl">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-xl font-bold">Wesley</h3>
+                    <p className="text-sm text-purple-400">Chief Product Officer</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Wesley</h3>
-                <p className="text-sm text-accent mb-3">Chief Product Officer</p>
-                <p className="text-xs text-text-secondary leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   Oversees physical operations, product manufacturing, maintenance, and R&D. The hands that build what we design.
                 </p>
               </div>
 
               {/* Dylan */}
-              <div className="p-6 bg-background border border-border rounded-xl text-center">
-                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">D</span>
+              <div className="p-6 bg-background border-l-4 border-l-orange-500 border border-border rounded-xl">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-xl font-bold">Dylan</h3>
+                    <p className="text-sm text-orange-400">Executive Chairman</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-1">Dylan</h3>
-                <p className="text-sm text-accent mb-3">Executive Chairman</p>
-                <p className="text-xs text-text-secondary leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   Joined full-time when all four brothers moved under one roof in May 2025. The final piece of the team.
                 </p>
               </div>
