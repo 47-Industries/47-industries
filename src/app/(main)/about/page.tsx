@@ -95,9 +95,9 @@ export default function AboutPage() {
                 <div>
                   <h3 className="text-xl font-bold mb-3">A New Chapter</h3>
                   <p className="text-text-secondary leading-relaxed">
-                    When we lost Bryce on December 17, 2022, the team founded a new age of 47 Industries in
-                    his name. We made it official. We made it real. His company would live on - not as a
-                    memory, but as a mission.
+                    When we lost Bryce on December 17, 2022, the team came together to found a new age of
+                    47 Industries in his name. We made it official. We made it real. His company would
+                    live on - not as a memory, but as a mission.
                   </p>
                 </div>
 
