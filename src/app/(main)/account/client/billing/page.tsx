@@ -56,14 +56,18 @@ export default function ClientBillingPage() {
       const res = await fetch('/api/account/client/billing/portal', {
         method: 'POST',
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.url) {
-          window.location.href = data.url
-        }
+      const data = await res.json()
+
+      if (res.ok && data.url) {
+        window.location.href = data.url
+      } else {
+        console.error('Portal error:', data.error || 'No URL returned')
+        alert(data.error || 'Failed to open payment portal. Please try again.')
+        setRedirecting(false)
       }
     } catch (err) {
       console.error('Error creating portal session:', err)
+      alert('Failed to connect to payment service. Please try again.')
       setRedirecting(false)
     }
   }
