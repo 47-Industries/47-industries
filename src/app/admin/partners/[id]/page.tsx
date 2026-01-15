@@ -525,7 +525,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                   {partner.contract.fileUrl && (
                     <a
-                      href={partner.contract.fileUrl}
+                      href={partner.contract.fileUrl.startsWith('http') ? partner.contract.fileUrl : `https://47industries.com${partner.contract.fileUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
