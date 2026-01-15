@@ -153,29 +153,45 @@ export default function InvoiceViewPage() {
         @media print {
           /* Reset page */
           @page {
-            size: A4;
-            margin: 0.5in;
+            size: letter;
+            margin: 0.4in 0.5in;
           }
 
           /* Hide non-printable elements */
           .no-print,
           nav,
           footer,
-          .print\\:hidden {
+          header,
+          .print-hidden {
             display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
           }
 
-          /* Show print-only elements */
-          .print\\:block {
-            display: block !important;
-          }
-
-          /* Reset colors for print */
-          body {
-            background: white !important;
-            color: black !important;
+          /* Force color printing */
+          * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+
+          /* Reset body and html */
+          html, body {
+            background: white !important;
+            color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 12px !important;
+            line-height: 1.4 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Main container reset */
+          .min-h-screen {
+            min-height: 0 !important;
+            padding: 0 !important;
           }
 
           /* Invoice container */
@@ -186,64 +202,288 @@ export default function InvoiceViewPage() {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
+            width: 100% !important;
+          }
+
+          .invoice-container > div {
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
 
           .invoice-card {
-            border: 1px solid #e5e7eb !important;
-            border-radius: 8px !important;
-            overflow: hidden !important;
+            background: white !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 6px !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+            page-break-inside: avoid;
           }
 
-          /* Typography */
-          h1, h2, h3, p, span, td, th {
-            color: black !important;
+          /* Header section */
+          .invoice-card > div:first-child {
+            border-bottom: 1px solid #d1d5db !important;
+            padding: 16px 20px !important;
           }
 
+          /* Typography - force black text */
+          h1, h2, h3, h4, h5, h6, p, span, td, th, div, a {
+            color: #000 !important;
+          }
+
+          /* Secondary text - gray */
           .text-text-secondary,
-          .text-text-muted {
-            color: #6b7280 !important;
+          .text-text-muted,
+          [class*="text-text-secondary"],
+          [class*="text-text-muted"] {
+            color: #4b5563 !important;
           }
 
-          .text-accent {
-            color: #3b82f6 !important;
+          /* Accent color for total */
+          .text-accent,
+          [class*="text-accent"] {
+            color: #2563eb !important;
           }
 
-          /* Table */
+          /* Green text */
+          .text-green-400,
+          .text-green-500,
+          [class*="text-green"] {
+            color: #059669 !important;
+          }
+
+          /* Red text */
+          .text-red-400,
+          .text-red-500,
+          [class*="text-red"] {
+            color: #dc2626 !important;
+          }
+
+          /* Table styling */
           table {
             border-collapse: collapse !important;
+            width: 100% !important;
+            font-size: 11px !important;
           }
 
-          th, td {
+          thead tr {
+            border-bottom: 2px solid #9ca3af !important;
+          }
+
+          th {
+            color: #374151 !important;
+            font-weight: 600 !important;
+            padding: 8px 4px !important;
+            font-size: 10px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+          }
+
+          tbody tr {
             border-bottom: 1px solid #e5e7eb !important;
+          }
+
+          td {
+            padding: 10px 4px !important;
+            vertical-align: top !important;
           }
 
           /* Status badge */
           .status-badge {
-            border: 1px solid currentColor !important;
-            background: transparent !important;
+            display: inline-block !important;
+            padding: 2px 10px !important;
+            border-radius: 12px !important;
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
           }
 
-          /* Logo for print */
+          /* Status colors */
+          .status-badge.bg-blue-500\\/20 {
+            background: #dbeafe !important;
+            color: #1d4ed8 !important;
+          }
+          .status-badge.bg-green-500\\/20 {
+            background: #dcfce7 !important;
+            color: #15803d !important;
+          }
+          .status-badge.bg-purple-500\\/20 {
+            background: #f3e8ff !important;
+            color: #7c3aed !important;
+          }
+          .status-badge.bg-orange-500\\/20 {
+            background: #ffedd5 !important;
+            color: #c2410c !important;
+          }
+          .status-badge.bg-red-500\\/20 {
+            background: #fee2e2 !important;
+            color: #dc2626 !important;
+          }
+          .status-badge.bg-gray-500\\/20 {
+            background: #f3f4f6 !important;
+            color: #374151 !important;
+          }
+
+          /* Logo */
           .print-logo {
             filter: none !important;
+            max-width: 48px !important;
+            max-height: 48px !important;
           }
 
-          /* Backgrounds for sections */
+          /* Section backgrounds */
           .bg-surface,
           .bg-surface-elevated,
-          .bg-surface-elevated\\/50,
-          .bg-surface-elevated\\/30 {
+          [class*="bg-surface"] {
             background: #f9fafb !important;
           }
 
-          /* Paid stamp */
-          .paid-stamp {
-            background: #dcfce7 !important;
-            border: 2px solid #10b981 !important;
+          /* Border colors */
+          .border-border,
+          [class*="border-border"] {
+            border-color: #d1d5db !important;
           }
 
-          .paid-stamp h3 {
-            color: #059669 !important;
+          /* Padding adjustments for print */
+          .p-6, .p-8, .md\\:p-8 {
+            padding: 16px 20px !important;
+          }
+
+          /* Paid stamp section */
+          .paid-stamp,
+          .bg-green-500\\/10 {
+            background: #dcfce7 !important;
+            border-top: 2px solid #10b981 !important;
+          }
+
+          /* Cancelled section */
+          .bg-red-500\\/10 {
+            background: #fee2e2 !important;
+            border-top: 2px solid #ef4444 !important;
+          }
+
+          /* Totals section */
+          .border-t-2 {
+            border-top: 2px solid #9ca3af !important;
+          }
+
+          /* Font sizes */
+          .text-2xl, .text-3xl {
+            font-size: 18px !important;
+          }
+
+          .text-xl {
+            font-size: 14px !important;
+          }
+
+          .text-lg {
+            font-size: 13px !important;
+          }
+
+          .text-sm {
+            font-size: 11px !important;
+          }
+
+          .text-xs {
+            font-size: 10px !important;
+          }
+
+          /* Font mono */
+          .font-mono {
+            font-family: 'Courier New', Courier, monospace !important;
+          }
+
+          /* Spacing */
+          .gap-6 {
+            gap: 12px !important;
+          }
+
+          .gap-4 {
+            gap: 8px !important;
+          }
+
+          .mb-6, .mt-6 {
+            margin-top: 12px !important;
+            margin-bottom: 12px !important;
+          }
+
+          .mb-8, .mt-8 {
+            margin-top: 16px !important;
+            margin-bottom: 16px !important;
+          }
+
+          /* Grid layouts */
+          .md\\:grid-cols-2 {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+          }
+
+          /* Flex layouts */
+          .md\\:flex-row {
+            flex-direction: row !important;
+          }
+
+          .md\\:justify-between {
+            justify-content: space-between !important;
+          }
+
+          .md\\:justify-end {
+            justify-content: flex-end !important;
+          }
+
+          .md\\:text-right {
+            text-align: right !important;
+          }
+
+          /* Prevent page breaks inside sections */
+          .invoice-card > div {
+            page-break-inside: avoid !important;
+          }
+
+          /* Width for totals */
+          .md\\:w-72 {
+            width: 200px !important;
+          }
+
+          /* Invoice number styling */
+          h1 {
+            font-size: 20px !important;
+            font-weight: 700 !important;
+          }
+
+          /* Company name */
+          h2 {
+            font-size: 16px !important;
+          }
+
+          /* SVG icons */
+          svg {
+            print-color-adjust: exact !important;
+          }
+
+          .w-12.h-12 {
+            width: 36px !important;
+            height: 36px !important;
+          }
+
+          .w-6.h-6 {
+            width: 18px !important;
+            height: 18px !important;
+          }
+
+          /* Rounded backgrounds for icons */
+          .bg-green-500\\/20,
+          .bg-red-500\\/20 {
+            border-radius: 50% !important;
+          }
+
+          .bg-green-500\\/20 {
+            background: #dcfce7 !important;
+          }
+
+          .bg-red-500\\/20 {
+            background: #fee2e2 !important;
           }
         }
       `}</style>
