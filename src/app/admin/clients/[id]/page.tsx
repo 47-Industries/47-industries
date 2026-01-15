@@ -57,6 +57,8 @@ interface Project {
   productionUrl?: string
   repositoryUrl?: string
   startDate?: string
+  serviceProjectId?: string
+  publishedAt?: string
 }
 
 interface Invoice {
@@ -104,6 +106,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [savingSummary, setSavingSummary] = useState(false)
   const [newNote, setNewNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+
+  // User linking state
+  const [showLinkUserModal, setShowLinkUserModal] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [linkingUser, setLinkingUser] = useState(false)
+
+  // Portfolio publishing state
+  const [publishingProject, setPublishingProject] = useState<string | null>(null)
+
   const { showToast } = useToast()
   const router = useRouter()
 
@@ -214,6 +225,67 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to add note', 'error')
     } finally {
       setSavingNote(false)
+    }
+  }
+
+  const handleLinkUser = async () => {
+    if (!userEmail.trim()) return
+    try {
+      setLinkingUser(true)
+      const res = await fetch(`/api/admin/clients/${id}/link-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail.trim() }),
+      })
+      if (res.ok) {
+        showToast('User linked successfully', 'success')
+        setShowLinkUserModal(false)
+        setUserEmail('')
+        fetchClient()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to link user', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to link user', 'error')
+    } finally {
+      setLinkingUser(false)
+    }
+  }
+
+  const handleUnlinkUser = async () => {
+    if (!confirm('Unlink this user from the client? They will lose access to the client portal.')) return
+    try {
+      const res = await fetch(`/api/admin/clients/${id}/link-user`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        showToast('User unlinked', 'success')
+        fetchClient()
+      }
+    } catch (error) {
+      showToast('Failed to unlink user', 'error')
+    }
+  }
+
+  const handlePublishToPortfolio = async (projectId: string, projectName: string) => {
+    if (!confirm(`Publish "${projectName}" to the public portfolio?`)) return
+    try {
+      setPublishingProject(projectId)
+      const res = await fetch(`/api/admin/clients/${id}/projects/${projectId}/publish`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        showToast('Published to portfolio!', 'success')
+        fetchClient()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to publish', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to publish', 'error')
+    } finally {
+      setPublishingProject(null)
     }
   }
 
@@ -362,6 +434,84 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
+      {/* ========== CLIENT PORTAL ACCESS ========== */}
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #27272a',
+        borderRadius: '12px',
+        padding: '16px 20px',
+        marginBottom: '20px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Client Portal Access</h2>
+            {client.user ? (
+              <span style={{
+                padding: '4px 10px',
+                background: '#10b98120',
+                color: '#10b981',
+                borderRadius: '6px',
+                fontSize: '12px',
+              }}>
+                Linked
+              </span>
+            ) : (
+              <span style={{
+                padding: '4px 10px',
+                background: '#71717a20',
+                color: '#71717a',
+                borderRadius: '6px',
+                fontSize: '12px',
+              }}>
+                No Portal Access
+              </span>
+            )}
+          </div>
+          {client.user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '14px', color: '#a1a1aa' }}>
+                {client.user.email}
+                {client.user.name && ` (${client.user.name})`}
+              </span>
+              <button
+                onClick={handleUnlinkUser}
+                style={{
+                  padding: '5px 12px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Unlink
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowLinkUserModal(true)}
+              style={{
+                padding: '6px 14px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '6px',
+                color: 'white',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              Link User Account
+            </button>
+          )}
+        </div>
+        {!client.user && (
+          <p style={{ margin: '10px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+            Link a user account to give this client access to view invoices, contracts, and manage billing at /account/client
+          </p>
+        )}
+      </div>
+
       {/* ========== RELATIONSHIP SUMMARY ========== */}
       <div style={{
         background: '#18181b',
@@ -492,7 +642,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 600, fontSize: '15px' }}>{project.name}</span>
                       <span style={{
                         padding: '3px 8px',
@@ -504,6 +654,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       }}>
                         {project.status}
                       </span>
+                      {project.serviceProjectId && (
+                        <span style={{
+                          padding: '3px 8px',
+                          background: '#8b5cf620',
+                          color: '#8b5cf6',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                        }}>
+                          On Portfolio
+                        </span>
+                      )}
                     </div>
                     <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>{project.type.replace(/_/g, ' ')}</p>
                     {project.description && (
@@ -523,20 +684,52 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     ) : null}
                   </div>
                 </div>
-                {(project.productionUrl || project.repositoryUrl) && (
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px' }}>
-                    {project.productionUrl && (
-                      <a href={project.productionUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
-                        Live Site
-                      </a>
-                    )}
-                    {project.repositoryUrl && (
-                      <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
-                        Repository
-                      </a>
-                    )}
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {project.productionUrl && (
+                    <a href={project.productionUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
+                      Live Site
+                    </a>
+                  )}
+                  {project.repositoryUrl && (
+                    <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
+                      Repository
+                    </a>
+                  )}
+                  {!project.serviceProjectId && project.status === 'COMPLETED' && (
+                    <button
+                      onClick={() => handlePublishToPortfolio(project.id, project.name)}
+                      disabled={publishingProject === project.id}
+                      style={{
+                        padding: '4px 10px',
+                        background: '#8b5cf6',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        marginLeft: 'auto',
+                      }}
+                    >
+                      {publishingProject === project.id ? 'Publishing...' : 'Publish to Portfolio'}
+                    </button>
+                  )}
+                  {project.serviceProjectId && (
+                    <Link
+                      href={`/admin/services?tab=projects`}
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '4px 10px',
+                        background: '#27272a',
+                        borderRadius: '4px',
+                        color: '#a1a1aa',
+                        fontSize: '12px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      View in Portfolio
+                    </Link>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -937,6 +1130,86 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </div>
         )}
       </div>
+
+      {/* ========== LINK USER MODAL ========== */}
+      {showLinkUserModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '400px',
+            margin: '16px',
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>Link User Account</h3>
+            <p style={{ margin: '0 0 16px 0', color: '#a1a1aa', fontSize: '14px' }}>
+              Enter the email address of an existing user account to link to this client.
+              The user will be able to access the client portal at /account/client.
+            </p>
+            <input
+              type="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="user@example.com"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                marginBottom: '16px',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => { setShowLinkUserModal(false); setUserEmail('') }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkUser}
+                disabled={linkingUser || !userEmail.trim()}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#3b82f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: linkingUser || !userEmail.trim() ? 0.5 : 1,
+                }}
+              >
+                {linkingUser ? 'Linking...' : 'Link User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

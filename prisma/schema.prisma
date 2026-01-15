@@ -745,7 +745,11 @@ model ServiceProject {
   category      ServiceCategory // Primary category (kept for backwards compatibility)
   categories    Json?           // Array of category strings for multi-category projects
 
-  // Client info
+  // Client link (optional - links portfolio to Client record)
+  clientId      String?
+  clientProjectId String?       // Source ClientProject if published from client
+
+  // Client info (display name, may differ from Client.name)
   clientName    String
   clientLogo    String?
 
@@ -785,6 +789,8 @@ model ServiceProject {
   @@index([isFeatured])
   @@index([showInNavbar])
   @@index([slug])
+  @@index([clientId])
+  @@index([clientProjectId])
 }
 
 // ============================================
@@ -2045,6 +2051,10 @@ model ClientProject {
   description       String?  @db.Text
   type              ServiceType         // WEB_DEVELOPMENT, AI_SOLUTIONS, etc.
   status            ClientProjectStatus @default(PROPOSAL)
+
+  // Portfolio sync - when published to public portfolio
+  serviceProjectId  String?  @unique    // Links to ServiceProject if published
+  publishedAt       DateTime?           // When it was published to portfolio
 
   // Pricing
   contractValue     Decimal? @db.Decimal(10, 2)
