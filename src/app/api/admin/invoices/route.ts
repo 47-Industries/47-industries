@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminAuth, getAdminAuthInfo } from '@/lib/auth-helper'
+import { stripe, isStripeConfigured } from '@/lib/stripe'
 
 // POST /api/admin/invoices - Create a new invoice
 export async function POST(req: NextRequest) {
@@ -91,7 +92,45 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: true, invoice })
+    // Auto-generate Stripe payment link
+    let updatedInvoice = invoice
+    if (isStripeConfigured && stripe) {
+      try {
+        const stripePaymentLink = await stripe.paymentLinks.create({
+          line_items: items.map((item: any) => ({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: item.description,
+              },
+              unit_amount: Math.round(item.unitPrice * 100),
+            },
+            quantity: item.quantity,
+          })),
+          after_completion: {
+            type: 'redirect',
+            redirect: {
+              url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'}/payment/success?invoice=${invoiceNumber}`,
+            },
+          },
+          metadata: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoiceNumber,
+          },
+        })
+
+        updatedInvoice = await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { stripePaymentLink: stripePaymentLink.url },
+          include: { items: true, client: true },
+        })
+      } catch (stripeError) {
+        console.error('Failed to create Stripe payment link:', stripeError)
+        // Continue without payment link - can be generated later
+      }
+    }
+
+    return NextResponse.json({ success: true, invoice: updatedInvoice })
   } catch (error) {
     console.error('Error creating invoice:', error)
     return NextResponse.json(

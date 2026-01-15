@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { stripe, isStripeConfigured } from '@/lib/stripe'
 
 // GET /api/invoice/[invoiceNumber] - Public endpoint to view invoice
 export async function GET(
   req: NextRequest,
-  { params }: { params: { invoiceNumber: string } }
+  { params }: { params: Promise<{ invoiceNumber: string }> }
 ) {
   try {
+    const { invoiceNumber } = await params
+
     const invoice = await prisma.invoice.findUnique({
-      where: { invoiceNumber: params.invoiceNumber },
+      where: { invoiceNumber },
       include: {
         items: true,
         inquiry: {
@@ -45,6 +48,48 @@ export async function GET(
       })
     }
 
+    // Auto-generate payment link if missing and invoice is unpaid
+    let stripePaymentLink = invoice.stripePaymentLink
+    const isPaid = invoice.status === 'PAID'
+    const isCancelled = invoice.status === 'CANCELLED'
+
+    if (!stripePaymentLink && !isPaid && !isCancelled && isStripeConfigured && stripe) {
+      try {
+        const newPaymentLink = await stripe.paymentLinks.create({
+          line_items: invoice.items.map((item) => ({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: item.description,
+              },
+              unit_amount: Math.round(parseFloat(item.unitPrice.toString()) * 100),
+            },
+            quantity: item.quantity,
+          })),
+          after_completion: {
+            type: 'redirect',
+            redirect: {
+              url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'}/payment/success?invoice=${invoice.invoiceNumber}`,
+            },
+          },
+          metadata: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+          },
+        })
+
+        stripePaymentLink = newPaymentLink.url
+
+        // Save the payment link for future use
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { stripePaymentLink },
+        })
+      } catch (stripeError) {
+        console.error('Failed to auto-generate payment link:', stripeError)
+      }
+    }
+
     // Return invoice data (excluding internal notes and createdBy)
     const publicInvoice = {
       invoiceNumber: invoice.invoiceNumber,
@@ -66,7 +111,7 @@ export async function GET(
       dueDate: invoice.dueDate,
       paidAt: invoice.paidAt,
       notes: invoice.notes,
-      stripePaymentLink: invoice.stripePaymentLink,
+      stripePaymentLink,
       createdAt: invoice.createdAt,
       inquiry: invoice.inquiry,
       customRequest: invoice.customRequest,
