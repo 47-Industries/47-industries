@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         invoiceNumber,
+        clientId: body.clientId || null,
         inquiryId: body.inquiryId || null,
         customRequestId: body.customRequestId || null,
         customerName: body.customerName,
@@ -69,8 +70,24 @@ export async function POST(req: NextRequest) {
       },
       include: {
         items: true,
+        client: true,
       },
     })
+
+    // If linked to a client, update client's outstanding balance
+    if (body.clientId) {
+      const outstandingInvoices = await prisma.invoice.aggregate({
+        where: {
+          clientId: body.clientId,
+          status: { in: ['SENT', 'VIEWED', 'OVERDUE'] },
+        },
+        _sum: { total: true },
+      })
+      await prisma.client.update({
+        where: { id: body.clientId },
+        data: { totalOutstanding: outstandingInvoices._sum.total || 0 },
+      })
+    }
 
     return NextResponse.json({ success: true, invoice })
   } catch (error) {
@@ -113,6 +130,9 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         items: true,
+        client: {
+          select: { id: true, name: true, clientNumber: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })

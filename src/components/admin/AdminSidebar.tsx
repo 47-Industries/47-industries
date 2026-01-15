@@ -63,6 +63,14 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       ],
     },
     {
+      title: 'CRM',
+      items: [
+        { label: 'Clients', href: '/admin/clients' },
+        { label: 'Invoices', href: '/admin/invoices' },
+        { label: 'Contracts', href: '/admin/contracts' },
+      ],
+    },
+    {
       title: 'Finance',
       items: [
         { label: 'Expenses', href: '/admin/expenses' },

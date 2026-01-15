@@ -344,7 +344,9 @@ function ServiceInquiriesTab() {
   const [isMobile, setIsMobile] = useState(false)
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [converting, setConverting] = useState<string | null>(null)
   const { showToast } = useToast()
+  const router = useRouter()
 
   // Quote modal state
   const [showQuoteModal, setShowQuoteModal] = useState(false)
@@ -491,6 +493,34 @@ function ServiceInquiriesTab() {
     setQuoteValidDays('14')
     setShowQuoteModal(true)
     setActionMenuOpen(null)
+  }
+
+  const handleConvertToClient = async (inquiryId: string) => {
+    if (!confirm('Convert this inquiry to a client? This will create a new client record.')) {
+      return
+    }
+    try {
+      setConverting(inquiryId)
+      const res = await fetch(`/api/admin/inquiries/${inquiryId}/convert-to-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ createProject: true }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        showToast('Inquiry converted to client successfully!', 'success')
+        router.push(`/admin/clients/${data.client.id}`)
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to convert to client', 'error')
+      }
+    } catch (error) {
+      console.error('Error converting to client:', error)
+      showToast('Failed to convert to client', 'error')
+    } finally {
+      setConverting(null)
+      setActionMenuOpen(null)
+    }
   }
 
   const handleSendQuote = async () => {
@@ -769,6 +799,32 @@ function ServiceInquiriesTab() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           Send Quote
+                        </button>
+                        {/* Convert to Client */}
+                        <button
+                          onClick={() => handleConvertToClient(inquiry.id)}
+                          disabled={converting === inquiry.id}
+                          style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#3b82f6',
+                            cursor: converting === inquiry.id ? 'wait' : 'pointer',
+                            fontSize: '14px',
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            opacity: converting === inquiry.id ? 0.5 : 1,
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#27272a'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                          </svg>
+                          {converting === inquiry.id ? 'Converting...' : 'Convert to Client'}
                         </button>
                         {inquiry.status !== 'DECLINED' && (
                           <button

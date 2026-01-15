@@ -607,6 +607,9 @@ model ServiceInquiry {
   // Invoices
   invoices      Invoice[]
 
+  // Client (if converted to client)
+  client        Client?
+
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -1831,12 +1834,14 @@ enum InvoiceStatus {
 model Invoice {
   id              String        @id @default(cuid())
   invoiceNumber   String        @unique
-  
-  // Link to related inquiry or request
+
+  // Link to related inquiry, request, or client
   inquiryId       String?
   inquiry         ServiceInquiry? @relation(fields: [inquiryId], references: [id])
   customRequestId String?
   customRequest   CustomRequest? @relation(fields: [customRequestId], references: [id])
+  clientId        String?
+  client          Client?       @relation(fields: [clientId], references: [id])
   
   // Customer info
   customerName    String
@@ -1875,17 +1880,274 @@ model Invoice {
   @@index([status])
   @@index([inquiryId])
   @@index([customRequestId])
+  @@index([clientId])
 }
 
 model InvoiceItem {
   id          String  @id @default(cuid())
   invoiceId   String
   invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
+
   description String
   quantity    Int     @default(1)
   unitPrice   Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
-  
+
   @@index([invoiceId])
+}
+
+// ============================================
+// CLIENTS SYSTEM (Service Clients)
+// ============================================
+
+enum ClientType {
+  LEAD        // From LeadChopper, not yet contacted
+  PENDING     // Just submitted inquiry, needs triage
+  PROSPECT    // In discussion, no contract yet
+  ACTIVE      // Has active project(s)
+  PAST        // Completed work, potential for more
+}
+
+enum ClientSource {
+  INQUIRY     // Came through website inquiry form
+  LEADCHOPPER // Generated via LeadChopper
+  REFERRAL    // Referred by existing client
+  DIRECT      // Direct outreach/known contact
+}
+
+enum ClientProjectStatus {
+  PROPOSAL    // Quote sent, awaiting approval
+  ACTIVE      // In development
+  ON_HOLD     // Paused
+  COMPLETED   // Delivered
+  CANCELLED   // Not moving forward
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ClientActivityType {
+  EMAIL_SENT
+  EMAIL_RECEIVED
+  QUOTE_SENT
+  CALL
+  MEETING
+  INVOICE_SENT
+  INVOICE_PAID
+  CONTRACT_SENT
+  CONTRACT_SIGNED
+  NOTE
+  STATUS_CHANGE
+  PROJECT_CREATED
+  PROJECT_COMPLETED
+  LEADCHOPPER_SYNC
+}
+
+model Client {
+  id                String   @id @default(cuid())
+  clientNumber      String   @unique  // CLI-20260114-0001
+
+  // Company Info
+  name              String              // Business name
+  email             String
+  phone             String?
+  website           String?
+  address           String?  @db.Text
+  industry          String?             // e.g., "Smoke Shop", "SaaS", "Restaurant"
+
+  // Classification
+  type              ClientType          @default(PENDING)
+  source            ClientSource        @default(INQUIRY)
+
+  // LeadChopper Integration
+  leadchopperId     String?  @unique    // LeadChopper Lead ID
+  leadchopperOrgId  String?             // LeadChopper Organization ID
+
+  // Financials (auto-calculated)
+  totalRevenue      Decimal  @db.Decimal(10, 2) @default(0)
+  totalOutstanding  Decimal  @db.Decimal(10, 2) @default(0)
+
+  // Relations
+  contacts          ClientContact[]
+  projects          ClientProject[]
+  invoices          Invoice[]
+  contracts         Contract[]
+  notes             ClientNote[]
+  activities        ClientActivity[]
+  messages          ClientMessage[]
+
+  // Linked inquiry (if converted from inquiry)
+  inquiryId         String?  @unique
+  inquiry           ServiceInquiry? @relation(fields: [inquiryId], references: [id])
+
+  // Tracking
+  assignedTo        String?             // Team member user ID
+  lastContactedAt   DateTime?
+  nextFollowUpAt    DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clientNumber])
+  @@index([email])
+  @@index([type])
+  @@index([source])
+  @@index([assignedTo])
+}
+
+model ClientContact {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name        String
+  email       String?
+  phone       String?
+  role        String?             // "Owner", "Manager", "Technical Contact"
+  isPrimary   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model ClientProject {
+  id                String   @id @default(cuid())
+  clientId          String
+  client            Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name              String              // "Spark8 Platform", "RingZero Setup"
+  description       String?  @db.Text
+  type              ServiceType         // WEB_DEVELOPMENT, AI_SOLUTIONS, etc.
+  status            ClientProjectStatus @default(PROPOSAL)
+
+  // Pricing
+  contractValue     Decimal? @db.Decimal(10, 2)
+  monthlyRecurring  Decimal? @db.Decimal(10, 2)
+
+  // Timeline
+  startDate         DateTime?
+  estimatedEndDate  DateTime?
+  completedAt       DateTime?
+
+  // Links
+  inquiryId         String?             // Original ServiceInquiry
+  repositoryUrl     String?
+  productionUrl     String?
+  stagingUrl        String?
+
+  // Relations
+  contracts         Contract[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model ClientNote {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  authorName  String
+
+  content     String   @db.Text
+  isPinned    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model ClientActivity {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type        ClientActivityType
+  description String
+  metadata    Json?               // Extra data (email subject, invoice amount, etc.)
+
+  performedBy String?             // User ID
+  performedAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([type])
+  @@index([performedAt])
+}
+
+model ClientMessage {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Message content
+  subject     String?
+  message     String   @db.Text
+  isFromAdmin Boolean  @default(true)
+  senderName  String
+  senderEmail String
+
+  // Quote info (if this message contains a quote)
+  isQuote         Boolean  @default(false)
+  quoteAmount     Decimal? @db.Decimal(10, 2)
+  quoteMonthly    Decimal? @db.Decimal(10, 2)
+  quoteValidDays  Int?
+
+  // Email threading
+  emailMessageId  String?
+  emailInReplyTo  String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([clientId])
+  @@index([isFromAdmin])
+}
+
+model Contract {
+  id              String   @id @default(cuid())
+  contractNumber  String   @unique  // CON-20260114-0001
+
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId       String?
+  project         ClientProject? @relation(fields: [projectId], references: [id])
+
+  title           String
+  description     String?  @db.Text
+
+  // File storage (R2 upload or external link)
+  fileUrl         String?             // R2 URL or external link
+  fileName        String?
+  isExternalLink  Boolean  @default(false)
+
+  // Terms
+  totalValue      Decimal  @db.Decimal(10, 2)
+  monthlyValue    Decimal? @db.Decimal(10, 2)
+  startDate       DateTime?
+  endDate         DateTime?
+
+  status          ContractStatus @default(DRAFT)
+  signedAt        DateTime?
+  signedBy        String?             // Name of person who signed
+
+  createdBy       String              // User ID who created
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([contractNumber])
+  @@index([status])
 }
