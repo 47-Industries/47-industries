@@ -72,17 +72,10 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error creating portal session:', error)
 
-    // Return more specific error for Stripe errors
-    if (error?.type === 'StripeInvalidRequestError') {
-      // Common issue: billing portal not configured
-      if (error.message?.includes('portal')) {
-        return NextResponse.json({
-          error: 'Stripe Customer Portal not configured. Please configure it in Stripe Dashboard > Settings > Billing > Customer portal.'
-        }, { status: 500 })
-      }
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ error: 'Failed to create portal session' }, { status: 500 })
+    // Return the actual error message for debugging
+    const errorMessage = error?.message || error?.raw?.message || 'Unknown error'
+    return NextResponse.json({
+      error: `Failed to create portal session: ${errorMessage}`
+    }, { status: 500 })
   }
 }
