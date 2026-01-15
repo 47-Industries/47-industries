@@ -59,6 +59,18 @@ interface Project {
   startDate?: string
   serviceProjectId?: string
   publishedAt?: string
+  referredByPartnerId?: string
+  closedByUserId?: string
+  referredBy?: {
+    id: string
+    name: string
+    partnerNumber: string
+  }
+  closedBy?: {
+    id: string
+    name: string
+    employeeNumber: string
+  }
 }
 
 interface Invoice {
@@ -845,6 +857,55 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         {project.type.replace(/_/g, ' ')}
                         {project.startDate && ` | Started ${formatDate(project.startDate)}`}
                       </p>
+                      {/* Attribution */}
+                      {(project.referredBy || project.closedBy) && (
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
+                          {project.referredBy && (
+                            <Link
+                              href={`/admin/partners/${project.referredBy.id}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                background: '#10b98115',
+                                border: '1px solid #10b98130',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                color: '#10b981',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                              Referred by {project.referredBy.name}
+                            </Link>
+                          )}
+                          {project.closedBy && (
+                            <Link
+                              href={`/admin/team/${project.closedBy.id}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                background: '#3b82f615',
+                                border: '1px solid #3b82f630',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                color: '#3b82f6',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Closed by {project.closedBy.name}
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right', marginLeft: '16px' }}>
                       {project.contractValue ? (

@@ -69,6 +69,12 @@ model User {
   // Client portal - if this user is linked to a Client account
   client        Client?
 
+  // Partner portal - if this user is a partner/contractor
+  partner       Partner?
+
+  // Team member - if this user is an internal team member
+  teamMember    TeamMember?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -1872,7 +1878,11 @@ model Invoice {
   paidAt          DateTime?
   stripePaymentLink String?     // Stripe payment link URL
   stripePaymentId   String?     // Stripe payment intent/charge ID
-  
+
+  // Payment method tracking (for manual payments)
+  paymentMethod     String?     // STRIPE, CASH, CHECK, ZELLE, BANK_TRANSFER
+  paymentReference  String?     // Check number, transaction ID, notes
+
   // Additional info
   notes           String?       @db.Text
   internalNotes   String?       @db.Text
@@ -2078,6 +2088,10 @@ model ClientProject {
   productionUrl     String?
   stagingUrl        String?
 
+  // Attribution - who brought in/closed this project
+  referredByPartnerId String?           // Partner who referred this lead
+  closedByUserId      String?           // Team member who closed the sale
+
   // Relations
   contracts         Contract[]
 
@@ -2086,6 +2100,7 @@ model ClientProject {
 
   @@index([clientId])
   @@index([status])
+  @@index([referredByPartnerId])
 }
 
 model ClientNote {
@@ -2192,4 +2207,309 @@ model Contract {
   @@index([clientId])
   @@index([contractNumber])
   @@index([status])
+}
+
+// ============================================
+// PARTNER MANAGEMENT (External Contractors/Affiliates)
+// ============================================
+
+model Partner {
+  id                String   @id @default(cuid())
+  partnerNumber     String   @unique  // PTR-20260115-0001
+
+  // Link to User account for portal access
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+
+  // Partner Info
+  name              String
+  email             String
+  phone             String?
+  company           String?
+
+  // Commission Structure (configurable per partner)
+  commissionType    String   @default("TIERED")  // FLAT, TIERED, CUSTOM
+  firstSaleRate     Decimal  @db.Decimal(5, 2)   // e.g., 50.00 for 50%
+  recurringRate     Decimal  @db.Decimal(5, 2)   // e.g., 30.00 for 30%
+
+  // Status
+  status            String   @default("ACTIVE")  // ACTIVE, INACTIVE
+
+  // Stripe Connect for automated payouts
+  stripeConnectId           String?   // Stripe Connect account ID
+  stripeConnectStatus       String?   // PENDING, CONNECTED, DISABLED
+  stripeConnectOnboardingUrl String?  @db.Text // Onboarding link if not complete
+
+  // Alternative payment methods (if not using Stripe)
+  zelleEmail        String?
+  zellePhone        String?
+  venmoUsername     String?
+  cashAppTag        String?
+  mailingAddress    String?  @db.Text
+
+  // Relations
+  leads             PartnerLead[]
+  commissions       PartnerCommission[]
+  payouts           PartnerPayout[]
+  contract          PartnerContract?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([partnerNumber])
+  @@index([stripeConnectId])
+}
+
+model PartnerContract {
+  id            String   @id @default(cuid())
+  partnerId     String   @unique
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  title         String
+  description   String?  @db.Text
+  fileUrl       String?
+  fileName      String?
+
+  status        String   @default("DRAFT")  // DRAFT, SENT, SIGNED, ACTIVE
+  signedAt      DateTime?
+
+  startDate     DateTime?
+  endDate       DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+}
+
+model PartnerLead {
+  id            String   @id @default(cuid())
+  leadNumber    String   @unique  // LEAD-20260115-0001
+
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // Lead Info (submitted by partner)
+  businessName  String
+  contactName   String
+  email         String
+  phone         String?
+  website       String?
+  description   String?  @db.Text
+
+  // Status tracking
+  status        String   @default("NEW")  // NEW, CONTACTED, QUALIFIED, CONVERTED, LOST
+
+  // Conversion (when lead becomes client)
+  clientId      String?  @unique          // Links to Client when converted
+  projectId     String?                   // Links to ClientProject when project created
+  closedBy      String?                   // User ID of who closed the sale
+  closedAt      DateTime?
+
+  // Commission tracking
+  commissions   PartnerCommission[]
+
+  notes         String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([clientId])
+}
+
+model PartnerCommission {
+  id            String   @id @default(cuid())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  leadId        String
+  lead          PartnerLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  // Commission Details
+  type          String   // FIRST_SALE, RECURRING
+  invoiceId     String?  // Link to Invoice that triggered this commission
+  baseAmount    Decimal  @db.Decimal(10, 2)  // Invoice/payment amount
+  rate          Decimal  @db.Decimal(5, 2)   // Commission rate used
+  amount        Decimal  @db.Decimal(10, 2)  // Calculated commission
+
+  // Status
+  status        String   @default("PENDING")  // PENDING, APPROVED, PAID
+
+  // Payout tracking
+  payoutId      String?
+  payout        PartnerPayout? @relation(fields: [payoutId], references: [id])
+
+  notes         String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([leadId])
+  @@index([status])
+  @@index([payoutId])
+}
+
+model PartnerPayout {
+  id            String   @id @default(cuid())
+  payoutNumber  String   @unique  // PAY-20260115-0001
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // Payout Details
+  amount        Decimal  @db.Decimal(10, 2)
+  method        String?  // STRIPE_CONNECT, CASH, CHECK, ZELLE, VENMO
+  reference     String?  // Check number, transaction ID, Stripe transfer ID
+  stripeTransferId String? // If paid via Stripe Connect
+
+  // Status
+  status        String   @default("PENDING")  // PENDING, PAID
+  paidAt        DateTime?
+  paidBy        String?  // Admin user ID who marked it paid
+
+  // Commissions included in this payout
+  commissions   PartnerCommission[]
+
+  notes         String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([payoutNumber])
+}
+
+// ============================================
+// TEAM MEMBER MANAGEMENT (Internal Employees)
+// ============================================
+
+model TeamMember {
+  id                String   @id @default(cuid())
+  employeeNumber    String   @unique  // EMP-001
+
+  // Link to User account
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+
+  // Personal Info
+  name              String
+  email             String
+  phone             String?
+  address           String?  @db.Text
+  dateOfBirth       DateTime?
+
+  // Employment
+  title             String
+  department        String?
+  startDate         DateTime
+  endDate           DateTime?
+  status            String   @default("ACTIVE")  // ACTIVE, ON_LEAVE, TERMINATED
+
+  // Compensation
+  salaryType        String   @default("SALARY")  // SALARY, HOURLY, CONTRACT
+  salaryAmount      Decimal? @db.Decimal(10, 2)
+  salaryFrequency   String?  // ANNUAL, MONTHLY, BIWEEKLY, HOURLY
+
+  // Equity
+  equityPercentage  Decimal? @db.Decimal(5, 2)
+  equityVestingStart DateTime?
+  equityVestingEnd  DateTime?
+  equityNotes       String?  @db.Text
+
+  // Relations
+  contracts         TeamMemberContract[]
+  documents         TeamMemberDocument[]
+  payments          TeamMemberPayment[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([employeeNumber])
+}
+
+model TeamMemberContract {
+  id              String   @id @default(cuid())
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  title           String
+  type            String   // EMPLOYMENT, NDA, NON_COMPETE, EQUITY, OTHER
+  description     String?  @db.Text
+
+  fileUrl         String?
+  fileName        String?
+
+  status          String   @default("DRAFT")  // DRAFT, SENT, SIGNED, ACTIVE, EXPIRED
+  signedAt        DateTime?
+
+  effectiveDate   DateTime?
+  expirationDate  DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamMemberId])
+  @@index([type])
+}
+
+model TeamMemberDocument {
+  id              String   @id @default(cuid())
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            String   // W9, I9, TAX_FORM, ID, SSN_CARD, DIRECT_DEPOSIT, OTHER
+  description     String?
+
+  fileUrl         String
+  fileName        String
+  fileSize        Int?     // in bytes
+
+  uploadedBy      String   // Admin user ID
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamMemberId])
+  @@index([type])
+}
+
+model TeamMemberPayment {
+  id              String   @id @default(cuid())
+  paymentNumber   String   @unique  // TPAY-20260115-0001
+  teamMemberId    String
+  teamMember      TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  // Payment Details
+  type            String   // SALARY, BONUS, REIMBURSEMENT, EQUITY_PAYOUT, OTHER
+  amount          Decimal  @db.Decimal(10, 2)
+  description     String?
+
+  // Period (for salary payments)
+  periodStart     DateTime?
+  periodEnd       DateTime?
+
+  // Payment Info
+  method          String?  // CHECK, DIRECT_DEPOSIT, ZELLE, WIRE
+  reference       String?  // Check number, transaction ID
+
+  status          String   @default("PENDING")  // PENDING, PAID, CANCELLED
+  paidAt          DateTime?
+  paidBy          String?  // Admin user ID
+
+  notes           String?  @db.Text
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamMemberId])
+  @@index([status])
+  @@index([type])
+  @@index([paymentNumber])
 }

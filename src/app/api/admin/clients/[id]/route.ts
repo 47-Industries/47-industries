@@ -57,7 +57,42 @@ export async function GET(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ client })
+    // Fetch attribution info for projects (partner who referred, team member who closed)
+    const projectsWithAttribution = await Promise.all(
+      client.projects.map(async (project) => {
+        let referredBy = null
+        let closedBy = null
+
+        if (project.referredByPartnerId) {
+          const partner = await prisma.partner.findUnique({
+            where: { id: project.referredByPartnerId },
+            select: { id: true, name: true, partnerNumber: true },
+          })
+          referredBy = partner
+        }
+
+        if (project.closedByUserId) {
+          const teamMember = await prisma.teamMember.findFirst({
+            where: { userId: project.closedByUserId },
+            select: { id: true, name: true, employeeNumber: true },
+          })
+          closedBy = teamMember
+        }
+
+        return {
+          ...project,
+          referredBy,
+          closedBy,
+        }
+      })
+    )
+
+    return NextResponse.json({
+      client: {
+        ...client,
+        projects: projectsWithAttribution,
+      },
+    })
   } catch (error) {
     console.error('Error fetching client:', error)
     return NextResponse.json({ error: 'Failed to fetch client' }, { status: 500 })
