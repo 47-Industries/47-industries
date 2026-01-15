@@ -5,7 +5,11 @@ import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
 
 const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-11-20.acacia' })
+  ? new Stripe(process.env.STRIPE_SECRET_KEY.trim(), {
+      apiVersion: '2024-11-20.acacia',
+      timeout: 30000, // 30 second timeout
+      maxNetworkRetries: 3,
+    })
   : null
 
 // POST /api/account/client/billing/portal - Create Stripe Customer Portal session
