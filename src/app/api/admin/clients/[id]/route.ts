@@ -47,6 +47,9 @@ export async function GET(
           orderBy: { createdAt: 'asc' },
         },
         inquiry: true,
+        user: {
+          select: { id: true, email: true, name: true },
+        },
       },
     })
 
@@ -98,6 +101,10 @@ export async function PUT(
         type: body.type,
         source: body.source,
         assignedTo: body.assignedTo,
+        relationshipSummary: body.relationshipSummary,
+        autopayEnabled: body.autopayEnabled,
+        stripeCustomerId: body.stripeCustomerId,
+        defaultPaymentMethod: body.defaultPaymentMethod,
         lastContactedAt: body.lastContactedAt ? new Date(body.lastContactedAt) : undefined,
         nextFollowUpAt: body.nextFollowUpAt ? new Date(body.nextFollowUpAt) : undefined,
       },

@@ -66,6 +66,9 @@ model User {
   billPayments  BillPayment[]
   founderPayments FounderPayment[] @relation("FounderPayments")
 
+  // Client portal - if this user is linked to a Client account
+  client        Client?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -1974,6 +1977,18 @@ model Client {
   totalRevenue      Decimal  @db.Decimal(10, 2) @default(0)
   totalOutstanding  Decimal  @db.Decimal(10, 2) @default(0)
 
+  // Client Portal - Link to User account
+  userId            String?  @unique    // Link to User for portal access
+  user              User?    @relation(fields: [userId], references: [id])
+
+  // Stripe Integration for autopay
+  stripeCustomerId      String?  @unique    // Stripe Customer ID
+  autopayEnabled        Boolean  @default(false)
+  defaultPaymentMethod  String?             // Stripe Payment Method ID (pm_xxxx)
+
+  // Relationship summary (admin-written narrative about the client)
+  relationshipSummary   String?  @db.Text   // "Smoke shop client since Jan 2026..."
+
   // Relations
   contacts          ClientContact[]
   projects          ClientProject[]
@@ -2000,6 +2015,8 @@ model Client {
   @@index([type])
   @@index([source])
   @@index([assignedTo])
+  @@index([userId])
+  @@index([stripeCustomerId])
 }
 
 model ClientContact {
@@ -2142,7 +2159,14 @@ model Contract {
 
   status          ContractStatus @default(DRAFT)
   signedAt        DateTime?
-  signedBy        String?             // Name of person who signed
+  signedBy        String?             // Name of person who signed (legacy)
+
+  // Annotation support (DocuSign-like)
+  annotations     Json?               // Stored annotations as JSON (highlights, comments, drawings)
+  signatureUrl    String?             // Signature image URL (stored in R2)
+  signedByName    String?             // Full name of signer
+  signedByEmail   String?             // Email of signer
+  signedByIp      String?             // IP address when signed
 
   createdBy       String              // User ID who created
   createdAt       DateTime @default(now())

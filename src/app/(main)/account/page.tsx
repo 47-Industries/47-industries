@@ -16,10 +16,18 @@ interface Order {
   items: { name: string; quantity: number }[]
 }
 
+interface ClientInfo {
+  id: string
+  name: string
+  clientNumber: string
+  totalOutstanding: number
+}
+
 export default function AccountPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -31,6 +39,7 @@ export default function AccountPage() {
   useEffect(() => {
     if (session?.user) {
       fetchOrders()
+      fetchClientInfo()
     }
   }, [session])
 
@@ -45,6 +54,18 @@ export default function AccountPage() {
       console.error('Error fetching orders:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchClientInfo() {
+    try {
+      const res = await fetch('/api/account/client')
+      if (res.ok) {
+        const data = await res.json()
+        setClientInfo(data.client)
+      }
+    } catch (error) {
+      // User may not have a linked client - that's okay
     }
   }
 
@@ -80,6 +101,31 @@ export default function AccountPage() {
             Sign Out
           </button>
         </div>
+
+        {/* Client Portal Banner */}
+        {clientInfo && (
+          <Link
+            href="/account/client"
+            className="block p-6 mb-8 border border-accent/50 bg-accent/5 rounded-xl hover:border-accent transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Client Portal</h3>
+                <p className="text-text-secondary text-sm">
+                  {clientInfo.name} | {clientInfo.clientNumber}
+                </p>
+              </div>
+              <div className="text-right">
+                {Number(clientInfo.totalOutstanding) > 0 && (
+                  <p className="text-yellow-500 font-medium">
+                    ${Number(clientInfo.totalOutstanding).toFixed(2)} outstanding
+                  </p>
+                )}
+                <p className="text-accent text-sm">View invoices, contracts & billing</p>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
