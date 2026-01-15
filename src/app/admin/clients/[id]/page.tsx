@@ -109,8 +109,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   // User linking state
   const [showLinkUserModal, setShowLinkUserModal] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState<Array<{
+    id: string
+    email: string
+    name?: string
+    client?: { id: string; name: string }
+  }>>([])
+  const [searchingUsers, setSearchingUsers] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<{ id: string; email: string; name?: string } | null>(null)
   const [linkingUser, setLinkingUser] = useState(false)
+  const [showInviteOption, setShowInviteOption] = useState(false)
 
   // Portfolio publishing state
   const [publishingProject, setPublishingProject] = useState<string | null>(null)
@@ -121,6 +130,37 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetchClient()
   }, [id])
+
+  // Search users as typing
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (userSearchQuery.length < 2) {
+        setUserSearchResults([])
+        setShowInviteOption(false)
+        return
+      }
+
+      setSearchingUsers(true)
+      try {
+        const res = await fetch(`/api/admin/clients/${id}/link-user?search=${encodeURIComponent(userSearchQuery)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setUserSearchResults(data.users || [])
+          // Show invite option if search looks like an email and no exact match
+          const isEmail = userSearchQuery.includes('@') && userSearchQuery.includes('.')
+          const hasExactMatch = data.users?.some((u: any) => u.email.toLowerCase() === userSearchQuery.toLowerCase())
+          setShowInviteOption(isEmail && !hasExactMatch)
+        }
+      } catch (error) {
+        console.error('Error searching users:', error)
+      } finally {
+        setSearchingUsers(false)
+      }
+    }
+
+    const debounce = setTimeout(searchUsers, 300)
+    return () => clearTimeout(debounce)
+  }, [userSearchQuery, id])
 
   const fetchClient = async () => {
     try {
@@ -228,19 +268,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
-  const handleLinkUser = async () => {
-    if (!userEmail.trim()) return
+  const handleLinkUser = async (userId?: string) => {
     try {
       setLinkingUser(true)
       const res = await fetch(`/api/admin/clients/${id}/link-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail.trim() }),
+        body: JSON.stringify({ userId: userId || selectedUser?.id }),
       })
       if (res.ok) {
         showToast('User linked successfully', 'success')
-        setShowLinkUserModal(false)
-        setUserEmail('')
+        resetLinkModal()
         fetchClient()
       } else {
         const data = await res.json()
@@ -251,6 +289,38 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setLinkingUser(false)
     }
+  }
+
+  const handleSendInvite = async () => {
+    if (!userSearchQuery.includes('@')) return
+    try {
+      setLinkingUser(true)
+      const res = await fetch(`/api/admin/clients/${id}/link-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userSearchQuery.trim(), sendInvite: true }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast(data.message || 'Invitation sent!', 'success')
+        resetLinkModal()
+        fetchClient()
+      } else {
+        showToast(data.error || 'Failed to send invitation', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send invitation', 'error')
+    } finally {
+      setLinkingUser(false)
+    }
+  }
+
+  const resetLinkModal = () => {
+    setShowLinkUserModal(false)
+    setUserSearchQuery('')
+    setUserSearchResults([])
+    setSelectedUser(null)
+    setShowInviteOption(false)
   }
 
   const handleUnlinkUser = async () => {
@@ -1148,35 +1218,133 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             borderRadius: '12px',
             padding: '24px',
             width: '100%',
-            maxWidth: '400px',
+            maxWidth: '450px',
             margin: '16px',
           }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>Link User Account</h3>
-            <p style={{ margin: '0 0 16px 0', color: '#a1a1aa', fontSize: '14px' }}>
-              Enter the email address of an existing user account to link to this client.
-              The user will be able to access the client portal at /account/client.
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 }}>Link User Account</h3>
+            <p style={{ margin: '0 0 16px 0', color: '#71717a', fontSize: '13px' }}>
+              Search for an existing user or enter an email to send an invitation.
             </p>
-            <input
-              type="email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              placeholder="user@example.com"
-              style={{
-                width: '100%',
-                padding: '10px 12px',
+
+            {/* Search Input */}
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Search by email or name..."
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: '#0a0a0a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              />
+              {searchingUsers && (
+                <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '12px' }}>
+                  Searching...
+                </div>
+              )}
+            </div>
+
+            {/* Search Results */}
+            {userSearchResults.length > 0 && (
+              <div style={{
+                marginTop: '12px',
                 background: '#0a0a0a',
                 border: '1px solid #27272a',
                 borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                marginBottom: '16px',
-              }}
-            />
-            <div style={{ display: 'flex', gap: '12px' }}>
+                maxHeight: '200px',
+                overflow: 'auto',
+              }}>
+                {userSearchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => handleLinkUser(user.id)}
+                    disabled={!!user.client || linkingUser}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid #27272a',
+                      color: user.client ? '#71717a' : 'white',
+                      fontSize: '14px',
+                      textAlign: 'left',
+                      cursor: user.client ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{user.email}</div>
+                      {user.name && <div style={{ fontSize: '12px', color: '#71717a' }}>{user.name}</div>}
+                    </div>
+                    {user.client ? (
+                      <span style={{ fontSize: '11px', color: '#f59e0b', background: '#f59e0b20', padding: '2px 6px', borderRadius: '4px' }}>
+                        Linked to {user.client.name}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#3b82f6' }}>Select</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* No Results + Invite Option */}
+            {userSearchQuery.length >= 2 && userSearchResults.length === 0 && !searchingUsers && (
+              <div style={{
+                marginTop: '12px',
+                padding: '16px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                textAlign: 'center',
+              }}>
+                <p style={{ margin: '0 0 8px 0', color: '#71717a', fontSize: '14px' }}>
+                  No users found matching "{userSearchQuery}"
+                </p>
+                {showInviteOption && (
+                  <button
+                    onClick={handleSendInvite}
+                    disabled={linkingUser}
+                    style={{
+                      padding: '10px 20px',
+                      background: '#10b981',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      marginTop: '8px',
+                    }}
+                  >
+                    {linkingUser ? 'Sending...' : `Send Invitation to ${userSearchQuery}`}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Help text for invite */}
+            {userSearchQuery.length >= 2 && !showInviteOption && userSearchResults.length === 0 && !searchingUsers && (
+              <p style={{ margin: '12px 0 0 0', color: '#71717a', fontSize: '12px', textAlign: 'center' }}>
+                Enter a valid email address to send an invitation
+              </p>
+            )}
+
+            {/* Cancel Button */}
+            <div style={{ marginTop: '16px' }}>
               <button
-                onClick={() => { setShowLinkUserModal(false); setUserEmail('') }}
+                onClick={resetLinkModal}
                 style={{
-                  flex: 1,
+                  width: '100%',
                   padding: '10px',
                   background: '#27272a',
                   border: 'none',
@@ -1187,24 +1355,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 }}
               >
                 Cancel
-              </button>
-              <button
-                onClick={handleLinkUser}
-                disabled={linkingUser || !userEmail.trim()}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  background: '#3b82f6',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  opacity: linkingUser || !userEmail.trim() ? 0.5 : 1,
-                }}
-              >
-                {linkingUser ? 'Linking...' : 'Link User'}
               </button>
             </div>
           </div>
