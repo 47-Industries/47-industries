@@ -113,8 +113,8 @@ async function main() {
       data: {
         status: 'CONVERTED',
         adminNotes: inquiry.adminNotes
-          ? `${inquiry.adminNotes}\n\nMigrated to Client: ${clientNumber}`
-          : `Migrated to Client: ${clientNumber}`,
+          ? `${inquiry.adminNotes}\n\nConverted to Client: ${clientNumber}`
+          : `Converted to Client: ${clientNumber}`,
       },
     })
 
@@ -214,8 +214,8 @@ async function main() {
         data: {
           status: 'CONVERTED',
           adminNotes: spark8Inquiry.adminNotes
-            ? `${spark8Inquiry.adminNotes}\n\nMigrated to Client: ${clientNumber}`
-            : `Migrated to Client: ${clientNumber}`,
+            ? `${spark8Inquiry.adminNotes}\n\nConverted to Client: ${clientNumber}`
+            : `Converted to Client: ${clientNumber}`,
         },
       })
 

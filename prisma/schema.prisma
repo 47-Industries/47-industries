@@ -565,6 +565,7 @@ enum InquiryStatus {
   ACCEPTED
   DECLINED
   COMPLETED
+  CONVERTED
   CANCELLED
 }
 
