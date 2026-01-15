@@ -71,6 +71,13 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       ],
     },
     {
+      title: 'Operations',
+      items: [
+        { label: 'Partners', href: '/admin/partners' },
+        { label: 'Internal HR', href: '/admin/team' },
+      ],
+    },
+    {
       title: 'Finance',
       items: [
         { label: 'Expenses', href: '/admin/expenses' },
