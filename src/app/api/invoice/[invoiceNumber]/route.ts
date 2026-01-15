@@ -37,6 +37,11 @@ export async function GET(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
     }
 
+    // Block access to DRAFT invoices - customer shouldn't see these
+    if (invoice.status === 'DRAFT') {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
     // Update viewedAt timestamp if not already viewed
     if (!invoice.viewedAt) {
       await prisma.invoice.update({

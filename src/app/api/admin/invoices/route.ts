@@ -92,9 +92,11 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Auto-generate Stripe payment link
+    // Auto-generate Stripe payment link (only for non-DRAFT invoices)
+    // DRAFT invoices are still being worked on and shouldn't be visible to customers
     let updatedInvoice = invoice
-    if (isStripeConfigured && stripe) {
+    const isDraft = !body.status || body.status === 'DRAFT'
+    if (!isDraft && isStripeConfigured && stripe) {
       try {
         const stripePaymentLink = await stripe.paymentLinks.create({
           line_items: items.map((item: any) => ({

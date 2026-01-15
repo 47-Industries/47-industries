@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminAuth } from '@/lib/auth-helper'
+import { stripe, isStripeConfigured } from '@/lib/stripe'
+
+// Helper to generate Stripe payment link for an invoice
+async function generatePaymentLink(invoice: any) {
+  if (!isStripeConfigured || !stripe || invoice.stripePaymentLink) {
+    return invoice.stripePaymentLink
+  }
+
+  try {
+    const stripePaymentLink = await stripe.paymentLinks.create({
+      line_items: invoice.items.map((item: any) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.description,
+          },
+          unit_amount: Math.round(parseFloat(item.unitPrice.toString()) * 100),
+        },
+        quantity: item.quantity,
+      })),
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'}/payment/success?invoice=${invoice.invoiceNumber}`,
+        },
+      },
+      metadata: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+      },
+    })
+
+    return stripePaymentLink.url
+  } catch (error) {
+    console.error('Failed to generate payment link:', error)
+    return null
+  }
+}
 
 // GET /api/admin/invoices/[id] - Get invoice details
 export async function GET(
@@ -159,13 +197,29 @@ export async function PUT(
     }
 
     // Fetch updated invoice with items
-    const updatedInvoice = await prisma.invoice.findUnique({
+    let updatedInvoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
         items: true,
         client: true,
       },
     })
+
+    // Generate payment link if status changed from DRAFT to non-DRAFT
+    if (updatedInvoice &&
+        existingInvoice.status === 'DRAFT' &&
+        body.status &&
+        body.status !== 'DRAFT' &&
+        !updatedInvoice.stripePaymentLink) {
+      const paymentLink = await generatePaymentLink(updatedInvoice)
+      if (paymentLink) {
+        updatedInvoice = await prisma.invoice.update({
+          where: { id },
+          data: { stripePaymentLink: paymentLink },
+          include: { items: true, client: true },
+        })
+      }
+    }
 
     return NextResponse.json({ success: true, invoice: updatedInvoice })
   } catch (error) {
@@ -192,6 +246,16 @@ export async function PATCH(
     const { id } = await params
     const body = await req.json()
 
+    // Get existing invoice to check status change
+    const existingInvoice = await prisma.invoice.findUnique({
+      where: { id },
+      select: { status: true, stripePaymentLink: true },
+    })
+
+    if (!existingInvoice) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
     const updateData: any = {}
 
     if (body.status) updateData.status = body.status
@@ -204,13 +268,28 @@ export async function PATCH(
     if (body.stripePaymentLink) updateData.stripePaymentLink = body.stripePaymentLink
     if (body.stripePaymentId) updateData.stripePaymentId = body.stripePaymentId
 
-    const invoice = await prisma.invoice.update({
+    let invoice = await prisma.invoice.update({
       where: { id },
       data: updateData,
       include: {
         items: true,
       },
     })
+
+    // Generate payment link if status changed from DRAFT to non-DRAFT
+    if (existingInvoice.status === 'DRAFT' &&
+        body.status &&
+        body.status !== 'DRAFT' &&
+        !invoice.stripePaymentLink) {
+      const paymentLink = await generatePaymentLink(invoice)
+      if (paymentLink) {
+        invoice = await prisma.invoice.update({
+          where: { id },
+          data: { stripePaymentLink: paymentLink },
+          include: { items: true },
+        })
+      }
+    }
 
     // Update client outstanding if status changed
     if (body.status && invoice.clientId) {
