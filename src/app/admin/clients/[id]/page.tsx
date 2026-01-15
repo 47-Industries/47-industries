@@ -124,6 +124,18 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   // Portfolio publishing state
   const [publishingProject, setPublishingProject] = useState<string | null>(null)
 
+  // Contract creation state
+  const [showContractModal, setShowContractModal] = useState(false)
+  const [contractForm, setContractForm] = useState({
+    title: '',
+    description: '',
+    totalValue: '',
+    monthlyValue: '',
+    monthlyStartDate: '',
+    paymentTerms: '100_UPFRONT', // '100_UPFRONT', '50_50', 'CUSTOM'
+  })
+  const [savingContract, setSavingContract] = useState(false)
+
   const { showToast } = useToast()
   const router = useRouter()
 
@@ -356,6 +368,70 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to publish', 'error')
     } finally {
       setPublishingProject(null)
+    }
+  }
+
+  const handleCreateContract = async () => {
+    if (!contractForm.title.trim() || !contractForm.totalValue) {
+      showToast('Title and total value are required', 'error')
+      return
+    }
+
+    try {
+      setSavingContract(true)
+
+      // Build description with payment terms
+      let paymentTermsText = ''
+      if (contractForm.paymentTerms === '100_UPFRONT') {
+        paymentTermsText = `Payment Terms: 100% upfront payment of ${formatCurrency(Number(contractForm.totalValue))} required before work begins.`
+      } else if (contractForm.paymentTerms === '50_50') {
+        const halfAmount = Number(contractForm.totalValue) / 2
+        paymentTermsText = `Payment Terms: 50% deposit (${formatCurrency(halfAmount)}) due before work begins, remaining 50% due upon completion.`
+      }
+
+      if (contractForm.monthlyValue && contractForm.monthlyStartDate) {
+        const startDate = new Date(contractForm.monthlyStartDate)
+        paymentTermsText += `\n\nMonthly Recurring: ${formatCurrency(Number(contractForm.monthlyValue))}/month beginning ${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
+      }
+
+      const fullDescription = contractForm.description
+        ? `${contractForm.description}\n\n${paymentTermsText}`
+        : paymentTermsText
+
+      const res = await fetch('/api/admin/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: id,
+          title: contractForm.title,
+          description: fullDescription,
+          totalValue: Number(contractForm.totalValue),
+          monthlyValue: contractForm.monthlyValue ? Number(contractForm.monthlyValue) : null,
+          startDate: contractForm.monthlyStartDate || null,
+          status: 'DRAFT',
+        }),
+      })
+
+      if (res.ok) {
+        showToast('Contract created!', 'success')
+        setShowContractModal(false)
+        setContractForm({
+          title: '',
+          description: '',
+          totalValue: '',
+          monthlyValue: '',
+          monthlyStartDate: '',
+          paymentTerms: '100_UPFRONT',
+        })
+        fetchClient()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to create contract', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to create contract', 'error')
+    } finally {
+      setSavingContract(false)
     }
   }
 
@@ -927,6 +1003,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contracts</h2>
           <button
+            onClick={() => setShowContractModal(true)}
             style={{
               padding: '6px 14px',
               background: '#27272a',
@@ -1355,6 +1432,288 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 }}
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== CREATE CONTRACT MODAL ========== */}
+      {showContractModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          overflow: 'auto',
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '550px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: 600 }}>Create Contract</h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Title */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Contract Title *
+                </label>
+                <input
+                  type="text"
+                  value={contractForm.title}
+                  onChange={(e) => setContractForm({ ...contractForm, title: e.target.value })}
+                  placeholder="e.g., Platform Development Agreement"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Description (optional)
+                </label>
+                <textarea
+                  value={contractForm.description}
+                  onChange={(e) => setContractForm({ ...contractForm, description: e.target.value })}
+                  placeholder="Describe the scope of work..."
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {/* Payment Terms Selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  Payment Terms
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setContractForm({ ...contractForm, paymentTerms: '100_UPFRONT' })}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: contractForm.paymentTerms === '100_UPFRONT' ? '#3b82f6' : '#27272a',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    100% Upfront
+                  </button>
+                  <button
+                    onClick={() => setContractForm({ ...contractForm, paymentTerms: '50_50' })}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: contractForm.paymentTerms === '50_50' ? '#3b82f6' : '#27272a',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    50% / 50%
+                  </button>
+                </div>
+              </div>
+
+              {/* Total Value */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Total Contract Value *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#71717a' }}>$</span>
+                  <input
+                    type="number"
+                    value={contractForm.totalValue}
+                    onChange={(e) => setContractForm({ ...contractForm, totalValue: e.target.value })}
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px 10px 26px',
+                      background: '#0a0a0a',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#71717a' }}>
+                  {contractForm.paymentTerms === '100_UPFRONT'
+                    ? 'Full amount due before work begins'
+                    : '50% due before work begins, 50% upon completion'}
+                </p>
+              </div>
+
+              {/* Monthly Recurring Section */}
+              <div style={{
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                padding: '16px',
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+                  Monthly Recurring (Optional)
+                </h4>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>
+                      Monthly Amount
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '13px' }}>$</span>
+                      <input
+                        type="number"
+                        value={contractForm.monthlyValue}
+                        onChange={(e) => setContractForm({ ...contractForm, monthlyValue: e.target.value })}
+                        placeholder="100.00"
+                        step="0.01"
+                        min="0"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px 8px 24px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>
+                      Starting Date
+                    </label>
+                    <input
+                      type="date"
+                      value={contractForm.monthlyStartDate}
+                      onChange={(e) => setContractForm({ ...contractForm, monthlyStartDate: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        background: '#18181b',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '13px',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {contractForm.monthlyValue && contractForm.monthlyStartDate && (
+                  <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: '#10b981' }}>
+                    Monthly billing of {formatCurrency(Number(contractForm.monthlyValue))} begins{' '}
+                    {new Date(contractForm.monthlyStartDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+
+              {/* Summary */}
+              {contractForm.totalValue && (
+                <div style={{
+                  background: '#10b98110',
+                  border: '1px solid #10b98130',
+                  borderRadius: '8px',
+                  padding: '14px',
+                }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#10b981' }}>
+                    Contract Summary
+                  </p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#a1a1aa' }}>
+                    {contractForm.paymentTerms === '100_UPFRONT'
+                      ? `100% upfront payment of ${formatCurrency(Number(contractForm.totalValue))}`
+                      : `50% deposit (${formatCurrency(Number(contractForm.totalValue) / 2)}) + 50% upon completion`}
+                    {contractForm.monthlyValue && contractForm.monthlyStartDate && (
+                      <>, then ${contractForm.monthlyValue}/month starting {new Date(contractForm.monthlyStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+              <button
+                onClick={() => {
+                  setShowContractModal(false)
+                  setContractForm({
+                    title: '',
+                    description: '',
+                    totalValue: '',
+                    monthlyValue: '',
+                    monthlyStartDate: '',
+                    paymentTerms: '100_UPFRONT',
+                  })
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateContract}
+                disabled={savingContract || !contractForm.title.trim() || !contractForm.totalValue}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: savingContract || !contractForm.title.trim() || !contractForm.totalValue ? '#1e40af' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: savingContract || !contractForm.title.trim() || !contractForm.totalValue ? 0.5 : 1,
+                }}
+              >
+                {savingContract ? 'Creating...' : 'Create Contract'}
               </button>
             </div>
           </div>

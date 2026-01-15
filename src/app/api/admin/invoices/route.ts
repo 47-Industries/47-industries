@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         notes: body.notes || null,
         internalNotes: body.internalNotes || null,
+        isRecurring: body.isRecurring || false,
+        recurringDay: body.recurringDay ? parseInt(body.recurringDay) : null,
         createdBy: auth.userId,
         items: {
           create: items,

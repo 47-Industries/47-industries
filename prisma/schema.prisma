@@ -1876,21 +1876,28 @@ model Invoice {
   // Additional info
   notes           String?       @db.Text
   internalNotes   String?       @db.Text
-  
+
+  // Recurring invoices
+  isRecurring     Boolean       @default(false)  // Is this a recurring invoice template
+  recurringDay    Int?                           // Day of month to generate (1-28)
+  lastRecurredAt  DateTime?                      // Last time a recurring invoice was generated
+  parentInvoiceId String?                        // If generated from a recurring template
+
   // Tracking
   sentAt          DateTime?
   viewedAt        DateTime?
   createdBy       String        // User ID who created the invoice
-  
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  
+
   @@index([invoiceNumber])
   @@index([customerEmail])
   @@index([status])
   @@index([inquiryId])
   @@index([customRequestId])
   @@index([clientId])
+  @@index([isRecurring])
 }
 
 model InvoiceItem {
