@@ -20,6 +20,16 @@ interface EditableItem {
   unitPrice: string
 }
 
+interface InvoicePayment {
+  id: string
+  amount: number
+  method: string
+  reference?: string
+  notes?: string
+  paidAt: string
+  recordedBy: string
+}
+
 interface Invoice {
   id: string
   invoiceNumber: string
@@ -31,6 +41,7 @@ interface Invoice {
   taxRate: number
   taxAmount: number
   total: number
+  amountPaid: number
   status: string
   dueDate?: string
   paidAt?: string
@@ -38,8 +49,11 @@ interface Invoice {
   notes?: string
   internalNotes?: string
   stripePaymentId?: string
+  paymentMethod?: string
+  paymentReference?: string
   createdAt: string
   items: InvoiceItem[]
+  payments?: InvoicePayment[]
   client?: {
     id: string
     name: string
@@ -54,6 +68,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
   const [sending, setSending] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [recordingPayment, setRecordingPayment] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    method: 'BANK_TRANSFER',
+    reference: '',
+    notes: '',
+    paidAt: new Date().toISOString().split('T')[0],
+  })
   const { showToast } = useToast()
   const router = useRouter()
 
@@ -197,6 +220,51 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
     } catch (error) {
       showToast('Failed to delete invoice', 'error')
     }
+  }
+
+  const handleRecordPayment = async () => {
+    if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
+      showToast('Please enter a valid amount', 'error')
+      return
+    }
+    try {
+      setRecordingPayment(true)
+      const res = await fetch(`/api/admin/invoices/${id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(paymentForm.amount),
+          method: paymentForm.method,
+          reference: paymentForm.reference || null,
+          notes: paymentForm.notes || null,
+          paidAt: paymentForm.paidAt,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast(data.isFullyPaid ? 'Payment recorded - Invoice fully paid!' : 'Payment recorded', 'success')
+        setInvoice(data.invoice)
+        setShowPaymentForm(false)
+        setPaymentForm({
+          amount: '',
+          method: 'BANK_TRANSFER',
+          reference: '',
+          notes: '',
+          paidAt: new Date().toISOString().split('T')[0],
+        })
+      } else {
+        showToast(data.error || 'Failed to record payment', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to record payment', 'error')
+    } finally {
+      setRecordingPayment(false)
+    }
+  }
+
+  const getRemainingBalance = () => {
+    if (!invoice) return 0
+    return Number(invoice.total) - Number(invoice.amountPaid || 0)
   }
 
   const addItem = () => {
@@ -569,6 +637,16 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           <p style={{ margin: 0, fontSize: '32px', fontWeight: 700 }}>
             {isEditing ? formatCurrency(calculateTotal()) : formatCurrency(Number(invoice.total))}
           </p>
+          {!isEditing && Number(invoice.amountPaid || 0) > 0 && Number(invoice.amountPaid || 0) < Number(invoice.total) && (
+            <div style={{ marginTop: '8px' }}>
+              <p style={{ margin: 0, color: '#f59e0b', fontSize: '14px' }}>
+                Paid: {formatCurrency(Number(invoice.amountPaid))}
+              </p>
+              <p style={{ margin: '4px 0 0 0', color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
+                Remaining: {formatCurrency(getRemainingBalance())}
+              </p>
+            </div>
+          )}
           {isEditing && (
             <div style={{ marginTop: '16px' }}>
               <label style={labelStyle}>Due Date</label>
@@ -592,6 +670,209 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
       </div>
+
+      {/* Payments Section */}
+      {!isEditing && invoice.status !== 'DRAFT' && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#71717a' }}>PAYMENTS</h2>
+            {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && (
+              <button
+                onClick={() => {
+                  setPaymentForm({
+                    ...paymentForm,
+                    amount: getRemainingBalance().toFixed(2),
+                  })
+                  setShowPaymentForm(true)
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#10b981',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Record Payment
+              </button>
+            )}
+          </div>
+
+          {/* Payment Form */}
+          {showPaymentForm && (
+            <div style={{
+              background: '#0a0a0a',
+              border: '1px solid #3f3f46',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px',
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Amount *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={getRemainingBalance()}
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                    placeholder="0.00"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Payment Method *</label>
+                  <select
+                    value={paymentForm.method}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    style={inputStyle}
+                  >
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="ZELLE">Zelle</option>
+                    <option value="CHECK">Check</option>
+                    <option value="CASH">Cash</option>
+                    <option value="WIRE">Wire Transfer</option>
+                    <option value="STRIPE">Stripe</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Reference / Confirmation</label>
+                  <input
+                    type="text"
+                    value={paymentForm.reference}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
+                    placeholder="Check #, transaction ID, etc."
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Payment Date</label>
+                  <input
+                    type="date"
+                    value={paymentForm.paidAt}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paidAt: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={labelStyle}>Notes</label>
+                <input
+                  type="text"
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  placeholder="Optional notes about this payment"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowPaymentForm(false)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#27272a',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRecordPayment}
+                  disabled={recordingPayment}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#10b981',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {recordingPayment ? 'Recording...' : 'Record Payment'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Payment History */}
+          {invoice.payments && invoice.payments.length > 0 ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#71717a', borderBottom: '1px solid #27272a' }}>DATE</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#71717a', borderBottom: '1px solid #27272a' }}>METHOD</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', color: '#71717a', borderBottom: '1px solid #27272a' }}>REFERENCE</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', color: '#71717a', borderBottom: '1px solid #27272a' }}>AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoice.payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <td style={{ padding: '10px 12px', fontSize: '14px' }}>{formatDate(payment.paidAt)}</td>
+                    <td style={{ padding: '10px 12px', fontSize: '14px' }}>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: '#27272a',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {payment.method.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', fontSize: '14px', color: '#a1a1aa' }}>
+                      {payment.reference || '-'}
+                      {payment.notes && (
+                        <span style={{ display: 'block', fontSize: '12px', color: '#71717a' }}>{payment.notes}</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontSize: '14px', textAlign: 'right', fontWeight: 500, color: '#10b981' }}>
+                      {formatCurrency(Number(payment.amount))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={3} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, borderTop: '1px solid #3f3f46' }}>Total Paid</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#10b981', borderTop: '1px solid #3f3f46' }}>
+                    {formatCurrency(Number(invoice.amountPaid || 0))}
+                  </td>
+                </tr>
+                {getRemainingBalance() > 0.01 && (
+                  <tr>
+                    <td colSpan={3} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>Remaining Balance</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>
+                      {formatCurrency(getRemainingBalance())}
+                    </td>
+                  </tr>
+                )}
+              </tfoot>
+            </table>
+          ) : (
+            <p style={{ margin: 0, color: '#71717a', fontSize: '14px', textAlign: 'center', padding: '20px 0' }}>
+              No payments recorded yet
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Line Items */}
       <div style={{

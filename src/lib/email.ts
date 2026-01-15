@@ -1161,6 +1161,73 @@ export async function sendInvoicePaymentConfirmation(data: {
   }
 }
 
+// 13. Partner Invite Email
+export async function sendPartnerInvite(data: {
+  to: string
+  name: string
+  partnerNumber: string
+  inviteToken: string
+  firstSaleRate: number
+  recurringRate: number
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const inviteUrl = `${APP_URL}/invite/partner?token=${data.inviteToken}`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Welcome to 47 Industries, ${data.name}!
+    </h1>
+    <p style="margin: 0 0 8px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      You've been added as a partner. Set up your password to access your partner dashboard.
+    </p>
+
+    ${getAccentBox('Partner Number', data.partnerNumber)}
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td style="padding-bottom: 20px;">
+            <p style="margin: 0; color: #18181b; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;" class="text-primary">Your Commission Rates</p>
+          </td>
+        </tr>
+        ${getDetailRow('First Sale', data.firstSaleRate + '% commission')}
+        ${getDetailRow('Recurring Sales', data.recurringRate + '% commission', true)}
+      </table>
+    `)}
+
+    ${getButton('Set Up Your Account', inviteUrl)}
+
+    ${getSectionHeading('What You Can Do')}
+
+    ${getCard(`
+      <ul style="margin: 0; padding: 0 0 0 20px; color: #52525b; font-size: 15px; line-height: 2;" class="text-secondary">
+        <li>Submit leads through your partner portal</li>
+        <li>Track your commissions in real-time</li>
+        <li>View your payout history</li>
+        <li>Access your partner contract</li>
+      </ul>
+    `)}
+
+    <p style="margin: 32px 0 0 0; color: #71717a; font-size: 13px; text-align: center; line-height: 1.6;" class="text-muted">
+      This invite link expires in 7 days. If you have any questions, contact us at support@47industries.com
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `You're Invited as a Partner - 47 Industries`,
+      html: getEmailTemplate(content, 'Partner Invitation'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send partner invite:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()

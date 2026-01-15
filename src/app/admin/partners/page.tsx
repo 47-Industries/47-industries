@@ -517,9 +517,13 @@ export default function PartnersPage() {
       {showCreateModal && (
         <CreatePartnerModal
           onClose={() => setShowCreateModal(false)}
-          onSuccess={(partner) => {
+          onSuccess={(partner, inviteSent) => {
             setShowCreateModal(false)
-            showToast('Partner created successfully', 'success')
+            if (inviteSent) {
+              showToast('Partner created and invite email sent!', 'success')
+            } else {
+              showToast('Partner created successfully', 'success')
+            }
             router.push(`/admin/partners/${partner.id}`)
           }}
         />
@@ -528,15 +532,24 @@ export default function PartnersPage() {
   )
 }
 
+interface ExistingUser {
+  id: string
+  email: string
+  name: string | null
+}
+
 // Create Partner Modal Component
 function CreatePartnerModal({
   onClose,
   onSuccess,
 }: {
   onClose: () => void
-  onSuccess: (partner: Partner) => void
+  onSuccess: (partner: Partner, inviteSent: boolean) => void
 }) {
   const [saving, setSaving] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [existingUsers, setExistingUsers] = useState<ExistingUser[]>([])
+  const [userMode, setUserMode] = useState<'new' | 'existing'>('new')
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -545,8 +558,44 @@ function CreatePartnerModal({
     commissionType: 'TIERED',
     firstSaleRate: '50',
     recurringRate: '30',
+    userId: '',
   })
   const { showToast } = useToast()
+
+  // Fetch existing users when switching to existing mode
+  useEffect(() => {
+    if (userMode === 'existing' && existingUsers.length === 0) {
+      fetchExistingUsers()
+    }
+  }, [userMode])
+
+  const fetchExistingUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      const res = await fetch('/api/admin/users?role=CUSTOMER&limit=100')
+      if (res.ok) {
+        const data = await res.json()
+        // Filter out users who are already partners
+        setExistingUsers(data.users.filter((u: any) => !u.partner))
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleUserSelect = (userId: string) => {
+    const user = existingUsers.find(u => u.id === userId)
+    if (user) {
+      setFormData({
+        ...formData,
+        userId,
+        name: user.name || '',
+        email: user.email || '',
+      })
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -562,6 +611,7 @@ function CreatePartnerModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          userId: userMode === 'existing' ? formData.userId : undefined,
           firstSaleRate: parseFloat(formData.firstSaleRate),
           recurringRate: parseFloat(formData.recurringRate),
         }),
@@ -569,7 +619,7 @@ function CreatePartnerModal({
 
       if (res.ok) {
         const data = await res.json()
-        onSuccess(data.partner)
+        onSuccess(data.partner, data.inviteSent)
       } else {
         const data = await res.json()
         showToast(data.error || 'Failed to create partner', 'error')
@@ -636,6 +686,89 @@ function CreatePartnerModal({
         {/* Modal Body */}
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px' }}>
+            {/* User Mode Selection */}
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+              Link to User Account
+            </h3>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setUserMode('new')}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: userMode === 'new' ? '#3b82f620' : '#0a0a0a',
+                  border: userMode === 'new' ? '2px solid #3b82f6' : '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: userMode === 'new' ? '#3b82f6' : '#a1a1aa',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ marginBottom: '4px' }}>New User</div>
+                <div style={{ fontSize: '12px', fontWeight: 400 }}>Send invite email</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserMode('existing')}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: userMode === 'existing' ? '#3b82f620' : '#0a0a0a',
+                  border: userMode === 'existing' ? '2px solid #3b82f6' : '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: userMode === 'existing' ? '#3b82f6' : '#a1a1aa',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ marginBottom: '4px' }}>Existing User</div>
+                <div style={{ fontSize: '12px', fontWeight: 400 }}>Select from list</div>
+              </button>
+            </div>
+
+            {/* Existing User Selector */}
+            {userMode === 'existing' && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                  Select User *
+                </label>
+                {loadingUsers ? (
+                  <div style={{ padding: '12px', color: '#71717a', fontSize: '14px' }}>Loading users...</div>
+                ) : (
+                  <select
+                    value={formData.userId}
+                    onChange={(e) => handleUserSelect(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: '#0a0a0a',
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value="">Select a user...</option>
+                    {existingUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || user.email} {user.name && `(${user.email})`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {existingUsers.length === 0 && !loadingUsers && (
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>
+                    No available users found. All existing users are either already partners or admins.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Partner Info */}
             <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
               Partner Information
@@ -650,6 +783,7 @@ function CreatePartnerModal({
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Jesse Dawson"
+                  disabled={userMode === 'existing' && !!formData.userId}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -658,6 +792,7 @@ function CreatePartnerModal({
                     borderRadius: '8px',
                     color: 'white',
                     fontSize: '14px',
+                    opacity: userMode === 'existing' && formData.userId ? 0.6 : 1,
                   }}
                 />
               </div>
@@ -670,6 +805,7 @@ function CreatePartnerModal({
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="partner@email.com"
+                  disabled={userMode === 'existing' && !!formData.userId}
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -678,6 +814,7 @@ function CreatePartnerModal({
                     borderRadius: '8px',
                     color: 'white',
                     fontSize: '14px',
+                    opacity: userMode === 'existing' && formData.userId ? 0.6 : 1,
                   }}
                 />
               </div>
@@ -786,12 +923,20 @@ function CreatePartnerModal({
             <div style={{
               marginTop: '20px',
               padding: '14px',
-              background: '#3b82f610',
-              border: '1px solid #3b82f630',
+              background: userMode === 'new' ? '#10b98110' : '#3b82f610',
+              border: userMode === 'new' ? '1px solid #10b98130' : '1px solid #3b82f630',
               borderRadius: '8px',
             }}>
               <p style={{ margin: 0, fontSize: '13px', color: '#a1a1aa' }}>
-                After creating the partner, you can link them to a user account to give them portal access at /account/partner.
+                {userMode === 'new' ? (
+                  <>
+                    An invite email will be sent to <strong style={{ color: '#10b981' }}>{formData.email || 'the partner'}</strong> with a link to set up their password and access the partner portal.
+                  </>
+                ) : (
+                  <>
+                    The selected user will immediately have access to the partner portal at /account/partner.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -821,7 +966,7 @@ function CreatePartnerModal({
             </button>
             <button
               type="submit"
-              disabled={saving || !formData.name || !formData.email}
+              disabled={saving || !formData.name || !formData.email || (userMode === 'existing' && !formData.userId)}
               style={{
                 padding: '10px 20px',
                 background: saving || !formData.name || !formData.email ? '#1e40af' : '#3b82f6',
@@ -834,7 +979,7 @@ function CreatePartnerModal({
                 opacity: saving || !formData.name || !formData.email ? 0.6 : 1,
               }}
             >
-              {saving ? 'Creating...' : 'Create Partner'}
+              {saving ? 'Creating...' : userMode === 'new' ? 'Create & Send Invite' : 'Create Partner'}
             </button>
           </div>
         </form>

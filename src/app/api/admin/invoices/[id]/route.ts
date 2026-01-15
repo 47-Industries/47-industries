@@ -58,6 +58,9 @@ export async function GET(
       where: { id },
       include: {
         items: true,
+        payments: {
+          orderBy: { paidAt: 'desc' },
+        },
         inquiry: true,
         customRequest: true,
         client: {

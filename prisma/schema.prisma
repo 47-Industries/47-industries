@@ -53,6 +53,10 @@ model User {
   zohoRefreshToken  String?   @db.Text
   zohoTokenExpiry   DateTime?
 
+  // Invite token (for partner/team member invites)
+  inviteToken       String?   @unique
+  inviteTokenExpiry DateTime?
+
   // Relations
   accounts      Account[]
   sessions      Session[]
@@ -1858,30 +1862,34 @@ model Invoice {
   customRequest   CustomRequest? @relation(fields: [customRequestId], references: [id])
   clientId        String?
   client          Client?       @relation(fields: [clientId], references: [id])
-  
+
   // Customer info
   customerName    String
   customerEmail   String
   customerCompany String?
   customerPhone   String?
-  
+
   // Billing details
   items           InvoiceItem[]
   subtotal        Decimal       @db.Decimal(10, 2)
   taxRate         Decimal       @db.Decimal(5, 2) @default(0.00)
   taxAmount       Decimal       @db.Decimal(10, 2) @default(0.00)
   total           Decimal       @db.Decimal(10, 2)
-  
-  // Payment
+
+  // Payment tracking
   status          InvoiceStatus @default(DRAFT)
   dueDate         DateTime?
-  paidAt          DateTime?
+  paidAt          DateTime?                       // When fully paid
+  amountPaid      Decimal       @db.Decimal(10, 2) @default(0.00)  // Total amount paid so far
   stripePaymentLink String?     // Stripe payment link URL
-  stripePaymentId   String?     // Stripe payment intent/charge ID
+  stripePaymentId   String?     // Stripe payment intent/charge ID (legacy, single payment)
 
-  // Payment method tracking (for manual payments)
+  // Payment method tracking (legacy, for single payment invoices)
   paymentMethod     String?     // STRIPE, CASH, CHECK, ZELLE, BANK_TRANSFER
   paymentReference  String?     // Check number, transaction ID, notes
+
+  // Multiple payments tracking
+  payments        InvoicePayment[]
 
   // Additional info
   notes           String?       @db.Text
@@ -1921,6 +1929,35 @@ model InvoiceItem {
   total       Decimal @db.Decimal(10, 2)
 
   @@index([invoiceId])
+}
+
+// Track individual payments on an invoice (supports partial payments)
+model InvoicePayment {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Payment details
+  amount      Decimal  @db.Decimal(10, 2)
+  method      String   // STRIPE, CASH, CHECK, ZELLE, BANK_TRANSFER, WIRE
+  reference   String?  // Check number, transaction ID, confirmation number
+
+  // Stripe details (if applicable)
+  stripePaymentId String?  // Stripe payment intent/charge ID
+
+  // Notes
+  notes       String?  @db.Text
+
+  // Tracking
+  paidAt      DateTime @default(now())
+  recordedBy  String   // Admin user ID who recorded this payment
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([method])
+  @@index([paidAt])
 }
 
 // ============================================

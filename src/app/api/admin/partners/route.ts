@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminAuth } from '@/lib/auth-helper'
+import { sendPartnerInvite } from '@/lib/email'
+import { randomBytes } from 'crypto'
 
 // GET /api/admin/partners - List all partners
 export async function GET(req: NextRequest) {
@@ -90,23 +92,66 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
 
     // Validate required fields
-    if (!body.name || !body.email || !body.userId) {
+    if (!body.name || !body.email) {
       return NextResponse.json(
-        { error: 'Name, email, and user ID are required' },
+        { error: 'Name and email are required' },
         { status: 400 }
       )
     }
 
-    // Check if user is already a partner
-    const existingPartner = await prisma.partner.findUnique({
-      where: { userId: body.userId },
-    })
+    let userId = body.userId
+    let inviteToken: string | null = null
+    let isNewUser = false
 
-    if (existingPartner) {
-      return NextResponse.json(
-        { error: 'User is already a partner' },
-        { status: 400 }
-      )
+    // If no userId provided, check if user exists or create a new one
+    if (!userId) {
+      // Check if user with this email already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email: body.email },
+      })
+
+      if (existingUser) {
+        // Check if this user is already a partner
+        const existingPartner = await prisma.partner.findUnique({
+          where: { userId: existingUser.id },
+        })
+        if (existingPartner) {
+          return NextResponse.json(
+            { error: 'A partner already exists with this email' },
+            { status: 400 }
+          )
+        }
+        userId = existingUser.id
+      } else {
+        // Create a new user with invite token
+        inviteToken = randomBytes(32).toString('hex')
+        const inviteExpiry = new Date()
+        inviteExpiry.setDate(inviteExpiry.getDate() + 7) // 7 days from now
+
+        const newUser = await prisma.user.create({
+          data: {
+            email: body.email,
+            name: body.name,
+            role: 'CUSTOMER', // Partners are CUSTOMER role with partner relation
+            inviteToken,
+            inviteTokenExpiry: inviteExpiry,
+          },
+        })
+        userId = newUser.id
+        isNewUser = true
+      }
+    } else {
+      // Check if user is already a partner
+      const existingPartner = await prisma.partner.findUnique({
+        where: { userId },
+      })
+
+      if (existingPartner) {
+        return NextResponse.json(
+          { error: 'User is already a partner' },
+          { status: 400 }
+        )
+      }
     }
 
     // Generate partner number
@@ -117,17 +162,20 @@ export async function POST(req: NextRequest) {
     const count = await prisma.partner.count()
     const partnerNumber = `PTR-${timestamp}-${(count + 1).toString().padStart(4, '0')}`
 
+    const firstSaleRate = parseFloat(body.firstSaleRate) || 50
+    const recurringRate = parseFloat(body.recurringRate) || 30
+
     const partner = await prisma.partner.create({
       data: {
         partnerNumber,
-        userId: body.userId,
+        userId,
         name: body.name,
         email: body.email,
         phone: body.phone || null,
         company: body.company || null,
         commissionType: body.commissionType || 'TIERED',
-        firstSaleRate: parseFloat(body.firstSaleRate) || 50,
-        recurringRate: parseFloat(body.recurringRate) || 30,
+        firstSaleRate,
+        recurringRate,
         status: body.status || 'ACTIVE',
         zelleEmail: body.zelleEmail || null,
         zellePhone: body.zellePhone || null,
@@ -142,7 +190,23 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, partner })
+    // Send invite email if new user was created
+    if (isNewUser && inviteToken) {
+      await sendPartnerInvite({
+        to: body.email,
+        name: body.name,
+        partnerNumber,
+        inviteToken,
+        firstSaleRate,
+        recurringRate,
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      partner,
+      inviteSent: isNewUser,
+    })
   } catch (error) {
     console.error('Error creating partner:', error)
     return NextResponse.json({ error: 'Failed to create partner' }, { status: 500 })
