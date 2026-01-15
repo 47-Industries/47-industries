@@ -124,6 +124,21 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   // Portfolio publishing state
   const [publishingProject, setPublishingProject] = useState<string | null>(null)
 
+  // Expanded project descriptions
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
+
+  const toggleProjectExpanded = (projectId: string) => {
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId)
+      } else {
+        newSet.add(projectId)
+      }
+      return newSet
+    })
+  }
+
   // Contract creation state
   const [showContractModal, setShowContractModal] = useState(false)
   const [contractForm, setContractForm] = useState({
@@ -776,108 +791,196 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No active projects</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {client.projects.map((project) => (
-              <div
-                key={project.id}
-                style={{
-                  background: '#0a0a0a',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  border: '1px solid #27272a',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: '15px' }}>{project.name}</span>
-                      <span style={{
-                        padding: '3px 8px',
-                        background: `${getStatusColor(project.status)}20`,
-                        color: getStatusColor(project.status),
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                      }}>
-                        {project.status}
-                      </span>
-                      {project.serviceProjectId && (
+            {client.projects.map((project) => {
+              const isExpanded = expandedProjects.has(project.id)
+              const hasLongDescription = project.description && project.description.length > 150
+
+              return (
+                <div
+                  key={project.id}
+                  style={{
+                    background: '#0a0a0a',
+                    borderRadius: '10px',
+                    border: '1px solid #27272a',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {/* Project Header */}
+                  <div style={{
+                    padding: '16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    borderBottom: project.description ? '1px solid #27272a' : 'none',
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: '16px' }}>{project.name}</span>
                         <span style={{
-                          padding: '3px 8px',
-                          background: '#8b5cf620',
-                          color: '#8b5cf6',
+                          padding: '4px 10px',
+                          background: `${getStatusColor(project.status)}20`,
+                          color: getStatusColor(project.status),
                           borderRadius: '4px',
-                          fontSize: '12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
                         }}>
-                          On Portfolio
+                          {project.status}
                         </span>
+                        {project.serviceProjectId && (
+                          <span style={{
+                            padding: '4px 10px',
+                            background: '#8b5cf620',
+                            color: '#8b5cf6',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                          }}>
+                            On Portfolio
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
+                        {project.type.replace(/_/g, ' ')}
+                        {project.startDate && ` | Started ${formatDate(project.startDate)}`}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right', marginLeft: '16px' }}>
+                      {project.contractValue ? (
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: '18px', color: '#fff' }}>
+                          {formatCurrency(Number(project.contractValue))}
+                        </p>
+                      ) : null}
+                      {project.monthlyRecurring ? (
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#10b981', fontWeight: 500 }}>
+                          +{formatCurrency(Number(project.monthlyRecurring))}/mo
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Description (collapsible) */}
+                  {project.description && (
+                    <div style={{ padding: '14px 16px', background: '#0f0f10' }}>
+                      <p style={{
+                        margin: 0,
+                        color: '#a1a1aa',
+                        fontSize: '13px',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap',
+                      }}>
+                        {isExpanded || !hasLongDescription
+                          ? project.description
+                          : `${project.description.substring(0, 150)}...`}
+                      </p>
+                      {hasLongDescription && (
+                        <button
+                          onClick={() => toggleProjectExpanded(project.id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#3b82f6',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            padding: '8px 0 0 0',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {isExpanded ? 'Show less' : 'Show more'}
+                        </button>
                       )}
                     </div>
-                    <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>{project.type.replace(/_/g, ' ')}</p>
-                    {project.description && (
-                      <p style={{ margin: '8px 0 0 0', color: '#a1a1aa', fontSize: '14px' }}>{project.description}</p>
+                  )}
+
+                  {/* Project Footer - Links & Actions */}
+                  <div style={{
+                    padding: '12px 16px',
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    borderTop: '1px solid #27272a',
+                    background: '#0a0a0a',
+                  }}>
+                    {project.productionUrl && (
+                      <a
+                        href={project.productionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: '#3b82f6',
+                          fontSize: '13px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Live Site
+                      </a>
+                    )}
+                    {project.repositoryUrl && (
+                      <a
+                        href={project.repositoryUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: '#3b82f6',
+                          fontSize: '13px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        Repository
+                      </a>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {!project.serviceProjectId && project.status === 'COMPLETED' && (
+                      <button
+                        onClick={() => handlePublishToPortfolio(project.id, project.name)}
+                        disabled={publishingProject === project.id}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#8b5cf6',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {publishingProject === project.id ? 'Publishing...' : 'Publish to Portfolio'}
+                      </button>
+                    )}
+                    {project.serviceProjectId && (
+                      <Link
+                        href={`/admin/services?tab=projects`}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#27272a',
+                          borderRadius: '6px',
+                          color: '#a1a1aa',
+                          fontSize: '12px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        View in Portfolio
+                      </Link>
                     )}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    {project.contractValue ? (
-                      <p style={{ margin: 0, fontWeight: 600, color: '#fff' }}>
-                        {formatCurrency(Number(project.contractValue))}
-                      </p>
-                    ) : null}
-                    {project.monthlyRecurring ? (
-                      <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#10b981' }}>
-                        +{formatCurrency(Number(project.monthlyRecurring))}/mo
-                      </p>
-                    ) : null}
-                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {project.productionUrl && (
-                    <a href={project.productionUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
-                      Live Site
-                    </a>
-                  )}
-                  {project.repositoryUrl && (
-                    <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>
-                      Repository
-                    </a>
-                  )}
-                  {!project.serviceProjectId && project.status === 'COMPLETED' && (
-                    <button
-                      onClick={() => handlePublishToPortfolio(project.id, project.name)}
-                      disabled={publishingProject === project.id}
-                      style={{
-                        padding: '4px 10px',
-                        background: '#8b5cf6',
-                        border: 'none',
-                        borderRadius: '4px',
-                        color: 'white',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        marginLeft: 'auto',
-                      }}
-                    >
-                      {publishingProject === project.id ? 'Publishing...' : 'Publish to Portfolio'}
-                    </button>
-                  )}
-                  {project.serviceProjectId && (
-                    <Link
-                      href={`/admin/services?tab=projects`}
-                      style={{
-                        marginLeft: 'auto',
-                        padding: '4px 10px',
-                        background: '#27272a',
-                        borderRadius: '4px',
-                        color: '#a1a1aa',
-                        fontSize: '12px',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      View in Portfolio
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
