@@ -67,7 +67,6 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       items: [
         { label: 'Clients', href: '/admin/clients' },
         { label: 'Invoices', href: '/admin/invoices' },
-        { label: 'Contracts', href: '/admin/contracts' },
         { label: 'Partners', href: '/admin/partners' },
         { label: 'Team', href: '/admin/team' },
       ],
