@@ -4,9 +4,14 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import SignaturePad from 'signature_pad'
 import { PDFDocument } from 'pdf-lib'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+// Configure PDF.js worker - use unpkg CDN which is reliable for npm packages
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString()
 
 interface PlacedSignature {
   pageNumber: number
@@ -277,9 +282,32 @@ export default function InteractivePdfSigner({
           )}
 
           <Document
-            file={pdfUrl}
+            file={pdfBytes ? { data: pdfBytes } : pdfUrl}
             onLoadSuccess={onDocumentLoadSuccess}
-            loading=""
+            onLoadError={(err) => {
+              console.error('PDF load error:', err)
+              setError(`Failed to load PDF: ${err.message}`)
+              setLoading(false)
+            }}
+            loading={
+              <div className="text-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-zinc-400">Loading PDF...</p>
+              </div>
+            }
+            error={
+              <div className="text-center py-20">
+                <p className="text-red-500 mb-4">Failed to load PDF document.</p>
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-400"
+                >
+                  Open PDF in new tab
+                </a>
+              </div>
+            }
             className="flex flex-col gap-4"
           >
             {Array.from(new Array(numPages), (_, index) => (
