@@ -36,7 +36,9 @@ export default function InteractivePdfSigner({
   const [numPages, setNumPages] = useState<number>(0)
   const [pageWidth, setPageWidth] = useState(700)
   const [loading, setLoading] = useState(true)
-  const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
+
+  // Use proxy URL for display (react-pdf handles its own fetch)
+  const proxyUrl = `/api/proxy/pdf?url=${encodeURIComponent(pdfUrl)}`
 
   // Signature capture state
   const [showSignatureCapture, setShowSignatureCapture] = useState(false)
@@ -53,30 +55,6 @@ export default function InteractivePdfSigner({
   // Saving state
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  // Fetch PDF bytes on mount via proxy to avoid CORS issues
-  useEffect(() => {
-    async function fetchPdf() {
-      try {
-        // Use proxy endpoint to fetch PDF server-side (bypasses CORS)
-        const proxyUrl = `/api/proxy/pdf?url=${encodeURIComponent(pdfUrl)}`
-        const response = await fetch(proxyUrl)
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `HTTP ${response.status}`)
-        }
-
-        const bytes = await response.arrayBuffer()
-        // Convert to Uint8Array immediately to prevent detached ArrayBuffer issues
-        setPdfData(new Uint8Array(bytes))
-      } catch (err) {
-        console.error('Error fetching PDF:', err)
-        setError(`Failed to load PDF: ${err instanceof Error ? err.message : 'Unknown error'}`)
-      }
-    }
-    fetchPdf()
-  }, [pdfUrl])
 
   // Initialize signature pad when modal opens
   useEffect(() => {
@@ -165,7 +143,7 @@ export default function InteractivePdfSigner({
   }
 
   const handleSave = async () => {
-    if (!pdfData || placedSignatures.length === 0 || !signatureDataUrl || !signerName) {
+    if (placedSignatures.length === 0 || !signatureDataUrl || !signerName) {
       setError('Please place at least one signature on the document')
       return
     }
@@ -174,8 +152,15 @@ export default function InteractivePdfSigner({
       setSaving(true)
       setError('')
 
+      // Fetch fresh PDF bytes for modification (avoids detached ArrayBuffer issues)
+      const response = await fetch(proxyUrl)
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF for signing')
+      }
+      const pdfBytes = await response.arrayBuffer()
+
       // Load the PDF
-      const pdfDoc = await PDFDocument.load(pdfData)
+      const pdfDoc = await PDFDocument.load(pdfBytes)
       const pages = pdfDoc.getPages()
 
       // Embed the signature image
@@ -295,37 +280,36 @@ export default function InteractivePdfSigner({
             </div>
           )}
 
-          {/* Only render Document when we have pdfData to avoid CORS issues */}
-          {pdfData && (
-            <Document
-              file={{ data: pdfData }}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(err) => {
-                console.error('PDF load error:', err)
-                setError(`Failed to load PDF: ${err.message}`)
-                setLoading(false)
-              }}
-              loading={
-                <div className="text-center py-20">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                  <p className="text-zinc-400">Rendering PDF...</p>
-                </div>
-              }
-              error={
-                <div className="text-center py-20">
-                  <p className="text-red-500 mb-4">Failed to render PDF document.</p>
-                  <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:text-blue-400"
-                  >
-                    Open PDF in new tab
-                  </a>
-                </div>
-              }
-              className="flex flex-col gap-4"
-            >
+          {/* Use proxy URL directly - react-pdf handles the fetch */}
+          <Document
+            file={proxyUrl}
+            onLoadSuccess={onDocumentLoadSuccess}
+            onLoadError={(err) => {
+              console.error('PDF load error:', err)
+              setError(`Failed to load PDF: ${err.message}`)
+              setLoading(false)
+            }}
+            loading={
+              <div className="text-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-zinc-400">Loading PDF...</p>
+              </div>
+            }
+            error={
+              <div className="text-center py-20">
+                <p className="text-red-500 mb-4">Failed to render PDF document.</p>
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-400"
+                >
+                  Open PDF in new tab
+                </a>
+              </div>
+            }
+            className="flex flex-col gap-4"
+          >
             {Array.from(new Array(numPages), (_, index) => (
               <div
                 key={`page_${index + 1}`}
@@ -383,8 +367,7 @@ export default function InteractivePdfSigner({
                 </div>
               </div>
             ))}
-            </Document>
-          )}
+          </Document>
         </div>
       </div>
 
