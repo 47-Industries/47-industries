@@ -5,6 +5,17 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface ReferredProject {
+  id: string
+  name: string
+  type?: string
+  status: string
+  contractValue?: number
+  monthlyRecurring?: number
+  createdAt: string
+  client: { id: string; name: string }
+}
+
 interface Partner {
   id: string
   partnerNumber: string
@@ -21,6 +32,7 @@ interface Partner {
   leads: Lead[]
   commissions: Commission[]
   payouts: Payout[]
+  referredProjects: ReferredProject[]
   contract?: {
     id: string
     title: string
@@ -118,6 +130,11 @@ export default function PartnerDashboardPage() {
       PENDING: 'bg-yellow-500/20 text-yellow-500',
       APPROVED: 'bg-blue-500/20 text-blue-500',
       PAID: 'bg-green-500/20 text-green-500',
+      ACTIVE: 'bg-green-500/20 text-green-500',
+      IN_PROGRESS: 'bg-blue-500/20 text-blue-500',
+      COMPLETED: 'bg-green-500/20 text-green-500',
+      ON_HOLD: 'bg-yellow-500/20 text-yellow-500',
+      CANCELLED: 'bg-red-500/20 text-red-500',
     }
     return colors[status] || 'bg-gray-500/20 text-gray-500'
   }
@@ -215,6 +232,67 @@ export default function PartnerDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Referred Projects */}
+        {partner.referredProjects && partner.referredProjects.length > 0 && (
+          <div className="border border-border rounded-xl overflow-hidden mb-8">
+            <div className="p-5 border-b border-border">
+              <h2 className="font-semibold">Your Referred Projects</h2>
+              <p className="text-sm text-text-secondary">Projects where you are credited as the referral source</p>
+            </div>
+            <div className="divide-y divide-border">
+              {partner.referredProjects.map((project) => (
+                <div key={project.id} className="p-4 hover:bg-surface/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{project.name}</p>
+                      <p className="text-sm text-text-secondary">
+                        Client: {project.client.name}
+                        {project.type && ` | ${project.type}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(project.status)}`}>
+                        {project.status.replace('_', ' ')}
+                      </span>
+                      {project.contractValue && (
+                        <div className="text-right">
+                          <p className="text-xs text-text-secondary">Commission</p>
+                          <p className="font-semibold text-green-500">
+                            {formatCurrency(Number(project.contractValue) * (partner.firstSaleRate / 100))}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Summary */}
+            <div className="p-4 bg-green-500/5 border-t border-green-500/20">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-text-secondary">Total Potential First Sale Commission</p>
+                  <p className="text-xl font-bold text-green-500">
+                    {formatCurrency(
+                      partner.referredProjects.reduce((sum, p) => {
+                        return sum + (Number(p.contractValue || 0) * (partner.firstSaleRate / 100))
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-text-secondary">Total Contract Value</p>
+                  <p className="text-xl font-bold">
+                    {formatCurrency(
+                      partner.referredProjects.reduce((sum, p) => sum + Number(p.contractValue || 0), 0)
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">

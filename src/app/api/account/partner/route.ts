@@ -33,6 +33,14 @@ export async function GET(req: NextRequest) {
           orderBy: { paidAt: 'desc' },
           take: 3,
         },
+        referredProjects: {
+          include: {
+            client: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 
