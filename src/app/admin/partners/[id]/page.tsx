@@ -991,11 +991,11 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            {/* Countersign Button - Show when contract is SENT or SIGNED but not countersigned */}
+            {/* Countersign Button - Show when contract has PDF and not yet countersigned */}
             {partner.contract &&
              partner.contract.fileUrl &&
-             (partner.contract.status === 'SENT' || partner.contract.status === 'SIGNED') &&
-             !partner.contract.countersignedAt && (
+             !partner.contract.countersignedAt &&
+             partner.contract.status !== 'ACTIVE' && (
               <div style={{
                 marginTop: '16px',
                 padding: '16px',
@@ -1005,11 +1005,13 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Admin Signature Required</p>
+                    <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
                     <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
                       {partner.contract.signedAt
-                        ? 'Partner has signed. Add your countersignature to fully execute the contract.'
-                        : 'You can countersign now or wait for the partner to sign first.'}
+                        ? 'Partner has signed. Add your signature to fully execute the contract.'
+                        : partner.contract.status === 'DRAFT'
+                        ? 'Sign this contract before or after sending it to the partner.'
+                        : 'You can sign now or wait for the partner to sign first.'}
                     </p>
                   </div>
                   <button
@@ -1031,7 +1033,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
-                    Countersign
+                    Sign Contract
                   </button>
                 </div>
               </div>
