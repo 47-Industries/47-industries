@@ -582,6 +582,7 @@ interface ExistingUser {
   id: string
   email: string
   name: string | null
+  role: string
 }
 
 // Create Partner Modal Component
@@ -618,7 +619,8 @@ function CreatePartnerModal({
   const fetchExistingUsers = async () => {
     try {
       setLoadingUsers(true)
-      const res = await fetch('/api/admin/users?role=CUSTOMER&limit=100')
+      // Fetch all users (any role can become a partner)
+      const res = await fetch('/api/admin/users?limit=100')
       if (res.ok) {
         const data = await res.json()
         // Filter out users who are already partners
@@ -802,14 +804,14 @@ function CreatePartnerModal({
                     <option value="">Select a user...</option>
                     {existingUsers.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.name || user.email} {user.name && `(${user.email})`}
+                        {user.name || user.email} {user.name && `(${user.email})`} {user.role !== 'CUSTOMER' && `[${user.role}]`}
                       </option>
                     ))}
                   </select>
                 )}
                 {existingUsers.length === 0 && !loadingUsers && (
                   <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>
-                    No available users found. All existing users are either already partners or admins.
+                    No available users found. All existing users are already partners.
                   </p>
                 )}
               </div>

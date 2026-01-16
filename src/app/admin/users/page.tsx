@@ -432,7 +432,7 @@ function AdminsTab() {
     username: '',
     email: '',
     password: '',
-    role: 'ADMIN' as 'ADMIN' | 'SUPER_ADMIN',
+    role: 'ADMIN' as 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN',
     permissions: [] as Permission[],
     emailAccess: [] as string[],
   })
@@ -885,7 +885,7 @@ function AdminsTab() {
                   Role
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {(['ADMIN', 'SUPER_ADMIN'] as const).map(role => (
+                  {(['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'] as const).map(role => (
                     <button
                       key={role}
                       type="button"
@@ -901,7 +901,7 @@ function AdminsTab() {
                         fontSize: '13px',
                       }}
                     >
-                      {role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
+                      {role === 'SUPER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Admin' : 'Customer'}
                     </button>
                   ))}
                 </div>
