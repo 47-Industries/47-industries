@@ -3,8 +3,15 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useToast } from '@/components/ui/Toast'
 import AmendmentFormModal from '@/components/contracts/AmendmentFormModal'
+
+// Dynamically import the signing modal to avoid SSR issues with signature_pad
+const ContractSigningModal = dynamic(
+  () => import('@/components/contracts/ContractSigningModal'),
+  { ssr: false }
+)
 
 interface Client {
   id: string
@@ -112,7 +119,10 @@ interface Contract {
   monthlyValue?: number
   status: string
   signedAt?: string
+  signedByName?: string
   fileUrl?: string
+  countersignedAt?: string
+  countersignedByName?: string
   amendments?: Amendment[]
 }
 
@@ -195,6 +205,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [amendmentContractId, setAmendmentContractId] = useState<string | null>(null)
   const [editingAmendment, setEditingAmendment] = useState<Amendment | null>(null)
   const [uploadingAmendmentId, setUploadingAmendmentId] = useState<string | null>(null)
+
+  // Contract countersign state
+  const [countersigningContractId, setCountersigningContractId] = useState<string | null>(null)
 
   const { showToast } = useToast()
   const router = useRouter()
@@ -531,6 +544,32 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to create contract', 'error')
     } finally {
       setSavingContract(false)
+    }
+  }
+
+  // Contract countersign handler
+  const handleCountersignContract = async (data: { signedByName: string; signatureDataUrl: string }) => {
+    if (!countersigningContractId) return
+
+    try {
+      const res = await fetch(`/api/admin/contracts/${countersigningContractId}/countersign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (res.ok) {
+        const result = await res.json()
+        showToast(result.message || 'Contract countersigned!', 'success')
+        setCountersigningContractId(null)
+        fetchClient()
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to countersign contract')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to countersign contract', 'error')
+      throw error
     }
   }
 
@@ -1497,8 +1536,25 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                     <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
                       {contract.contractNumber}
-                      {contract.signedAt && ` | Signed ${formatDate(contract.signedAt)}`}
                     </p>
+                    {/* Signature Status */}
+                    <div style={{ marginTop: '4px', fontSize: '12px' }}>
+                      {contract.signedAt && (
+                        <span style={{ color: '#10b981' }}>
+                          Client signed by {contract.signedByName || 'N/A'} on {formatDate(contract.signedAt)}
+                        </span>
+                      )}
+                      {contract.countersignedAt && (
+                        <span style={{ color: '#10b981', marginLeft: contract.signedAt ? '8px' : 0 }}>
+                          {contract.signedAt ? ' | ' : ''} Admin signed by {contract.countersignedByName} on {formatDate(contract.countersignedAt)}
+                        </span>
+                      )}
+                      {contract.signedAt && !contract.countersignedAt && (
+                        <span style={{ color: '#f59e0b', marginLeft: '8px' }}>
+                          | Admin countersignature required
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ textAlign: 'right' }}>
@@ -1525,6 +1581,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       >
                         View
                       </a>
+                    )}
+                    {/* Countersign Button - Show when contract has PDF but not yet countersigned */}
+                    {contract.fileUrl && !contract.countersignedAt && contract.status !== 'DRAFT' && (
+                      <button
+                        onClick={() => setCountersigningContractId(contract.id)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#10b98120',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#10b981',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Sign as Admin
+                      </button>
                     )}
                     <button
                       onClick={() => {
@@ -2347,6 +2420,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             setAmendmentContractId(null)
             setEditingAmendment(null)
           }}
+        />
+      )}
+
+      {/* Contract Countersign Modal */}
+      {countersigningContractId && (
+        <ContractSigningModal
+          contractTitle={`Sign Contract: ${client.contracts.find(c => c.id === countersigningContractId)?.title || ''}`}
+          contractFileUrl={client.contracts.find(c => c.id === countersigningContractId)?.fileUrl || ''}
+          onSign={handleCountersignContract}
+          onClose={() => setCountersigningContractId(null)}
         />
       )}
     </div>

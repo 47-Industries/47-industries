@@ -2244,6 +2244,15 @@ model Contract {
   signedByName    String?             // Full name of signer
   signedByEmail   String?             // Email of signer
   signedByIp      String?             // IP address when signed
+  signedByUserId  String?             // User ID who signed
+
+  // Admin countersignature fields
+  countersignatureUrl    String?       // Admin's drawn signature (R2 URL)
+  countersignedByName    String?       // Admin's typed name
+  countersignedByEmail   String?       // Admin's email
+  countersignedByIp      String?       // Admin's IP for audit trail
+  countersignedByUserId  String?       // Admin user who countersigned
+  countersignedAt        DateTime?     // When admin countersigned
 
   createdBy       String              // User ID who created
   createdAt       DateTime @default(now())
