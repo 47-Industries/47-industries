@@ -7,11 +7,8 @@ import { PDFDocument } from 'pdf-lib'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
-// Configure PDF.js worker - use unpkg CDN which is reliable for npm packages
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString()
+// Configure PDF.js worker - use unpkg CDN for reliable production loading
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface PlacedSignature {
   pageNumber: number
