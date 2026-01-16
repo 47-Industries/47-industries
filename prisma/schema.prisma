@@ -2127,6 +2127,7 @@ model ClientProject {
 
   // Attribution - who brought in/closed this project
   referredByPartnerId String?           // Partner who referred this lead
+  referredByPartner   Partner?          @relation(fields: [referredByPartnerId], references: [id])
   closedByUserId      String?           // Team member who closed the sale
 
   // Relations
@@ -2289,6 +2290,7 @@ model Partner {
   commissions       PartnerCommission[]
   payouts           PartnerPayout[]
   contract          PartnerContract?
+  referredProjects  ClientProject[]     // Projects this partner referred
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
