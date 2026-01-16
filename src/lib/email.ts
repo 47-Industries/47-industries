@@ -1335,6 +1335,151 @@ export async function sendContractSignedNotification(data: {
   }
 }
 
+// Send notification to partner when contract is fully executed (both parties signed)
+export async function sendContractFullyExecutedNotification(data: {
+  to: string
+  partnerName: string
+  contractTitle: string
+  countersignedByName: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const contractUrl = `${APP_URL}/account/partner/contract`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Your Agreement is Fully Executed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.partnerName}, great news! Your partner agreement has been countersigned by ${data.countersignedByName} and is now fully executed.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Document', data.contractTitle, true)}
+        ${getDetailRow('Status', 'Fully Executed')}
+      </table>
+    `)}
+
+    ${getButton('View Your Contract', contractUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      You can access your fully executed contract anytime from your partner portal. Welcome to the 47 Industries partner program!
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Your Partner Agreement is Fully Executed - 47 Industries`,
+      html: getEmailTemplate(content, 'Contract Fully Executed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send fully executed notification:', error)
+    return { success: false, error }
+  }
+}
+
+// Send email to team member when contract is ready to sign
+export async function sendTeamContractReadyToSign(data: {
+  to: string
+  name: string
+  contractTitle: string
+  contractType: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const signUrl = `${APP_URL}/account/team/contracts`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Contract Ready for Your Signature
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.name}, a contract is ready for your electronic signature.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Document', data.contractTitle, true)}
+        ${getDetailRow('Type', data.contractType)}
+      </table>
+    `)}
+
+    ${getButton('Review & Sign Contract', signUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      Please review the contract carefully before signing. Once signed, you'll receive a confirmation and can access your signed contract anytime.
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Contract Ready to Sign: ${data.contractTitle} - 47 Industries`,
+      html: getEmailTemplate(content, 'Contract Ready to Sign'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send team contract ready email:', error)
+    return { success: false, error }
+  }
+}
+
+// Send notification to admin when team member signs contract
+export async function sendTeamContractSignedNotification(data: {
+  teamMemberName: string
+  teamMemberEmail: string
+  teamMemberId: string
+  contractTitle: string
+  contractType: string
+  signedAt: Date
+  signedByName: string
+  signedByIp: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const adminUrl = `${APP_URL.replace('47industries.com', 'admin.47industries.com')}/admin/team/${data.teamMemberId}`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Team Contract Signed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      ${data.teamMemberName} has signed their ${data.contractType.toLowerCase()} contract.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Team Member', data.teamMemberName, true)}
+        ${getDetailRow('Email', data.teamMemberEmail)}
+        ${getDetailRow('Contract', data.contractTitle)}
+        ${getDetailRow('Signed By', data.signedByName)}
+        ${getDetailRow('Signed At', data.signedAt.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }))}
+        ${getDetailRow('IP Address', data.signedByIp)}
+      </table>
+    `)}
+
+    ${getButton('View Team Member', adminUrl)}
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      bcc: BCC_EMAIL,
+      subject: `Team Contract Signed - ${data.teamMemberName}`,
+      html: getEmailTemplate(content, 'Team Contract Signed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send team contract signed notification:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()

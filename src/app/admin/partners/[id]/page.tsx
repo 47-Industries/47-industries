@@ -3,7 +3,14 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useToast } from '@/components/ui/Toast'
+
+// Dynamically import the signing modal to avoid SSR issues with signature_pad
+const ContractSigningModal = dynamic(
+  () => import('@/components/contracts/ContractSigningModal'),
+  { ssr: false }
+)
 
 interface ReferredProject {
   id: string
@@ -49,6 +56,12 @@ interface Partner {
     signedByEmail?: string
     signedByIp?: string
     signatureUrl?: string
+    // Countersignature fields
+    countersignedAt?: string
+    countersignedByName?: string
+    countersignedByEmail?: string
+    countersignedByIp?: string
+    countersignatureUrl?: string
     createdAt?: string
   }
   leads: Lead[]
@@ -108,6 +121,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
   const [uploadingContract, setUploadingContract] = useState(false)
   const [sendingContract, setSendingContract] = useState(false)
+  const [showCountersignModal, setShowCountersignModal] = useState(false)
+  const [countersigning, setCountersigning] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [contractForm, setContractForm] = useState({
     title: '',
@@ -220,6 +235,31 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       showToast('Failed to send contract', 'error')
     } finally {
       setSendingContract(false)
+    }
+  }
+
+  const handleCountersign = async (data: { signedByName: string; signatureDataUrl: string }) => {
+    if (!partner?.contract) return
+
+    setCountersigning(true)
+    try {
+      const res = await fetch(`/api/admin/partners/${id}/contract/countersign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        showToast(result.message || 'Contract countersigned!', 'success')
+        setShowCountersignModal(false)
+        fetchPartner()
+      } else {
+        throw new Error(result.error || 'Failed to countersign')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to countersign', 'error')
+    } finally {
+      setCountersigning(false)
     }
   }
 
@@ -871,52 +911,128 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            {/* Signature Display - Show when contract is signed */}
-            {partner.contract?.status === 'SIGNED' && partner.contract.signatureUrl && (
+            {/* Signatures Section - Show when contract has any signatures */}
+            {partner.contract && (partner.contract.signatureUrl || partner.contract.countersignatureUrl) && (
               <div style={{
                 marginTop: '16px',
-                background: '#10b98110',
-                border: '1px solid #10b98130',
+                background: partner.contract.status === 'ACTIVE' ? '#10b98110' : '#3b82f610',
+                border: `1px solid ${partner.contract.status === 'ACTIVE' ? '#10b98130' : '#3b82f630'}`,
                 borderRadius: '8px',
                 padding: '16px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <svg width="20" height="20" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                  <svg width="20" height="20" fill="none" stroke={partner.contract.status === 'ACTIVE' ? '#10b981' : '#3b82f6'} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>Contract Signed</span>
+                  <span style={{ color: partner.contract.status === 'ACTIVE' ? '#10b981' : '#3b82f6', fontWeight: 600 }}>
+                    {partner.contract.status === 'ACTIVE' ? 'Contract Fully Executed' : 'Contract Signatures'}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{
-                    background: 'white',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    border: '1px solid #27272a',
-                  }}>
-                    <img
-                      src={partner.contract.signatureUrl}
-                      alt="Partner signature"
-                      style={{ height: '60px', width: 'auto' }}
-                    />
-                  </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Partner Signature */}
+                  {partner.contract.signatureUrl && (
+                    <div>
+                      <p style={{ margin: '0 0 8px 0', color: '#a1a1aa', fontSize: '12px', textTransform: 'uppercase' }}>Partner Signature</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          border: '1px solid #27272a',
+                        }}>
+                          <img
+                            src={partner.contract.signatureUrl}
+                            alt="Partner signature"
+                            style={{ height: '50px', width: 'auto' }}
+                          />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 500 }}>{partner.contract.signedByName}</p>
+                          {partner.contract.signedAt && (
+                            <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                              {formatDate(partner.contract.signedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin Countersignature */}
+                  {partner.contract.countersignatureUrl && (
+                    <div>
+                      <p style={{ margin: '0 0 8px 0', color: '#a1a1aa', fontSize: '12px', textTransform: 'uppercase' }}>47 Industries Signature</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{
+                          background: 'white',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          border: '1px solid #27272a',
+                        }}>
+                          <img
+                            src={partner.contract.countersignatureUrl}
+                            alt="Company signature"
+                            style={{ height: '50px', width: 'auto' }}
+                          />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 500 }}>{partner.contract.countersignedByName}</p>
+                          {partner.contract.countersignedAt && (
+                            <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                              {formatDate(partner.contract.countersignedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Countersign Button - Show when contract is SENT or SIGNED but not countersigned */}
+            {partner.contract &&
+             partner.contract.fileUrl &&
+             (partner.contract.status === 'SENT' || partner.contract.status === 'SIGNED') &&
+             !partner.contract.countersignedAt && (
+              <div style={{
+                marginTop: '16px',
+                padding: '16px',
+                background: '#3b82f610',
+                border: '1px solid #3b82f630',
+                borderRadius: '8px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <p style={{ margin: 0, fontWeight: 500 }}>{partner.contract.signedByName}</p>
-                    {partner.contract.signedByEmail && (
-                      <p style={{ margin: '2px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
-                        {partner.contract.signedByEmail}
-                      </p>
-                    )}
-                    {partner.contract.signedAt && (
-                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
-                        Signed on {formatDate(partner.contract.signedAt)}
-                      </p>
-                    )}
-                    {partner.contract.signedByIp && (
-                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '12px' }}>
-                        IP: {partner.contract.signedByIp}
-                      </p>
-                    )}
+                    <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Admin Signature Required</p>
+                    <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                      {partner.contract.signedAt
+                        ? 'Partner has signed. Add your countersignature to fully execute the contract.'
+                        : 'You can countersign now or wait for the partner to sign first.'}
+                    </p>
                   </div>
+                  <button
+                    onClick={() => setShowCountersignModal(true)}
+                    style={{
+                      padding: '10px 20px',
+                      background: '#3b82f6',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Countersign
+                  </button>
                 </div>
               </div>
             )}
@@ -1487,6 +1603,16 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             fetchPartner()
           }}
           setSaving={setSavingContract}
+        />
+      )}
+
+      {/* Countersign Modal */}
+      {showCountersignModal && partner?.contract?.fileUrl && (
+        <ContractSigningModal
+          contractTitle={`Countersign: ${partner.contract.title}`}
+          contractFileUrl={partner.contract.fileUrl}
+          onSign={handleCountersign}
+          onClose={() => setShowCountersignModal(false)}
         />
       )}
     </div>

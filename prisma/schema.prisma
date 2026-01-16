@@ -2314,12 +2314,20 @@ model PartnerContract {
   status        String   @default("DRAFT")  // DRAFT, SENT, SIGNED, ACTIVE
   signedAt      DateTime?
 
-  // E-signature fields
+  // E-signature fields (Partner signature)
   signatureUrl    String?       // Drawn signature image (R2 URL)
   signedByName    String?       // Typed legal name
   signedByEmail   String?       // Email at time of signing
   signedByIp      String?       // IP address for audit trail
   signedByUserId  String?       // User who signed
+
+  // Admin countersignature fields
+  countersignatureUrl    String?       // Admin's drawn signature (R2 URL)
+  countersignedByName    String?       // Admin's typed name
+  countersignedByEmail   String?       // Admin's email
+  countersignedByIp      String?       // Admin's IP for audit trail
+  countersignedByUserId  String?       // Admin user who countersigned
+  countersignedAt        DateTime?     // When admin countersigned
 
   startDate     DateTime?
   endDate       DateTime?
