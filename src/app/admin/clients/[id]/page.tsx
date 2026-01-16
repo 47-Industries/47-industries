@@ -169,6 +169,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     paymentTerms: '100_UPFRONT', // '100_UPFRONT', '50_50', 'CUSTOM'
   })
   const [savingContract, setSavingContract] = useState(false)
+  const [regeneratingContract, setRegeneratingContract] = useState<string | null>(null)
 
   const { showToast } = useToast()
   const router = useRouter()
@@ -505,6 +506,75 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to create contract', 'error')
     } finally {
       setSavingContract(false)
+    }
+  }
+
+  const handleRegenerateContract = async (contractId: string, contract: Contract) => {
+    if (!confirm('Regenerate the PDF for this contract? This will create a new PDF with the current contract terms.')) {
+      return
+    }
+
+    try {
+      setRegeneratingContract(contractId)
+
+      // Get the project info if available
+      const project = client?.projects[0]
+
+      // Build scope from contract description
+      const scopeMatch = contract.title.match(/for (.+)/i)
+      const projectName = scopeMatch ? scopeMatch[1] : client?.name || 'Project'
+
+      // Parse the scope from description or use a default
+      const scope = [
+        'Full project development as outlined in the agreement',
+        'Deployment and configuration',
+        'Initial support and training',
+      ]
+
+      // Build payment terms text
+      const paymentTerms = `Project Development: $${Number(contract.totalValue).toLocaleString()} - 100% upfront payment required before work begins.${
+        contract.monthlyValue && Number(contract.monthlyValue) > 0
+          ? `\n\nMonthly Maintenance: $${Number(contract.monthlyValue).toLocaleString()}/month.`
+          : ''
+      }`
+
+      const monthlyIncludes = contract.monthlyValue && Number(contract.monthlyValue) > 0
+        ? [
+            'Hosting and server management',
+            'Database hosting and management',
+            'Security updates and monitoring',
+            'Bug fixes and minor updates',
+            'Technical support',
+          ]
+        : []
+
+      const res = await fetch(`/api/admin/clients/${id}/generate-agreement`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractId,
+          title: contract.title,
+          projectName,
+          scope,
+          totalValue: Number(contract.totalValue),
+          monthlyValue: contract.monthlyValue ? Number(contract.monthlyValue) : undefined,
+          paymentTerms,
+          monthlyIncludes,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        showToast('Contract PDF regenerated!', 'success')
+        fetchClient()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to regenerate contract', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to regenerate contract', 'error')
+    } finally {
+      setRegeneratingContract(null)
     }
   }
 
@@ -1353,23 +1423,40 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       </p>
                     )}
                   </div>
-                  {contract.fileUrl && (
-                    <a
-                      href={contract.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleRegenerateContract(contract.id, contract)}
+                      disabled={regeneratingContract === contract.id}
                       style={{
                         padding: '6px 12px',
                         background: '#27272a',
+                        border: 'none',
                         borderRadius: '6px',
-                        color: '#a1a1aa',
+                        color: regeneratingContract === contract.id ? '#71717a' : '#10b981',
                         fontSize: '13px',
-                        textDecoration: 'none',
+                        cursor: regeneratingContract === contract.id ? 'not-allowed' : 'pointer',
                       }}
                     >
-                      View
-                    </a>
-                  )}
+                      {regeneratingContract === contract.id ? 'Generating...' : 'Regenerate PDF'}
+                    </button>
+                    {contract.fileUrl && (
+                      <a
+                        href={contract.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '6px 12px',
+                          background: '#27272a',
+                          borderRadius: '6px',
+                          color: '#a1a1aa',
+                          fontSize: '13px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        View
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
