@@ -282,39 +282,49 @@ export default function InteractivePdfSigner({
 
           {error && !loading && (
             <div className="text-center py-20">
-              <p className="text-red-500">{error}</p>
+              <p className="text-red-500 mb-4">{error}</p>
+              <a
+                href={pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-400"
+              >
+                Open PDF in new tab
+              </a>
             </div>
           )}
 
-          <Document
-            file={pdfBytes ? { data: pdfBytes } : pdfUrl}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={(err) => {
-              console.error('PDF load error:', err)
-              setError(`Failed to load PDF: ${err.message}`)
-              setLoading(false)
-            }}
-            loading={
-              <div className="text-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-zinc-400">Loading PDF...</p>
-              </div>
-            }
-            error={
-              <div className="text-center py-20">
-                <p className="text-red-500 mb-4">Failed to load PDF document.</p>
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:text-blue-400"
-                >
-                  Open PDF in new tab
-                </a>
-              </div>
-            }
-            className="flex flex-col gap-4"
-          >
+          {/* Only render Document when we have pdfBytes to avoid CORS issues */}
+          {pdfBytes && (
+            <Document
+              file={{ data: new Uint8Array(pdfBytes) }}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={(err) => {
+                console.error('PDF load error:', err)
+                setError(`Failed to load PDF: ${err.message}`)
+                setLoading(false)
+              }}
+              loading={
+                <div className="text-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-zinc-400">Rendering PDF...</p>
+                </div>
+              }
+              error={
+                <div className="text-center py-20">
+                  <p className="text-red-500 mb-4">Failed to render PDF document.</p>
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-400"
+                  >
+                    Open PDF in new tab
+                  </a>
+                </div>
+              }
+              className="flex flex-col gap-4"
+            >
             {Array.from(new Array(numPages), (_, index) => (
               <div
                 key={`page_${index + 1}`}
@@ -372,7 +382,8 @@ export default function InteractivePdfSigner({
                 </div>
               </div>
             ))}
-          </Document>
+            </Document>
+          )}
         </div>
       </div>
 
