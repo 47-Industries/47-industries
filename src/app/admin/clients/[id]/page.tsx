@@ -8,8 +8,8 @@ import { useToast } from '@/components/ui/Toast'
 import AmendmentFormModal from '@/components/contracts/AmendmentFormModal'
 
 // Dynamically import the signing modal to avoid SSR issues with signature_pad
-const ContractSigningModal = dynamic(
-  () => import('@/components/contracts/ContractSigningModal'),
+const AdminContractSigningModal = dynamic(
+  () => import('@/components/contracts/AdminContractSigningModal'),
   { ssr: false }
 )
 
@@ -544,32 +544,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to create contract', 'error')
     } finally {
       setSavingContract(false)
-    }
-  }
-
-  // Contract countersign handler
-  const handleCountersignContract = async (data: { signedByName: string; signatureDataUrl: string }) => {
-    if (!countersigningContractId) return
-
-    try {
-      const res = await fetch(`/api/admin/contracts/${countersigningContractId}/countersign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-
-      if (res.ok) {
-        const result = await res.json()
-        showToast(result.message || 'Contract countersigned!', 'success')
-        setCountersigningContractId(null)
-        fetchClient()
-      } else {
-        const result = await res.json()
-        throw new Error(result.error || 'Failed to countersign contract')
-      }
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Failed to countersign contract', 'error')
-      throw error
     }
   }
 
@@ -2423,12 +2397,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         />
       )}
 
-      {/* Contract Countersign Modal */}
+      {/* Contract Signing Modal */}
       {countersigningContractId && (
-        <ContractSigningModal
-          contractTitle={`Sign Contract: ${client.contracts.find(c => c.id === countersigningContractId)?.title || ''}`}
+        <AdminContractSigningModal
+          contractId={countersigningContractId}
+          contractTitle={client.contracts.find(c => c.id === countersigningContractId)?.title || ''}
           contractFileUrl={client.contracts.find(c => c.id === countersigningContractId)?.fileUrl || ''}
-          onSign={handleCountersignContract}
+          signatureType="admin"
+          apiEndpoint={`/api/admin/contracts/${countersigningContractId}/sign-pdf`}
+          onSuccess={() => {
+            showToast('Contract signed!', 'success')
+            setCountersigningContractId(null)
+            fetchClient()
+          }}
           onClose={() => setCountersigningContractId(null)}
         />
       )}

@@ -7,9 +7,14 @@ import dynamic from 'next/dynamic'
 import { useToast } from '@/components/ui/Toast'
 import AmendmentFormModal from '@/components/contracts/AmendmentFormModal'
 
-// Dynamically import the signing modal to avoid SSR issues with signature_pad
+// Dynamically import the signing modals to avoid SSR issues with signature_pad
 const ContractSigningModal = dynamic(
   () => import('@/components/contracts/ContractSigningModal'),
+  { ssr: false }
+)
+
+const AdminContractSigningModal = dynamic(
+  () => import('@/components/contracts/AdminContractSigningModal'),
   { ssr: false }
 )
 
@@ -2023,10 +2028,17 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Countersign Modal */}
       {showCountersignModal && partner?.contract?.fileUrl && (
-        <ContractSigningModal
-          contractTitle={`Countersign: ${partner.contract.title}`}
+        <AdminContractSigningModal
+          contractId={partner.id}
+          contractTitle={partner.contract.title}
           contractFileUrl={partner.contract.fileUrl}
-          onSign={handleCountersign}
+          signatureType="admin"
+          apiEndpoint={`/api/admin/partners/${partner.id}/contract/sign-pdf`}
+          onSuccess={() => {
+            showToast('Contract countersigned!', 'success')
+            setShowCountersignModal(false)
+            fetchPartner()
+          }}
           onClose={() => setShowCountersignModal(false)}
         />
       )}
