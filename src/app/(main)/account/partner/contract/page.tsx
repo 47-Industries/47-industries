@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+
+// Dynamically import the signing modal to avoid SSR issues with signature_pad
+const ContractSigningModal = dynamic(
+  () => import('@/components/contracts/ContractSigningModal'),
+  { ssr: false }
+)
 
 interface Contract {
   id: string
@@ -13,6 +20,8 @@ interface Contract {
   fileName?: string
   status: string
   signedAt?: string
+  signedByName?: string
+  signatureUrl?: string
   createdAt: string
 }
 
@@ -29,6 +38,7 @@ export default function PartnerContractPage() {
   const [rates, setRates] = useState<CommissionRates | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showSigningModal, setShowSigningModal] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -66,6 +76,23 @@ export default function PartnerContractPage() {
     }
   }
 
+  const handleSign = async (data: { signedByName: string; signatureDataUrl: string }) => {
+    const res = await fetch('/api/account/partner/contract/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.error || 'Failed to sign contract')
+    }
+
+    // Refresh contract data
+    await fetchContract()
+    setShowSigningModal(false)
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
@@ -77,11 +104,21 @@ export default function PartnerContractPage() {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       DRAFT: 'bg-gray-500/20 text-gray-500',
-      SENT: 'bg-blue-500/20 text-blue-500',
+      SENT: 'bg-yellow-500/20 text-yellow-500',
       SIGNED: 'bg-green-500/20 text-green-500',
       ACTIVE: 'bg-green-500/20 text-green-500',
     }
     return colors[status] || 'bg-gray-500/20 text-gray-500'
+  }
+
+  const getStatusText = (status: string) => {
+    const texts: Record<string, string> = {
+      DRAFT: 'Draft',
+      SENT: 'Awaiting Signature',
+      SIGNED: 'Signed',
+      ACTIVE: 'Active',
+    }
+    return texts[status] || status
   }
 
   if (status === 'loading' || loading) {
@@ -112,21 +149,77 @@ export default function PartnerContractPage() {
           </div>
         ) : contract ? (
           <>
+            {/* Sign Contract Banner - Show when status is SENT */}
+            {contract.status === 'SENT' && contract.fileUrl && (
+              <div className="mb-6 p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-yellow-500">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-yellow-500 mb-1">Your signature is required</h3>
+                    <p className="text-text-secondary text-sm mb-4">
+                      Please review the contract below and sign it electronically to activate your partner agreement.
+                    </p>
+                    <button
+                      onClick={() => setShowSigningModal(true)}
+                      className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors inline-flex items-center gap-2"
+                    >
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Review & Sign Contract
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Contract Info */}
             <div className="border border-border rounded-xl overflow-hidden mb-8">
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">{contract.title}</h2>
                   <span className={`px-3 py-1 text-sm font-medium rounded ${getStatusColor(contract.status)}`}>
-                    {contract.status}
+                    {getStatusText(contract.status)}
                   </span>
                 </div>
                 {contract.signedAt && (
                   <p className="text-text-secondary text-sm">
                     Signed on {formatDate(contract.signedAt)}
+                    {contract.signedByName && ` by ${contract.signedByName}`}
                   </p>
                 )}
               </div>
+
+              {/* Signature Display - Show when signed */}
+              {contract.status === 'SIGNED' && contract.signatureUrl && (
+                <div className="p-6 border-b border-border bg-green-500/5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-green-500">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 className="font-medium text-green-500">Contract Signed</h3>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="bg-white rounded-lg p-3 border border-border">
+                      <img
+                        src={contract.signatureUrl}
+                        alt="Your signature"
+                        className="h-16 w-auto"
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium">{contract.signedByName}</p>
+                      <p className="text-sm text-text-secondary">
+                        {contract.signedAt && formatDate(contract.signedAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {contract.description && (
                 <div className="p-6 border-b border-border">
@@ -209,6 +302,16 @@ export default function PartnerContractPage() {
           </div>
         )}
       </div>
+
+      {/* Signing Modal */}
+      {showSigningModal && contract && contract.fileUrl && (
+        <ContractSigningModal
+          contractTitle={contract.title}
+          contractFileUrl={contract.fileUrl}
+          onSign={handleSign}
+          onClose={() => setShowSigningModal(false)}
+        />
+      )}
     </div>
   )
 }

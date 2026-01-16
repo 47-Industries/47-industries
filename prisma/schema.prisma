@@ -2314,6 +2314,13 @@ model PartnerContract {
   status        String   @default("DRAFT")  // DRAFT, SENT, SIGNED, ACTIVE
   signedAt      DateTime?
 
+  // E-signature fields
+  signatureUrl    String?       // Drawn signature image (R2 URL)
+  signedByName    String?       // Typed legal name
+  signedByEmail   String?       // Email at time of signing
+  signedByIp      String?       // IP address for audit trail
+  signedByUserId  String?       // User who signed
+
   startDate     DateTime?
   endDate       DateTime?
 
@@ -2486,6 +2493,13 @@ model TeamMemberContract {
 
   status          String   @default("DRAFT")  // DRAFT, SENT, SIGNED, ACTIVE, EXPIRED
   signedAt        DateTime?
+
+  // E-signature fields
+  signatureUrl    String?       // Drawn signature image (R2 URL)
+  signedByName    String?       // Typed legal name
+  signedByEmail   String?       // Email at time of signing
+  signedByIp      String?       // IP address for audit trail
+  signedByUserId  String?       // User who signed
 
   effectiveDate   DateTime?
   expirationDate  DateTime?

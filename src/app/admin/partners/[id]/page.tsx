@@ -45,6 +45,10 @@ interface Partner {
     fileName?: string
     status: string
     signedAt?: string
+    signedByName?: string
+    signedByEmail?: string
+    signedByIp?: string
+    signatureUrl?: string
     createdAt?: string
   }
   leads: Lead[]
@@ -103,6 +107,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const [savingContract, setSavingContract] = useState(false)
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
   const [uploadingContract, setUploadingContract] = useState(false)
+  const [sendingContract, setSendingContract] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [contractForm, setContractForm] = useState({
     title: '',
@@ -174,8 +179,48 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       PAID: '#10b981',
       FIRST_SALE: '#3b82f6',
       RECURRING: '#8b5cf6',
+      // Contract statuses
+      DRAFT: '#6b7280',
+      SENT: '#f59e0b',
+      SIGNED: '#10b981',
     }
     return colors[status] || '#6b7280'
+  }
+
+  const getContractStatusText = (status: string) => {
+    const texts: Record<string, string> = {
+      DRAFT: 'Draft',
+      SENT: 'Awaiting Signature',
+      SIGNED: 'Signed',
+      ACTIVE: 'Active',
+    }
+    return texts[status] || status
+  }
+
+  const handleSendForSignature = async () => {
+    if (!partner?.contract) return
+
+    if (!confirm('Send this contract to ' + partner.name + ' for signature? They will receive an email with a link to sign.')) {
+      return
+    }
+
+    setSendingContract(true)
+    try {
+      const res = await fetch(`/api/admin/partners/${id}/contract/send`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast('Contract sent for signature!', 'success')
+        fetchPartner()
+      } else {
+        showToast(data.error || 'Failed to send contract', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send contract', 'error')
+    } finally {
+      setSendingContract(false)
+    }
   }
 
   const getTotalEarned = () => {
@@ -656,16 +701,74 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                         borderRadius: '4px',
                         fontSize: '12px',
                       }}>
-                        {partner.contract.status}
+                        {getContractStatusText(partner.contract.status)}
                       </span>
                     </div>
-                    {partner.contract.signedAt && (
+                    {partner.contract.signedAt && partner.contract.signedByName && (
                       <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
-                        Signed {formatDate(partner.contract.signedAt)}
+                        Signed by {partner.contract.signedByName} on {formatDate(partner.contract.signedAt)}
                       </p>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Send for Signature Button - Only show when DRAFT */}
+                    {partner.contract.status === 'DRAFT' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSendForSignature()
+                        }}
+                        disabled={sendingContract}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#f59e0b',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'black',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: sendingContract ? 'wait' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          opacity: sendingContract ? 0.7 : 1,
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        {sendingContract ? 'Sending...' : 'Send for Signature'}
+                      </button>
+                    )}
+                    {/* Resend Button - Show when SENT */}
+                    {partner.contract.status === 'SENT' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSendForSignature()
+                        }}
+                        disabled={sendingContract}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#27272a',
+                          border: '1px solid #f59e0b',
+                          borderRadius: '6px',
+                          color: '#f59e0b',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          cursor: sendingContract ? 'wait' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          opacity: sendingContract ? 0.7 : 1,
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        {sendingContract ? 'Sending...' : 'Resend Email'}
+                      </button>
+                    )}
                     <a
                       href={partner.contract.fileUrl}
                       target="_blank"
@@ -768,6 +871,56 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
+            {/* Signature Display - Show when contract is signed */}
+            {partner.contract?.status === 'SIGNED' && partner.contract.signatureUrl && (
+              <div style={{
+                marginTop: '16px',
+                background: '#10b98110',
+                border: '1px solid #10b98130',
+                borderRadius: '8px',
+                padding: '16px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <svg width="20" height="20" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span style={{ color: '#10b981', fontWeight: 600 }}>Contract Signed</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    background: 'white',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    border: '1px solid #27272a',
+                  }}>
+                    <img
+                      src={partner.contract.signatureUrl}
+                      alt="Partner signature"
+                      style={{ height: '60px', width: 'auto' }}
+                    />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 500 }}>{partner.contract.signedByName}</p>
+                    {partner.contract.signedByEmail && (
+                      <p style={{ margin: '2px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                        {partner.contract.signedByEmail}
+                      </p>
+                    )}
+                    {partner.contract.signedAt && (
+                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                        Signed on {formatDate(partner.contract.signedAt)}
+                      </p>
+                    )}
+                    {partner.contract.signedByIp && (
+                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                        IP: {partner.contract.signedByIp}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Contract Details (shown below file if exists but no file URL) */}
             {partner.contract && !partner.contract.fileUrl && (
               <div style={{
@@ -785,7 +938,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     borderRadius: '4px',
                     fontSize: '12px',
                   }}>
-                    {partner.contract.status}
+                    {getContractStatusText(partner.contract.status)}
                   </span>
                 </div>
                 {partner.contract.description && (
@@ -793,9 +946,9 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     {partner.contract.description}
                   </p>
                 )}
-                {partner.contract.signedAt && (
+                {partner.contract.signedAt && partner.contract.signedByName && (
                   <p style={{ margin: '8px 0 0 0', color: '#71717a', fontSize: '13px' }}>
-                    Signed {formatDate(partner.contract.signedAt)}
+                    Signed by {partner.contract.signedByName} on {formatDate(partner.contract.signedAt)}
                   </p>
                 )}
               </div>

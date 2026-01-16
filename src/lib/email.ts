@@ -1228,6 +1228,113 @@ export async function sendPartnerInvite(data: {
   }
 }
 
+// Send email to partner when contract is ready to sign
+export async function sendContractReadyToSign(data: {
+  to: string
+  name: string
+  contractTitle: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const signUrl = `${APP_URL}/account/partner/contract`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Your Agreement is Ready to Sign
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.name}, your partner agreement with 47 Industries is ready for your electronic signature.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Document', data.contractTitle, true)}
+      </table>
+    `)}
+
+    ${getButton('Review & Sign Contract', signUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      Please review the agreement carefully before signing. Once signed, you'll receive a confirmation email and can access your signed contract anytime from your partner portal.
+    </p>
+
+    <p style="margin: 16px 0 0 0; color: #71717a; font-size: 13px; line-height: 1.6;" class="text-muted">
+      If you have any questions about the agreement, please contact us at support@47industries.com
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Your Partner Agreement is Ready to Sign - 47 Industries`,
+      html: getEmailTemplate(content, 'Contract Ready to Sign'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send contract ready to sign email:', error)
+    return { success: false, error }
+  }
+}
+
+// Send notification to admin when contract is signed
+export async function sendContractSignedNotification(data: {
+  partnerName: string
+  partnerEmail: string
+  partnerId: string
+  contractTitle: string
+  signedAt: Date
+  signedByName: string
+  signedByIp: string
+}) {
+  const ADMIN_URL = process.env.ADMIN_URL || 'https://admin.47industries.com'
+  const partnerUrl = `${ADMIN_URL}/admin/partners/${data.partnerId}`
+
+  const signedDate = data.signedAt.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Contract Signed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      ${data.partnerName} has signed their partner agreement.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Partner', data.partnerName)}
+        ${getDetailRow('Email', data.partnerEmail)}
+        ${getDetailRow('Document', data.contractTitle)}
+        ${getDetailRow('Signed As', data.signedByName)}
+        ${getDetailRow('Signed At', signedDate)}
+        ${getDetailRow('IP Address', data.signedByIp, true)}
+      </table>
+    `)}
+
+    ${getButton('View Partner Details', partnerUrl)}
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      bcc: BCC_EMAIL,
+      subject: `Partner Agreement Signed - ${data.partnerName}`,
+      html: getEmailTemplate(content, 'Contract Signed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send contract signed notification:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()
