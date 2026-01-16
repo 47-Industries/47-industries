@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useToast } from '@/components/ui/Toast'
+import AmendmentFormModal from '@/components/contracts/AmendmentFormModal'
 
 // Dynamically import the signing modal to avoid SSR issues with signature_pad
 const ContractSigningModal = dynamic(
@@ -107,11 +108,34 @@ interface Payout {
   _count?: { commissions: number }
 }
 
+interface Amendment {
+  id: string
+  amendmentNumber: string
+  title: string
+  description?: string
+  additionalValue: number
+  additionalMonthlyValue?: number
+  effectiveDate?: string
+  fileUrl?: string
+  fileName?: string
+  status: 'DRAFT' | 'SENT' | 'SIGNED' | 'ACTIVE'
+  signedAt?: string
+  signedByName?: string
+  countersignedAt?: string
+  countersignedByName?: string
+  createdAt: string
+}
+
 export default function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'leads' | 'commissions' | 'payouts'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'leads' | 'commissions' | 'payouts' | 'amendments'>('overview')
+  const [amendments, setAmendments] = useState<Amendment[]>([])
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false)
+  const [editingAmendment, setEditingAmendment] = useState<Amendment | null>(null)
+  const [uploadingAmendmentId, setUploadingAmendmentId] = useState<string | null>(null)
+  const [showAmendmentCountersignModal, setShowAmendmentCountersignModal] = useState<string | null>(null)
   const [showCreatePayoutModal, setShowCreatePayoutModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showLinkUserModal, setShowLinkUserModal] = useState(false)
@@ -151,6 +175,10 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       if (res.ok) {
         const data = await res.json()
         setPartner(data.partner)
+        // Fetch amendments if partner has a contract
+        if (data.partner?.contract?.id) {
+          fetchAmendments(data.partner.contract.id)
+        }
       } else if (res.status === 404) {
         showToast('Partner not found', 'error')
         router.push('/admin/partners')
@@ -160,6 +188,18 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       showToast('Failed to load partner', 'error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAmendments = async (partnerContractId: string) => {
+    try {
+      const res = await fetch(`/api/admin/amendments?partnerContractId=${partnerContractId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAmendments(data.amendments)
+      }
+    } catch (error) {
+      console.error('Error fetching amendments:', error)
     }
   }
 
@@ -260,6 +300,164 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       showToast(error instanceof Error ? error.message : 'Failed to countersign', 'error')
     } finally {
       setCountersigning(false)
+    }
+  }
+
+  // Amendment handlers
+  const handleCreateAmendment = async (data: {
+    title: string
+    description?: string
+    additionalValue: number
+    additionalMonthlyValue?: number
+    effectiveDate?: string
+  }) => {
+    if (!partner?.contract?.id) return
+
+    try {
+      const res = await fetch('/api/admin/amendments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerContractId: partner.contract.id,
+          ...data,
+        }),
+      })
+
+      if (res.ok) {
+        showToast('Amendment created!', 'success')
+        setShowAmendmentModal(false)
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to create amendment')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to create amendment', 'error')
+      throw error
+    }
+  }
+
+  const handleUpdateAmendment = async (data: {
+    title: string
+    description?: string
+    additionalValue: number
+    additionalMonthlyValue?: number
+    effectiveDate?: string
+  }) => {
+    if (!editingAmendment || !partner?.contract?.id) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${editingAmendment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (res.ok) {
+        showToast('Amendment updated!', 'success')
+        setEditingAmendment(null)
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to update amendment')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to update amendment', 'error')
+      throw error
+    }
+  }
+
+  const handleUploadAmendmentPdf = async (amendmentId: string, file: File) => {
+    if (!partner?.contract?.id) return
+
+    try {
+      setUploadingAmendmentId(amendmentId)
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch(`/api/admin/amendments/${amendmentId}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        showToast('PDF uploaded!', 'success')
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to upload PDF', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to upload PDF', 'error')
+    } finally {
+      setUploadingAmendmentId(null)
+    }
+  }
+
+  const handleSendAmendment = async (amendmentId: string) => {
+    if (!partner?.contract?.id) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${amendmentId}/send`, {
+        method: 'POST',
+      })
+
+      if (res.ok) {
+        showToast('Amendment sent for signature!', 'success')
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to send amendment', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send amendment', 'error')
+    }
+  }
+
+  const handleDeleteAmendment = async (amendmentId: string) => {
+    if (!confirm('Are you sure you want to delete this amendment?') || !partner?.contract?.id) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${amendmentId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        showToast('Amendment deleted', 'success')
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to delete amendment', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to delete amendment', 'error')
+    }
+  }
+
+  const handleCountersignAmendment = async (amendmentId: string, data: { signedByName: string; signatureDataUrl: string }) => {
+    if (!partner?.contract?.id) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${amendmentId}/countersign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legalName: data.signedByName,
+          signatureData: data.signatureDataUrl,
+        }),
+      })
+
+      if (res.ok) {
+        showToast('Amendment countersigned!', 'success')
+        setShowAmendmentCountersignModal(null)
+        fetchAmendments(partner.contract.id)
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to countersign amendment')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to countersign amendment', 'error')
+      throw error
     }
   }
 
@@ -576,6 +774,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           { key: 'leads', label: `Leads (${partner.leads.length})` },
           { key: 'commissions', label: `Commissions (${partner.commissions.length})` },
           { key: 'payouts', label: `Payouts (${partner.payouts.length})` },
+          { key: 'amendments', label: `Amendments (${amendments.length})` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -1549,6 +1748,220 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {/* ========== AMENDMENTS TAB ========== */}
+      {activeTab === 'amendments' && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract Amendments</h2>
+            {partner.contract && (
+              <button
+                onClick={() => setShowAmendmentModal(true)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                + Create Amendment
+              </button>
+            )}
+          </div>
+
+          {!partner.contract ? (
+            <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+              Create a partner contract first before adding amendments.
+            </p>
+          ) : amendments.length === 0 ? (
+            <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+              No amendments yet. Click "Create Amendment" to add one.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {amendments.map((amendment) => (
+                <div
+                  key={amendment.id}
+                  style={{
+                    padding: '14px',
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    border: '1px solid #27272a',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 500 }}>{amendment.title}</span>
+                        <span style={{
+                          padding: '2px 8px',
+                          background: amendment.status === 'ACTIVE' ? '#10b98120' :
+                                     amendment.status === 'SIGNED' ? '#3b82f620' :
+                                     amendment.status === 'SENT' ? '#f59e0b20' : '#71717a20',
+                          color: amendment.status === 'ACTIVE' ? '#10b981' :
+                                 amendment.status === 'SIGNED' ? '#3b82f6' :
+                                 amendment.status === 'SENT' ? '#f59e0b' : '#71717a',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                        }}>
+                          {amendment.status}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
+                        {amendment.amendmentNumber}
+                      </p>
+                      {amendment.description && (
+                        <p style={{ margin: '8px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                          {amendment.description}
+                        </p>
+                      )}
+                      {amendment.signedAt && (
+                        <p style={{ margin: '8px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                          Signed by {amendment.signedByName} on {formatDate(amendment.signedAt)}
+                          {amendment.countersignedAt && (
+                            <span style={{ color: '#10b981' }}>
+                              {' '} | Countersigned by {amendment.countersignedByName} on {formatDate(amendment.countersignedAt)}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {amendment.status === 'SIGNED' && !amendment.countersignedAt && (
+                        <p style={{ margin: '8px 0 0 0', color: '#f59e0b', fontSize: '12px' }}>
+                          Partner has signed. Admin countersignature required.
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '15px' }}>
+                          +{formatCurrency(Number(amendment.additionalValue))}
+                        </p>
+                        {amendment.additionalMonthlyValue && (
+                          <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
+                            +{formatCurrency(Number(amendment.additionalMonthlyValue))}/mo
+                          </p>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {amendment.fileUrl && (
+                          <a
+                            href={amendment.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              padding: '6px 12px',
+                              background: '#27272a',
+                              borderRadius: '6px',
+                              color: '#a1a1aa',
+                              fontSize: '12px',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            View PDF
+                          </a>
+                        )}
+                        {amendment.status === 'DRAFT' && (
+                          <>
+                            <button
+                              onClick={() => setEditingAmendment(amendment)}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#27272a',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#a1a1aa',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <label style={{
+                              padding: '6px 12px',
+                              background: '#3b82f620',
+                              borderRadius: '6px',
+                              color: '#3b82f6',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}>
+                              {uploadingAmendmentId === amendment.id ? 'Uploading...' : (amendment.fileUrl ? 'Replace PDF' : 'Upload PDF')}
+                              <input
+                                type="file"
+                                accept=".pdf"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) handleUploadAmendmentPdf(amendment.id, file)
+                                  e.target.value = ''
+                                }}
+                                disabled={uploadingAmendmentId === amendment.id}
+                              />
+                            </label>
+                            {amendment.fileUrl && (
+                              <button
+                                onClick={() => handleSendAmendment(amendment.id)}
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#10b981',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  color: '#fff',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Send
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteAmendment(amendment.id)}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#ef444420',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#ef4444',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                        {amendment.status === 'SIGNED' && !amendment.countersignedAt && (
+                          <button
+                            onClick={() => setShowAmendmentCountersignModal(amendment.id)}
+                            style={{
+                              padding: '6px 12px',
+                              background: '#10b981',
+                              border: 'none',
+                              borderRadius: '6px',
+                              color: '#fff',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Countersign
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Create Payout Modal */}
       {showCreatePayoutModal && (
         <CreatePayoutModal
@@ -1615,6 +2028,28 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           contractFileUrl={partner.contract.fileUrl}
           onSign={handleCountersign}
           onClose={() => setShowCountersignModal(false)}
+        />
+      )}
+
+      {/* Amendment Create/Edit Modal */}
+      {(showAmendmentModal || editingAmendment) && (
+        <AmendmentFormModal
+          amendment={editingAmendment}
+          onSave={editingAmendment ? handleUpdateAmendment : handleCreateAmendment}
+          onClose={() => {
+            setShowAmendmentModal(false)
+            setEditingAmendment(null)
+          }}
+        />
+      )}
+
+      {/* Amendment Countersign Modal */}
+      {showAmendmentCountersignModal && (
+        <ContractSigningModal
+          contractTitle="Countersign Amendment"
+          contractFileUrl={amendments.find(a => a.id === showAmendmentCountersignModal)?.fileUrl || ''}
+          onSign={(data) => handleCountersignAmendment(showAmendmentCountersignModal, data)}
+          onClose={() => setShowAmendmentCountersignModal(null)}
         />
       )}
     </div>
