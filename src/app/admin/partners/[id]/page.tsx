@@ -45,6 +45,7 @@ interface Partner {
     fileName?: string
     status: string
     signedAt?: string
+    createdAt?: string
   }
   leads: Lead[]
   commissions: Commission[]
@@ -101,6 +102,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false)
   const [savingContract, setSavingContract] = useState(false)
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
+  const [generatingAgreement, setGeneratingAgreement] = useState(false)
   const [contractForm, setContractForm] = useState({
     title: '',
     description: '',
@@ -521,10 +523,28 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <a
-                  href={`https://47industries.com/contracts/partner-agreement/${id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={async () => {
+                    if (generatingAgreement) return
+                    setGeneratingAgreement(true)
+                    try {
+                      const res = await fetch(`/api/admin/partners/${id}/generate-agreement`, {
+                        method: 'POST',
+                      })
+                      const data = await res.json()
+                      if (res.ok) {
+                        showToast('Agreement generated and saved!', 'success')
+                        fetchPartner()
+                      } else {
+                        showToast(data.error || 'Failed to generate agreement', 'error')
+                      }
+                    } catch (error) {
+                      showToast('Failed to generate agreement', 'error')
+                    } finally {
+                      setGeneratingAgreement(false)
+                    }
+                  }}
+                  disabled={generatingAgreement}
                   style={{
                     padding: '6px 14px',
                     background: '#10b981',
@@ -532,8 +552,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     borderRadius: '6px',
                     color: 'white',
                     fontSize: '13px',
-                    cursor: 'pointer',
-                    textDecoration: 'none',
+                    cursor: generatingAgreement ? 'wait' : 'pointer',
+                    opacity: generatingAgreement ? 0.7 : 1,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
@@ -542,8 +562,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Generate Agreement
-                </a>
+                  {generatingAgreement ? 'Generating...' : 'Generate & Save PDF'}
+                </button>
                 <button
                   onClick={() => {
                     setContractForm({
@@ -556,7 +576,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   }}
                   style={{
                     padding: '6px 14px',
-                    background: partner?.contract ? '#27272a' : '#3b82f6',
+                    background: '#27272a',
                     border: 'none',
                     borderRadius: '6px',
                     color: 'white',
@@ -564,7 +584,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     cursor: 'pointer',
                   }}
                 >
-                  {partner?.contract ? 'Edit Contract' : 'Add Contract'}
+                  Edit Details
                 </button>
               </div>
             </div>
@@ -575,7 +595,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                 padding: '16px',
                 border: '1px solid #27272a',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: partner.contract.fileUrl ? '16px' : '0' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                       <span style={{ fontWeight: 600 }}>{partner.contract.title}</span>
@@ -600,24 +620,77 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                       </p>
                     )}
                   </div>
-                  {partner.contract.fileUrl && (
-                    <a
-                      href={partner.contract.fileUrl.startsWith('http') ? partner.contract.fileUrl : `https://47industries.com${partner.contract.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        padding: '6px 12px',
-                        background: '#27272a',
-                        borderRadius: '6px',
-                        color: '#a1a1aa',
-                        fontSize: '13px',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      View File
-                    </a>
-                  )}
                 </div>
+                {partner.contract.fileUrl && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    background: '#18181b',
+                    borderRadius: '8px',
+                    border: '1px solid #27272a',
+                  }}>
+                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" style={{ color: '#ef4444', flexShrink: 0 }}>
+                      <path fill="currentColor" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
+                      <path stroke="#fff" strokeWidth="1.5" d="M14 2v6h6"/>
+                      <text x="7" y="17" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
+                    </svg>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>
+                        {partner.contract.fileName || 'Partner Agreement.pdf'}
+                      </p>
+                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                        Partner Referral Agreement PDF
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a
+                        href={partner.contract.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '8px 16px',
+                          background: '#3b82f6',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View PDF
+                      </a>
+                      <a
+                        href={partner.contract.fileUrl}
+                        download
+                        style={{
+                          padding: '8px 16px',
+                          background: '#27272a',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '13px',
+                          textDecoration: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No contract on file</p>
