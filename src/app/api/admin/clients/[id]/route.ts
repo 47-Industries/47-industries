@@ -66,9 +66,15 @@ export async function GET(
         if (project.referredByPartnerId) {
           const partner = await prisma.partner.findUnique({
             where: { id: project.referredByPartnerId },
-            select: { id: true, name: true, partnerNumber: true },
+            select: { id: true, name: true, partnerNumber: true, firstSaleRate: true, recurringRate: true },
           })
-          referredBy = partner
+          if (partner) {
+            referredBy = {
+              ...partner,
+              firstSaleRate: Number(partner.firstSaleRate),
+              recurringRate: Number(partner.recurringRate),
+            }
+          }
         }
 
         if (project.closedByUserId) {

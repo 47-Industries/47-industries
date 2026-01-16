@@ -65,6 +65,8 @@ interface Project {
     id: string
     name: string
     partnerNumber: string
+    firstSaleRate: number
+    recurringRate: number
   }
   closedBy?: {
     id: string
@@ -1006,16 +1008,42 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         )}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', marginLeft: '16px' }}>
+                    <div style={{ textAlign: 'right', marginLeft: '16px', minWidth: '120px' }}>
                       {project.contractValue ? (
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: '18px', color: '#fff' }}>
-                          {formatCurrency(Number(project.contractValue))}
-                        </p>
+                        <>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: '18px', color: '#fff' }}>
+                            {formatCurrency(Number(project.contractValue))}
+                          </p>
+                          {project.referredBy && (
+                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid #27272a' }}>
+                              <p style={{ margin: 0, fontSize: '11px', color: '#ef4444' }}>
+                                -{formatCurrency(Number(project.contractValue) * (project.referredBy.firstSaleRate / 100))}
+                                <span style={{ color: '#71717a', marginLeft: '4px' }}>
+                                  ({project.referredBy.firstSaleRate}% {project.referredBy.name.split(' ')[0]})
+                                </span>
+                              </p>
+                              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+                                {formatCurrency(Number(project.contractValue) * (1 - project.referredBy.firstSaleRate / 100))}
+                                <span style={{ color: '#71717a', fontWeight: 400, marginLeft: '4px', fontSize: '11px' }}>net</span>
+                              </p>
+                            </div>
+                          )}
+                        </>
                       ) : null}
                       {project.monthlyRecurring ? (
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#10b981', fontWeight: 500 }}>
-                          +{formatCurrency(Number(project.monthlyRecurring))}/mo
-                        </p>
+                        <div style={{ marginTop: project.contractValue ? '8px' : 0 }}>
+                          <p style={{ margin: 0, fontSize: '13px', color: '#3b82f6', fontWeight: 500 }}>
+                            +{formatCurrency(Number(project.monthlyRecurring))}/mo
+                          </p>
+                          {project.referredBy && (
+                            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#10b981' }}>
+                              {formatCurrency(Number(project.monthlyRecurring) * (1 - project.referredBy.recurringRate / 100))}/mo net
+                              <span style={{ color: '#71717a', marginLeft: '4px' }}>
+                                (-{project.referredBy.recurringRate}%)
+                              </span>
+                            </p>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   </div>
