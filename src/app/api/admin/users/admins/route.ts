@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         email: true,
         name: true,
         role: true,
+        signatureUrl: true,
       },
       orderBy: [
         { role: 'desc' }, // SUPER_ADMIN first

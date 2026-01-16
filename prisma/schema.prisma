@@ -30,6 +30,7 @@ model User {
   name          String?
   password      String?
   image         String?
+  signatureUrl  String?   // Saved signature image URL for contract signing
   role          Role      @default(CUSTOMER)
   emailVerified DateTime?
 

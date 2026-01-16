@@ -24,6 +24,8 @@ interface InteractivePdfSignerProps {
   onSave: (signedPdfBlob: Blob, signerName: string, signatureDataUrl: string) => Promise<void>
   onClose: () => void
   existingSignatures?: PlacedSignature[]
+  initialSignerName?: string
+  initialSignatureDataUrl?: string | null
 }
 
 export default function InteractivePdfSigner({
@@ -32,10 +34,24 @@ export default function InteractivePdfSigner({
   onSave,
   onClose,
   existingSignatures = [],
+  initialSignerName = '',
+  initialSignatureDataUrl = null,
 }: InteractivePdfSignerProps) {
   const [numPages, setNumPages] = useState<number>(0)
-  const [pageWidth, setPageWidth] = useState(700)
   const [loading, setLoading] = useState(true)
+
+  // Calculate responsive page width
+  const [pageWidth, setPageWidth] = useState(700)
+  useEffect(() => {
+    const updateWidth = () => {
+      // Use viewport width minus padding, capped at 800px
+      const maxWidth = Math.min(window.innerWidth - 48, 800)
+      setPageWidth(maxWidth)
+    }
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [])
 
   // Use proxy URL for display (react-pdf handles its own fetch)
   const proxyUrl = `/api/proxy/pdf?url=${encodeURIComponent(pdfUrl)}`
@@ -43,8 +59,8 @@ export default function InteractivePdfSigner({
   // Signature capture state
   const [showSignatureCapture, setShowSignatureCapture] = useState(false)
   const [clickPosition, setClickPosition] = useState<{ pageNumber: number; x: number; y: number } | null>(null)
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
-  const [signerName, setSignerName] = useState('')
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(initialSignatureDataUrl)
+  const [signerName, setSignerName] = useState(initialSignerName)
   const [placedSignatures, setPlacedSignatures] = useState<PlacedSignature[]>(existingSignatures)
 
   // Signature pad
@@ -58,29 +74,65 @@ export default function InteractivePdfSigner({
 
   // Initialize signature pad when modal opens
   useEffect(() => {
-    if (showSignatureCapture && canvasRef.current && !signaturePad) {
-      const canvas = canvasRef.current
-      const ratio = Math.max(window.devicePixelRatio || 1, 1)
-      canvas.width = canvas.offsetWidth * ratio
-      canvas.height = canvas.offsetHeight * ratio
-      canvas.getContext('2d')?.scale(ratio, ratio)
+    if (showSignatureCapture && canvasRef.current) {
+      // Use requestAnimationFrame to ensure canvas is rendered with dimensions
+      const initPad = () => {
+        const canvas = canvasRef.current
+        if (!canvas) return
 
-      const pad = new SignaturePad(canvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
-        penColor: 'rgb(0, 0, 0)',
+        // Get the parent container width for proper sizing
+        const container = canvas.parentElement
+        const containerWidth = container?.clientWidth || 350
+        const canvasHeight = 150
+
+        // Set canvas dimensions explicitly
+        const ratio = Math.max(window.devicePixelRatio || 1, 1)
+        canvas.width = containerWidth * ratio
+        canvas.height = canvasHeight * ratio
+        canvas.style.width = `${containerWidth}px`
+        canvas.style.height = `${canvasHeight}px`
+
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.scale(ratio, ratio)
+          // Fill with white background
+          ctx.fillStyle = 'rgb(255, 255, 255)'
+          ctx.fillRect(0, 0, containerWidth, canvasHeight)
+        }
+
+        // Clear any existing pad
+        if (signaturePad) {
+          signaturePad.off()
+        }
+
+        const pad = new SignaturePad(canvas, {
+          backgroundColor: 'rgb(255, 255, 255)',
+          penColor: 'rgb(0, 0, 0)',
+          minWidth: 1,
+          maxWidth: 3,
+        })
+
+        pad.addEventListener('endStroke', () => {
+          setIsEmpty(pad.isEmpty())
+        })
+
+        setSignaturePad(pad)
+        setIsEmpty(true)
+      }
+
+      // Delay to ensure DOM is ready
+      requestAnimationFrame(() => {
+        requestAnimationFrame(initPad)
       })
-
-      pad.addEventListener('endStroke', () => {
-        setIsEmpty(pad.isEmpty())
-      })
-
-      setSignaturePad(pad)
 
       return () => {
-        pad.off()
+        if (signaturePad) {
+          signaturePad.off()
+          setSignaturePad(null)
+        }
       }
     }
-  }, [showSignatureCapture, signaturePad])
+  }, [showSignatureCapture])
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
@@ -257,8 +309,8 @@ export default function InteractivePdfSigner({
       </div>
 
       {/* PDF Viewer */}
-      <div className="flex-1 overflow-auto bg-zinc-950 p-6">
-        <div className="max-w-4xl mx-auto">
+      <div className="flex-1 overflow-auto bg-zinc-950 p-4">
+        <div className="flex flex-col items-center">
           {loading && (
             <div className="text-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
@@ -308,12 +360,12 @@ export default function InteractivePdfSigner({
                 </a>
               </div>
             }
-            className="flex flex-col gap-4"
+            className="flex flex-col items-center gap-4"
           >
             {Array.from(new Array(numPages), (_, index) => (
               <div
                 key={`page_${index + 1}`}
-                className="relative bg-white shadow-lg cursor-crosshair"
+                className="relative bg-white shadow-xl cursor-crosshair"
                 onClick={(e) => handlePageClick(index + 1, e)}
               >
                 <Page
@@ -456,12 +508,12 @@ export default function InteractivePdfSigner({
                 </div>
                 <div
                   className="bg-white rounded-lg border-2 border-zinc-700 overflow-hidden"
-                  style={{ touchAction: 'none' }}
+                  style={{ touchAction: 'none', width: '100%' }}
                 >
                   <canvas
                     ref={canvasRef}
-                    className="w-full cursor-crosshair"
-                    style={{ height: '150px', display: 'block' }}
+                    className="cursor-crosshair"
+                    style={{ display: 'block', touchAction: 'none' }}
                   />
                 </div>
                 <p className="text-xs text-zinc-500 mt-2">

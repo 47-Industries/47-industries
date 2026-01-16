@@ -14,6 +14,7 @@ interface Admin {
   email: string
   name: string | null
   role: string
+  signatureUrl?: string | null
 }
 
 interface AdminContractSigningModalProps {
@@ -39,11 +40,22 @@ export default function AdminContractSigningModal({
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null)
   const [loadingAdmins, setLoadingAdmins] = useState(true)
   const [showPdfSigner, setShowPdfSigner] = useState(false)
+  const [savedSignatureDataUrl, setSavedSignatureDataUrl] = useState<string | null>(null)
+  const [loadingSignature, setLoadingSignature] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     fetchAdmins()
   }, [])
+
+  // Load saved signature when admin is selected
+  useEffect(() => {
+    if (selectedAdmin) {
+      loadSavedSignature(selectedAdmin.id)
+    } else {
+      setSavedSignatureDataUrl(null)
+    }
+  }, [selectedAdmin])
 
   const fetchAdmins = async () => {
     try {
@@ -61,6 +73,33 @@ export default function AdminContractSigningModal({
       setError('Failed to load admin users')
     } finally {
       setLoadingAdmins(false)
+    }
+  }
+
+  const loadSavedSignature = async (userId: string) => {
+    setLoadingSignature(true)
+    setSavedSignatureDataUrl(null)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/signature`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.signatureUrl) {
+          // Convert URL to data URL for the signature pad
+          const imgRes = await fetch(`/api/proxy/pdf?url=${encodeURIComponent(data.signatureUrl)}`)
+          if (imgRes.ok) {
+            const blob = await imgRes.blob()
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              setSavedSignatureDataUrl(reader.result as string)
+            }
+            reader.readAsDataURL(blob)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading signature:', err)
+    } finally {
+      setLoadingSignature(false)
     }
   }
 
@@ -89,6 +128,20 @@ export default function AdminContractSigningModal({
       throw new Error(result.error || 'Failed to save signed contract')
     }
 
+    // Save signature to user account if this is a new signature
+    if (selectedAdmin && signatureDataUrl !== savedSignatureDataUrl) {
+      try {
+        await fetch(`/api/admin/users/${selectedAdmin.id}/signature`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signatureDataUrl }),
+        })
+      } catch (err) {
+        console.error('Failed to save signature to account:', err)
+        // Don't fail the whole operation for this
+      }
+    }
+
     onSuccess()
   }
 
@@ -100,6 +153,8 @@ export default function AdminContractSigningModal({
         contractTitle={`${contractTitle} - Signing as ${selectedAdmin?.name || selectedAdmin?.email}`}
         onSave={handleSave}
         onClose={() => setShowPdfSigner(false)}
+        initialSignerName={selectedAdmin?.name || ''}
+        initialSignatureDataUrl={savedSignatureDataUrl}
       />
     )
   }
@@ -148,6 +203,11 @@ export default function AdminContractSigningModal({
                         <p className="text-sm text-zinc-400">{admin.email}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {admin.signatureUrl && (
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
+                            Signature Saved
+                          </span>
+                        )}
                         {admin.role === 'SUPER_ADMIN' && (
                           <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">
                             Super Admin
