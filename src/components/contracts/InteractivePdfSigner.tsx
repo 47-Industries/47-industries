@@ -36,7 +36,7 @@ export default function InteractivePdfSigner({
   const [numPages, setNumPages] = useState<number>(0)
   const [pageWidth, setPageWidth] = useState(700)
   const [loading, setLoading] = useState(true)
-  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null)
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null)
 
   // Signature capture state
   const [showSignatureCapture, setShowSignatureCapture] = useState(false)
@@ -68,7 +68,8 @@ export default function InteractivePdfSigner({
         }
 
         const bytes = await response.arrayBuffer()
-        setPdfBytes(bytes)
+        // Convert to Uint8Array immediately to prevent detached ArrayBuffer issues
+        setPdfData(new Uint8Array(bytes))
       } catch (err) {
         console.error('Error fetching PDF:', err)
         setError(`Failed to load PDF: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -164,7 +165,7 @@ export default function InteractivePdfSigner({
   }
 
   const handleSave = async () => {
-    if (!pdfBytes || placedSignatures.length === 0 || !signatureDataUrl || !signerName) {
+    if (!pdfData || placedSignatures.length === 0 || !signatureDataUrl || !signerName) {
       setError('Please place at least one signature on the document')
       return
     }
@@ -174,7 +175,7 @@ export default function InteractivePdfSigner({
       setError('')
 
       // Load the PDF
-      const pdfDoc = await PDFDocument.load(pdfBytes)
+      const pdfDoc = await PDFDocument.load(pdfData)
       const pages = pdfDoc.getPages()
 
       // Embed the signature image
@@ -294,10 +295,10 @@ export default function InteractivePdfSigner({
             </div>
           )}
 
-          {/* Only render Document when we have pdfBytes to avoid CORS issues */}
-          {pdfBytes && (
+          {/* Only render Document when we have pdfData to avoid CORS issues */}
+          {pdfData && (
             <Document
-              file={{ data: new Uint8Array(pdfBytes) }}
+              file={{ data: pdfData }}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={(err) => {
                 console.error('PDF load error:', err)
