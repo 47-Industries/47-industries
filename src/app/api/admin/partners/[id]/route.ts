@@ -36,6 +36,14 @@ export async function GET(
         payouts: {
           orderBy: { createdAt: 'desc' },
         },
+        referredProjects: {
+          include: {
+            client: {
+              select: { id: true, name: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 

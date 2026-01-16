@@ -5,6 +5,17 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
 
+interface ReferredProject {
+  id: string
+  name: string
+  type?: string
+  status: string
+  contractValue?: number
+  monthlyRecurring?: number
+  createdAt: string
+  client: { id: string; name: string }
+}
+
 interface Partner {
   id: string
   partnerNumber: string
@@ -38,6 +49,7 @@ interface Partner {
   leads: Lead[]
   commissions: Commission[]
   payouts: Payout[]
+  referredProjects: ReferredProject[]
 }
 
 interface Lead {
@@ -81,10 +93,27 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'commissions' | 'payouts'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'leads' | 'commissions' | 'payouts'>('overview')
   const [showCreatePayoutModal, setShowCreatePayoutModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showLinkUserModal, setShowLinkUserModal] = useState(false)
+  const [showContractModal, setShowContractModal] = useState(false)
+  const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false)
+  const [savingContract, setSavingContract] = useState(false)
+  const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
+  const [contractForm, setContractForm] = useState({
+    title: '',
+    description: '',
+    fileUrl: '',
+    status: 'DRAFT',
+  })
+  const [paymentMethodsForm, setPaymentMethodsForm] = useState({
+    zelleEmail: '',
+    zellePhone: '',
+    venmoUsername: '',
+    cashAppTag: '',
+    mailingAddress: '',
+  })
   const { showToast } = useToast()
   const router = useRouter()
 
@@ -455,6 +484,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       }}>
         {[
           { key: 'overview', label: 'Overview' },
+          { key: 'projects', label: `Referred Projects (${partner.referredProjects?.length || 0})` },
           { key: 'leads', label: `Leads (${partner.leads.length})` },
           { key: 'commissions', label: `Commissions (${partner.commissions.length})` },
           { key: 'payouts', label: `Payouts (${partner.payouts.length})` },
@@ -490,6 +520,28 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
+              <button
+                onClick={() => {
+                  setContractForm({
+                    title: partner?.contract?.title || '',
+                    description: partner?.contract?.description || '',
+                    fileUrl: partner?.contract?.fileUrl || '',
+                    status: partner?.contract?.status || 'DRAFT',
+                  })
+                  setShowContractModal(true)
+                }}
+                style={{
+                  padding: '6px 14px',
+                  background: partner?.contract ? '#27272a' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                {partner?.contract ? 'Edit Contract' : 'Add Contract'}
+              </button>
             </div>
             {partner.contract ? (
               <div style={{
@@ -554,7 +606,23 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             borderRadius: '12px',
             padding: '20px',
           }}>
-            <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>Payment Methods</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Payment Methods</h2>
+              <button
+                onClick={() => setShowEditModal(true)}
+                style={{
+                  padding: '6px 14px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Edit Payment Methods
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
               {partner.stripeConnectId && (
                 <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a' }}>
@@ -627,6 +695,138 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'projects' && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Referred Projects</h2>
+            <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
+              Projects where this partner is credited as the referral source
+            </p>
+          </div>
+          {(!partner.referredProjects || partner.referredProjects.length === 0) ? (
+            <div style={{
+              padding: '40px 20px',
+              textAlign: 'center',
+              background: '#0a0a0a',
+              borderRadius: '8px',
+              border: '1px solid #27272a',
+            }}>
+              <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+                No projects assigned to this partner yet
+              </p>
+              <p style={{ color: '#52525b', margin: '8px 0 0 0', fontSize: '13px' }}>
+                Assign a partner to projects from the Client detail page
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {partner.referredProjects.map((project) => (
+                <div
+                  key={project.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    border: '1px solid #27272a',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>{project.name}</span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${getStatusColor(project.status)}20`,
+                        color: getStatusColor(project.status),
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {project.status}
+                      </span>
+                      {project.type && (
+                        <span style={{ color: '#71717a', fontSize: '12px' }}>
+                          {project.type}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, color: '#a1a1aa', fontSize: '13px' }}>
+                      Client: {project.client.name}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                      {formatDate(project.createdAt)}
+                      {project.contractValue && ` | Value: ${formatCurrency(Number(project.contractValue))}`}
+                      {project.monthlyRecurring && ` | MRR: ${formatCurrency(Number(project.monthlyRecurring))}/mo`}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    {project.contractValue && (
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>First Sale Commission</p>
+                        <p style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#3b82f6' }}>
+                          {formatCurrency(Number(project.contractValue) * (partner.firstSaleRate / 100))}
+                        </p>
+                      </div>
+                    )}
+                    <Link
+                      href={`/admin/clients/${project.client.id}`}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#27272a',
+                        borderRadius: '6px',
+                        color: '#a1a1aa',
+                        fontSize: '13px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      View Client
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Summary */}
+          {partner.referredProjects && partner.referredProjects.length > 0 && (
+            <div style={{
+              marginTop: '20px',
+              padding: '16px',
+              background: '#10b98110',
+              border: '1px solid #10b98130',
+              borderRadius: '8px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>Total Potential First Sale Commission</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '20px', fontWeight: 700, color: '#10b981' }}>
+                    {formatCurrency(
+                      partner.referredProjects.reduce((sum, p) => {
+                        return sum + (Number(p.contractValue || 0) * (partner.firstSaleRate / 100))
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>Total Contract Value</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '20px', fontWeight: 700 }}>
+                    {formatCurrency(
+                      partner.referredProjects.reduce((sum, p) => sum + Number(p.contractValue || 0), 0)
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -913,6 +1113,24 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             showToast('Partner updated successfully', 'success')
             fetchPartner()
           }}
+        />
+      )}
+
+      {/* Contract Modal */}
+      {showContractModal && (
+        <ContractModal
+          partnerId={id}
+          existingContract={partner?.contract}
+          formData={contractForm}
+          setFormData={setContractForm}
+          saving={savingContract}
+          onClose={() => setShowContractModal(false)}
+          onSuccess={() => {
+            setShowContractModal(false)
+            showToast('Contract saved successfully', 'success')
+            fetchPartner()
+          }}
+          setSaving={setSavingContract}
         />
       )}
     </div>
@@ -1686,6 +1904,229 @@ function EditPartnerModal({
               }}
             >
               {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Contract Modal
+function ContractModal({
+  partnerId,
+  existingContract,
+  formData,
+  setFormData,
+  saving,
+  setSaving,
+  onClose,
+  onSuccess,
+}: {
+  partnerId: string
+  existingContract?: {
+    id: string
+    title: string
+    description?: string
+    fileUrl?: string
+    status: string
+    signedAt?: string
+  }
+  formData: {
+    title: string
+    description: string
+    fileUrl: string
+    status: string
+  }
+  setFormData: (data: { title: string; description: string; fileUrl: string; status: string }) => void
+  saving: boolean
+  setSaving: (saving: boolean) => void
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const { showToast } = useToast()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.title.trim()) {
+      showToast('Please enter a contract title', 'error')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const res = await fetch(`/api/admin/partners/${partnerId}/contract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description || null,
+          fileUrl: formData.fileUrl || null,
+          status: formData.status,
+        }),
+      })
+
+      if (res.ok) {
+        onSuccess()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to save contract', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to save contract', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: '20px',
+    }}>
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #27272a',
+        borderRadius: '12px',
+        padding: '24px',
+        width: '100%',
+        maxWidth: '500px',
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>
+          {existingContract ? 'Edit Contract' : 'Add Contract'}
+        </h3>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Contract Title *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g., Partner Referral Agreement"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Description / Terms
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Enter contract terms, commission rates, duration, etc."
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+              File URL (optional)
+            </label>
+            <input
+              type="url"
+              value={formData.fileUrl}
+              onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
+              placeholder="https://example.com/contract.pdf"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+              }}
+            />
+            <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+              Link to PDF or document stored externally
+            </p>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+              }}
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="SENT">Sent</option>
+              <option value="SIGNED">Signed</option>
+              <option value="ACTIVE">Active</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#27272a',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              {saving ? 'Saving...' : 'Save Contract'}
             </button>
           </div>
         </form>
