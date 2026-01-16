@@ -83,6 +83,33 @@ export default function PartnersPage() {
     fetchPartners()
   }
 
+  const handleDeletePartner = async (partnerId: string, partnerName: string) => {
+    if (!confirm(`Are you sure you want to delete ${partnerName}? This cannot be undone if they have no financial records.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/partners/${partnerId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.softDeleted) {
+          showToast('Partner marked as inactive (has financial records)', 'success')
+        } else {
+          showToast('Partner deleted', 'success')
+        }
+        fetchPartners()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to delete partner', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to delete partner', 'error')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       ACTIVE: '#10b981',
@@ -433,21 +460,40 @@ export default function PartnersPage() {
                     {` | Partner since ${formatDate(partner.createdAt)}`}
                   </p>
                 </div>
-                <Link
-                  href={`/admin/partners/${partner.id}`}
-                  style={{
-                    display: 'inline-block',
-                    padding: '8px 16px',
-                    background: '#3b82f6',
-                    color: 'white',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                  }}
-                >
-                  View Details
-                </Link>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Link
+                    href={`/admin/partners/${partner.id}`}
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      background: '#3b82f6',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                    }}
+                  >
+                    View Details
+                  </Link>
+                  <button
+                    onClick={() => handleDeletePartner(partner.id, partner.name)}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'transparent',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '8px',
+                      color: '#71717a',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                    }}
+                    title="Delete partner"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div style={{
