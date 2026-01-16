@@ -47,3 +47,4 @@ prisma/migrations/*
 /src/generated/prisma
 # Trigger redeploy Thu Nov 27 18:13:34 EST 2025
 
+Partner-Agreement-*.pdf
