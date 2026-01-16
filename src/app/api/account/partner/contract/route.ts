@@ -26,8 +26,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No contract found' }, { status: 404 })
     }
 
+    // Only include countersignature data when contract is fully executed (ACTIVE)
+    // This ensures the admin signature is hidden until both parties have signed
+    const contractData = {
+      id: partner.contract.id,
+      title: partner.contract.title,
+      description: partner.contract.description,
+      fileUrl: partner.contract.fileUrl,
+      fileName: partner.contract.fileName,
+      status: partner.contract.status,
+      signedAt: partner.contract.signedAt,
+      signedByName: partner.contract.signedByName,
+      signatureUrl: partner.contract.signatureUrl,
+      createdAt: partner.contract.createdAt,
+      // Only include countersignature when ACTIVE (both parties signed)
+      ...(partner.contract.status === 'ACTIVE' && {
+        countersignedAt: partner.contract.countersignedAt,
+        countersignedByName: partner.contract.countersignedByName,
+        countersignatureUrl: partner.contract.countersignatureUrl,
+      }),
+    }
+
     return NextResponse.json({
-      contract: partner.contract,
+      contract: contractData,
       commissionRates: {
         firstSaleRate: partner.firstSaleRate,
         recurringRate: partner.recurringRate,

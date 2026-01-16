@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { uploadToR2, isR2Configured } from '@/lib/r2'
-import { sendContractSignedNotification } from '@/lib/email'
+import { sendContractSignedNotification, sendContractFullyExecutedNotification } from '@/lib/email'
 
 // POST /api/account/partner/contract/sign - Partner signs their contract
 export async function POST(req: NextRequest) {
@@ -69,11 +69,14 @@ export async function POST(req: NextRequest) {
       signatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
+    // Determine status - ACTIVE if admin already countersigned, otherwise SIGNED
+    const newStatus = partner.contract.countersignedAt ? 'ACTIVE' : 'SIGNED'
+
     // Update contract with signature info
     const updatedContract = await prisma.partnerContract.update({
       where: { id: partner.contract.id },
       data: {
-        status: 'SIGNED',
+        status: newStatus,
         signedAt: new Date(),
         signatureUrl,
         signedByName: signedByName.trim(),
@@ -83,8 +86,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Send notification to admin
+    // Send appropriate notification
     try {
+      if (newStatus === 'ACTIVE') {
+        // Both have signed - send fully executed notification to partner
+        await sendContractFullyExecutedNotification({
+          to: partner.email,
+          partnerName: partner.name,
+          contractTitle: updatedContract.title,
+          countersignedByName: partner.contract.countersignedByName || '47 Industries',
+        })
+      }
+      // Always notify admin that partner signed
       await sendContractSignedNotification({
         partnerName: partner.name,
         partnerEmail: partner.email,
@@ -107,7 +120,7 @@ export async function POST(req: NextRequest) {
         signedAt: updatedContract.signedAt,
         signedByName: updatedContract.signedByName,
       },
-      message: 'Contract signed successfully',
+      message: newStatus === 'ACTIVE' ? 'Contract fully executed' : 'Contract signed successfully',
     })
   } catch (error) {
     console.error('Error signing contract:', error)

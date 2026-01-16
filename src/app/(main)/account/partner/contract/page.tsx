@@ -22,6 +22,10 @@ interface Contract {
   signedAt?: string
   signedByName?: string
   signatureUrl?: string
+  // Countersignature fields (only visible when ACTIVE)
+  countersignedAt?: string
+  countersignedByName?: string
+  countersignatureUrl?: string
   createdAt: string
 }
 
@@ -195,28 +199,66 @@ export default function PartnerContractPage() {
               </div>
 
               {/* Signature Display - Show when signed */}
-              {contract.status === 'SIGNED' && contract.signatureUrl && (
+              {(contract.status === 'SIGNED' || contract.status === 'ACTIVE') && contract.signatureUrl && (
                 <div className="p-6 border-b border-border bg-green-500/5">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-4">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-green-500">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h3 className="font-medium text-green-500">Contract Signed</h3>
+                    <h3 className="font-medium text-green-500">
+                      {contract.status === 'ACTIVE' ? 'Contract Fully Executed' : 'Contract Signed'}
+                    </h3>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="bg-white rounded-lg p-3 border border-border">
-                      <img
-                        src={contract.signatureUrl}
-                        alt="Your signature"
-                        className="h-16 w-auto"
-                      />
-                    </div>
+
+                  <div className="space-y-4">
+                    {/* Partner Signature */}
                     <div>
-                      <p className="font-medium">{contract.signedByName}</p>
-                      <p className="text-sm text-text-secondary">
-                        {contract.signedAt && formatDate(contract.signedAt)}
-                      </p>
+                      <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Your Signature</p>
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white rounded-lg p-3 border border-border">
+                          <img
+                            src={contract.signatureUrl}
+                            alt="Your signature"
+                            className="h-12 w-auto"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium">{contract.signedByName}</p>
+                          <p className="text-sm text-text-secondary">
+                            {contract.signedAt && formatDate(contract.signedAt)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* 47 Industries Countersignature - Only show when ACTIVE */}
+                    {contract.status === 'ACTIVE' && contract.countersignatureUrl && (
+                      <div>
+                        <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">47 Industries</p>
+                        <div className="flex items-center gap-4">
+                          <div className="bg-white rounded-lg p-3 border border-border">
+                            <img
+                              src={contract.countersignatureUrl}
+                              alt="Company signature"
+                              className="h-12 w-auto"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium">{contract.countersignedByName}</p>
+                            <p className="text-sm text-text-secondary">
+                              {contract.countersignedAt && formatDate(contract.countersignedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Waiting for countersignature message */}
+                    {contract.status === 'SIGNED' && (
+                      <p className="text-sm text-text-secondary mt-2">
+                        Awaiting countersignature from 47 Industries. You will be notified when the contract is fully executed.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
