@@ -102,7 +102,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const [showPaymentMethodsModal, setShowPaymentMethodsModal] = useState(false)
   const [savingContract, setSavingContract] = useState(false)
   const [savingPaymentMethods, setSavingPaymentMethods] = useState(false)
-  const [generatingAgreement, setGeneratingAgreement] = useState(false)
+  const [uploadingContract, setUploadingContract] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [contractForm, setContractForm] = useState({
     title: '',
     description: '',
@@ -522,48 +523,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={async () => {
-                    if (generatingAgreement) return
-                    setGeneratingAgreement(true)
-                    try {
-                      const res = await fetch(`/api/admin/partners/${id}/generate-agreement`, {
-                        method: 'POST',
-                      })
-                      const data = await res.json()
-                      if (res.ok) {
-                        showToast('Agreement generated and saved!', 'success')
-                        fetchPartner()
-                      } else {
-                        showToast(data.error || 'Failed to generate agreement', 'error')
-                      }
-                    } catch (error) {
-                      showToast('Failed to generate agreement', 'error')
-                    } finally {
-                      setGeneratingAgreement(false)
-                    }
-                  }}
-                  disabled={generatingAgreement}
-                  style={{
-                    padding: '6px 14px',
-                    background: '#10b981',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: 'white',
-                    fontSize: '13px',
-                    cursor: generatingAgreement ? 'wait' : 'pointer',
-                    opacity: generatingAgreement ? 0.7 : 1,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  {generatingAgreement ? 'Generating...' : 'Generate & Save PDF'}
-                </button>
+              {partner.contract && (
                 <button
                   onClick={() => {
                     setContractForm({
@@ -586,19 +546,109 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                 >
                   Edit Details
                 </button>
-              </div>
+              )}
             </div>
-            {partner.contract ? (
-              <div style={{
-                background: '#0a0a0a',
+
+            {/* File Upload Area */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={async (e) => {
+                e.preventDefault()
+                setIsDragging(false)
+                const file = e.dataTransfer.files[0]
+                if (!file) return
+                if (file.type !== 'application/pdf') {
+                  showToast('Please upload a PDF file', 'error')
+                  return
+                }
+
+                setUploadingContract(true)
+                try {
+                  const formData = new FormData()
+                  formData.append('file', file)
+
+                  const res = await fetch(`/api/admin/partners/${id}/contract/upload`, {
+                    method: 'POST',
+                    body: formData,
+                  })
+                  const data = await res.json()
+                  if (res.ok) {
+                    showToast('Contract uploaded successfully!', 'success')
+                    fetchPartner()
+                  } else {
+                    showToast(data.error || 'Failed to upload contract', 'error')
+                  }
+                } catch (error) {
+                  showToast('Failed to upload contract', 'error')
+                } finally {
+                  setUploadingContract(false)
+                }
+              }}
+              style={{
+                background: isDragging ? '#3b82f610' : '#0a0a0a',
+                border: `2px dashed ${isDragging ? '#3b82f6' : '#27272a'}`,
                 borderRadius: '8px',
-                padding: '16px',
-                border: '1px solid #27272a',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: partner.contract.fileUrl ? '16px' : '0' }}>
-                  <div>
+                padding: partner.contract?.fileUrl ? '0' : '32px 20px',
+                textAlign: 'center',
+                cursor: uploadingContract ? 'wait' : 'pointer',
+                transition: 'all 0.2s',
+                marginBottom: partner.contract && !partner.contract.fileUrl ? '16px' : '0',
+              }}
+              onClick={() => {
+                if (uploadingContract || partner.contract?.fileUrl) return
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.pdf'
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (!file) return
+
+                  setUploadingContract(true)
+                  try {
+                    const formData = new FormData()
+                    formData.append('file', file)
+
+                    const res = await fetch(`/api/admin/partners/${id}/contract/upload`, {
+                      method: 'POST',
+                      body: formData,
+                    })
+                    const data = await res.json()
+                    if (res.ok) {
+                      showToast('Contract uploaded successfully!', 'success')
+                      fetchPartner()
+                    } else {
+                      showToast(data.error || 'Failed to upload contract', 'error')
+                    }
+                  } catch (error) {
+                    showToast('Failed to upload contract', 'error')
+                  } finally {
+                    setUploadingContract(false)
+                  }
+                }
+                input.click()
+              }}
+            >
+              {partner.contract?.fileUrl ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                }}>
+                  <svg width="40" height="40" fill="none" viewBox="0 0 24 24" style={{ color: '#ef4444', flexShrink: 0 }}>
+                    <path fill="currentColor" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
+                    <path stroke="#fff" strokeWidth="1.5" d="M14 2v6h6"/>
+                    <text x="7" y="17" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
+                  </svg>
+                  <div style={{ flex: 1, textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600 }}>{partner.contract.title}</span>
+                      <span style={{ fontWeight: 600, fontSize: '15px' }}>
+                        {partner.contract.fileName || 'Partner Agreement.pdf'}
+                      </span>
                       <span style={{
                         padding: '2px 8px',
                         background: `${getStatusColor(partner.contract.status)}20`,
@@ -609,91 +659,146 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                         {partner.contract.status}
                       </span>
                     </div>
-                    {partner.contract.description && (
-                      <p style={{ margin: '8px 0 0 0', color: '#a1a1aa', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
-                        {partner.contract.description}
-                      </p>
-                    )}
                     {partner.contract.signedAt && (
-                      <p style={{ margin: '8px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                      <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
                         Signed {formatDate(partner.contract.signedAt)}
                       </p>
                     )}
                   </div>
-                </div>
-                {partner.contract.fileUrl && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '12px',
-                    background: '#18181b',
-                    borderRadius: '8px',
-                    border: '1px solid #27272a',
-                  }}>
-                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" style={{ color: '#ef4444', flexShrink: 0 }}>
-                      <path fill="currentColor" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/>
-                      <path stroke="#fff" strokeWidth="1.5" d="M14 2v6h6"/>
-                      <text x="7" y="17" fill="#fff" fontSize="6" fontWeight="bold">PDF</text>
-                    </svg>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>
-                        {partner.contract.fileName || 'Partner Agreement.pdf'}
-                      </p>
-                      <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '12px' }}>
-                        Partner Referral Agreement PDF
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <a
-                        href={partner.contract.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          padding: '8px 16px',
-                          background: '#3b82f6',
-                          borderRadius: '6px',
-                          color: 'white',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        View PDF
-                      </a>
-                      <a
-                        href={partner.contract.fileUrl}
-                        download
-                        style={{
-                          padding: '8px 16px',
-                          background: '#27272a',
-                          borderRadius: '6px',
-                          color: 'white',
-                          fontSize: '13px',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download
-                      </a>
-                    </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a
+                      href={partner.contract.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#3b82f6',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      View
+                    </a>
+                    <a
+                      href={partner.contract.fileUrl}
+                      download
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#27272a',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '13px',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download
+                    </a>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        if (!confirm('Remove this contract file? This cannot be undone.')) return
+                        try {
+                          const res = await fetch(`/api/admin/partners/${id}/contract`, {
+                            method: 'DELETE',
+                          })
+                          if (res.ok) {
+                            showToast('Contract removed', 'success')
+                            fetchPartner()
+                          }
+                        } catch (error) {
+                          showToast('Failed to remove contract', 'error')
+                        }
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#27272a',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
+                </div>
+              ) : (
+                <>
+                  {uploadingContract ? (
+                    <div style={{ color: '#71717a', fontSize: '14px' }}>
+                      Uploading contract...
+                    </div>
+                  ) : (
+                    <>
+                      <svg width="40" height="40" fill="none" stroke="#71717a" viewBox="0 0 24 24" style={{ margin: '0 auto 12px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p style={{ margin: 0, color: '#a1a1aa', fontSize: '14px' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500 }}>Click to upload</span> or drag and drop
+                      </p>
+                      <p style={{ margin: '6px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                        PDF files only
+                      </p>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Contract Details (shown below file if exists but no file URL) */}
+            {partner.contract && !partner.contract.fileUrl && (
+              <div style={{
+                background: '#0a0a0a',
+                borderRadius: '8px',
+                padding: '16px',
+                border: '1px solid #27272a',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 600 }}>{partner.contract.title}</span>
+                  <span style={{
+                    padding: '2px 8px',
+                    background: `${getStatusColor(partner.contract.status)}20`,
+                    color: getStatusColor(partner.contract.status),
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                  }}>
+                    {partner.contract.status}
+                  </span>
+                </div>
+                {partner.contract.description && (
+                  <p style={{ margin: '8px 0 0 0', color: '#a1a1aa', fontSize: '14px', whiteSpace: 'pre-wrap' }}>
+                    {partner.contract.description}
+                  </p>
+                )}
+                {partner.contract.signedAt && (
+                  <p style={{ margin: '8px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                    Signed {formatDate(partner.contract.signedAt)}
+                  </p>
                 )}
               </div>
-            ) : (
-              <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No contract on file</p>
             )}
           </div>
 
