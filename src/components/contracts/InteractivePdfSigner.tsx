@@ -54,16 +54,24 @@ export default function InteractivePdfSigner({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // Fetch PDF bytes on mount
+  // Fetch PDF bytes on mount via proxy to avoid CORS issues
   useEffect(() => {
     async function fetchPdf() {
       try {
-        const response = await fetch(pdfUrl)
+        // Use proxy endpoint to fetch PDF server-side (bypasses CORS)
+        const proxyUrl = `/api/proxy/pdf?url=${encodeURIComponent(pdfUrl)}`
+        const response = await fetch(proxyUrl)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
         const bytes = await response.arrayBuffer()
         setPdfBytes(bytes)
       } catch (err) {
         console.error('Error fetching PDF:', err)
-        setError('Failed to load PDF')
+        setError(`Failed to load PDF: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
     }
     fetchPdf()
