@@ -520,28 +520,53 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
-              <button
-                onClick={() => {
-                  setContractForm({
-                    title: partner?.contract?.title || '',
-                    description: partner?.contract?.description || '',
-                    fileUrl: partner?.contract?.fileUrl || '',
-                    status: partner?.contract?.status || 'DRAFT',
-                  })
-                  setShowContractModal(true)
-                }}
-                style={{
-                  padding: '6px 14px',
-                  background: partner?.contract ? '#27272a' : '#3b82f6',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: 'white',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                }}
-              >
-                {partner?.contract ? 'Edit Contract' : 'Add Contract'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a
+                  href={`/contracts/partner-agreement/${id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '6px 14px',
+                    background: '#10b981',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Generate Agreement
+                </a>
+                <button
+                  onClick={() => {
+                    setContractForm({
+                      title: partner?.contract?.title || '',
+                      description: partner?.contract?.description || '',
+                      fileUrl: partner?.contract?.fileUrl || '',
+                      status: partner?.contract?.status || 'DRAFT',
+                    })
+                    setShowContractModal(true)
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    background: partner?.contract ? '#27272a' : '#3b82f6',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {partner?.contract ? 'Edit Contract' : 'Add Contract'}
+                </button>
+              </div>
             </div>
             {partner.contract ? (
               <div style={{
