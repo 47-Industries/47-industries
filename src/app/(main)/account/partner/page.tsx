@@ -242,7 +242,11 @@ export default function PartnerDashboardPage() {
             </div>
             <div className="divide-y divide-border">
               {partner.referredProjects.map((project) => (
-                <div key={project.id} className="p-4 hover:bg-surface/50 transition-colors">
+                <Link
+                  key={project.id}
+                  href={`/account/partner/projects/${project.id}`}
+                  className="block p-4 hover:bg-surface/50 transition-colors"
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">{project.name}</p>
@@ -263,9 +267,12 @@ export default function PartnerDashboardPage() {
                           </p>
                         </div>
                       )}
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-text-secondary">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
             {/* Summary */}
