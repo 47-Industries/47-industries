@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
+import AmendmentFormModal from '@/components/contracts/AmendmentFormModal'
 
 interface Client {
   id: string
@@ -85,6 +86,24 @@ interface Invoice {
   createdAt: string
 }
 
+interface Amendment {
+  id: string
+  amendmentNumber: string
+  title: string
+  description?: string
+  additionalValue: number
+  additionalMonthlyValue?: number
+  effectiveDate?: string
+  fileUrl?: string
+  fileName?: string
+  status: 'DRAFT' | 'SENT' | 'SIGNED' | 'ACTIVE'
+  signedAt?: string
+  signedByName?: string
+  countersignedAt?: string
+  countersignedByName?: string
+  createdAt: string
+}
+
 interface Contract {
   id: string
   contractNumber: string
@@ -94,6 +113,7 @@ interface Contract {
   status: string
   signedAt?: string
   fileUrl?: string
+  amendments?: Amendment[]
 }
 
 interface Note {
@@ -169,6 +189,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     paymentTerms: '100_UPFRONT', // '100_UPFRONT', '50_50', 'CUSTOM'
   })
   const [savingContract, setSavingContract] = useState(false)
+
+  // Amendment state
+  const [showAmendmentModal, setShowAmendmentModal] = useState(false)
+  const [amendmentContractId, setAmendmentContractId] = useState<string | null>(null)
+  const [editingAmendment, setEditingAmendment] = useState<Amendment | null>(null)
+  const [uploadingAmendmentId, setUploadingAmendmentId] = useState<string | null>(null)
 
   const { showToast } = useToast()
   const router = useRouter()
@@ -505,6 +531,134 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       showToast('Failed to create contract', 'error')
     } finally {
       setSavingContract(false)
+    }
+  }
+
+  // Amendment handlers
+  const handleCreateAmendment = async (data: {
+    title: string
+    description?: string
+    additionalValue: number
+    additionalMonthlyValue?: number
+    effectiveDate?: string
+  }) => {
+    if (!amendmentContractId) return
+
+    try {
+      const res = await fetch('/api/admin/amendments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientContractId: amendmentContractId,
+          ...data,
+        }),
+      })
+
+      if (res.ok) {
+        showToast('Amendment created!', 'success')
+        setShowAmendmentModal(false)
+        setAmendmentContractId(null)
+        fetchClient()
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to create amendment')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to create amendment', 'error')
+      throw error
+    }
+  }
+
+  const handleUpdateAmendment = async (data: {
+    title: string
+    description?: string
+    additionalValue: number
+    additionalMonthlyValue?: number
+    effectiveDate?: string
+  }) => {
+    if (!editingAmendment) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${editingAmendment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (res.ok) {
+        showToast('Amendment updated!', 'success')
+        setEditingAmendment(null)
+        fetchClient()
+      } else {
+        const result = await res.json()
+        throw new Error(result.error || 'Failed to update amendment')
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to update amendment', 'error')
+      throw error
+    }
+  }
+
+  const handleUploadAmendmentPdf = async (amendmentId: string, file: File) => {
+    try {
+      setUploadingAmendmentId(amendmentId)
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch(`/api/admin/amendments/${amendmentId}/upload`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (res.ok) {
+        showToast('PDF uploaded!', 'success')
+        fetchClient()
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to upload PDF', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to upload PDF', 'error')
+    } finally {
+      setUploadingAmendmentId(null)
+    }
+  }
+
+  const handleSendAmendment = async (amendmentId: string) => {
+    try {
+      const res = await fetch(`/api/admin/amendments/${amendmentId}/send`, {
+        method: 'POST',
+      })
+
+      if (res.ok) {
+        showToast('Amendment sent for signature!', 'success')
+        fetchClient()
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to send amendment', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send amendment', 'error')
+    }
+  }
+
+  const handleDeleteAmendment = async (amendmentId: string) => {
+    if (!confirm('Are you sure you want to delete this amendment?')) return
+
+    try {
+      const res = await fetch(`/api/admin/amendments/${amendmentId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        showToast('Amendment deleted', 'success')
+        fetchClient()
+      } else {
+        const result = await res.json()
+        showToast(result.error || 'Failed to delete amendment', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to delete amendment', 'error')
     }
   }
 
@@ -1312,65 +1466,237 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {client.contracts.length === 0 ? (
           <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No contracts yet</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {client.contracts.map((contract) => (
-              <div
-                key={contract.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '14px',
-                  background: '#0a0a0a',
-                  borderRadius: '8px',
-                  border: '1px solid #27272a',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
-                    <span style={{ fontWeight: 500 }}>{contract.title}</span>
-                    <span style={{
-                      padding: '2px 8px',
-                      background: `${getStatusColor(contract.status)}20`,
-                      color: getStatusColor(contract.status),
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                    }}>
-                      {contract.status}
-                    </span>
+              <div key={contract.id}>
+                {/* Contract Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '14px',
+                    background: '#0a0a0a',
+                    borderRadius: contract.amendments?.length ? '8px 8px 0 0' : '8px',
+                    border: '1px solid #27272a',
+                    borderBottom: contract.amendments?.length ? 'none' : '1px solid #27272a',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 500 }}>{contract.title}</span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${getStatusColor(contract.status)}20`,
+                        color: getStatusColor(contract.status),
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {contract.status}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
+                      {contract.contractNumber}
+                      {contract.signedAt && ` | Signed ${formatDate(contract.signedAt)}`}
+                    </p>
                   </div>
-                  <p style={{ margin: 0, color: '#71717a', fontSize: '13px' }}>
-                    {contract.contractNumber}
-                    {contract.signedAt && ` | Signed ${formatDate(contract.signedAt)}`}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ margin: 0, fontWeight: 600 }}>{formatCurrency(Number(contract.totalValue))}</p>
-                    {contract.monthlyValue && (
-                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
-                        +{formatCurrency(Number(contract.monthlyValue))}/mo
-                      </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{formatCurrency(Number(contract.totalValue))}</p>
+                      {contract.monthlyValue && (
+                        <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
+                          +{formatCurrency(Number(contract.monthlyValue))}/mo
+                        </p>
+                      )}
+                    </div>
+                    {contract.fileUrl && (
+                      <a
+                        href={contract.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '6px 12px',
+                          background: '#27272a',
+                          borderRadius: '6px',
+                          color: '#a1a1aa',
+                          fontSize: '13px',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        View
+                      </a>
                     )}
-                  </div>
-                  {contract.fileUrl && (
-                    <a
-                      href={contract.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => {
+                        setAmendmentContractId(contract.id)
+                        setShowAmendmentModal(true)
+                      }}
                       style={{
                         padding: '6px 12px',
-                        background: '#27272a',
+                        background: '#3b82f620',
+                        border: 'none',
                         borderRadius: '6px',
-                        color: '#a1a1aa',
+                        color: '#3b82f6',
                         fontSize: '13px',
-                        textDecoration: 'none',
+                        cursor: 'pointer',
                       }}
                     >
-                      View
-                    </a>
-                  )}
+                      + Amendment
+                    </button>
+                  </div>
                 </div>
+
+                {/* Amendments Section */}
+                {contract.amendments && contract.amendments.length > 0 && (
+                  <div style={{
+                    background: '#0f0f0f',
+                    borderRadius: '0 0 8px 8px',
+                    border: '1px solid #27272a',
+                    borderTop: '1px dashed #27272a',
+                    padding: '12px',
+                  }}>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#71717a', fontWeight: 500, textTransform: 'uppercase' }}>
+                      Amendments ({contract.amendments.length})
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {contract.amendments.map((amendment) => (
+                        <div
+                          key={amendment.id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '10px 12px',
+                            background: '#18181b',
+                            borderRadius: '6px',
+                            border: '1px solid #27272a',
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                              <span style={{ fontWeight: 500, fontSize: '14px' }}>{amendment.title}</span>
+                              <span style={{
+                                padding: '2px 6px',
+                                background: amendment.status === 'ACTIVE' ? '#10b98120' :
+                                           amendment.status === 'SIGNED' ? '#3b82f620' :
+                                           amendment.status === 'SENT' ? '#f59e0b20' : '#71717a20',
+                                color: amendment.status === 'ACTIVE' ? '#10b981' :
+                                       amendment.status === 'SIGNED' ? '#3b82f6' :
+                                       amendment.status === 'SENT' ? '#f59e0b' : '#71717a',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                              }}>
+                                {amendment.status}
+                              </span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
+                              {amendment.amendmentNumber}
+                              {amendment.signedAt && ` | Signed by ${amendment.signedByName}`}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ textAlign: 'right' }}>
+                              <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>
+                                +{formatCurrency(Number(amendment.additionalValue))}
+                              </p>
+                              {amendment.additionalMonthlyValue && (
+                                <p style={{ margin: 0, fontSize: '11px', color: '#71717a' }}>
+                                  +{formatCurrency(Number(amendment.additionalMonthlyValue))}/mo
+                                </p>
+                              )}
+                            </div>
+                            {amendment.fileUrl && (
+                              <a
+                                href={amendment.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  padding: '4px 10px',
+                                  background: '#27272a',
+                                  borderRadius: '4px',
+                                  color: '#a1a1aa',
+                                  fontSize: '12px',
+                                  textDecoration: 'none',
+                                }}
+                              >
+                                View
+                              </a>
+                            )}
+                            {amendment.status === 'DRAFT' && (
+                              <>
+                                <button
+                                  onClick={() => setEditingAmendment(amendment)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    background: '#27272a',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    color: '#a1a1aa',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <label style={{
+                                  padding: '4px 10px',
+                                  background: '#3b82f620',
+                                  borderRadius: '4px',
+                                  color: '#3b82f6',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                }}>
+                                  {uploadingAmendmentId === amendment.id ? 'Uploading...' : (amendment.fileUrl ? 'Replace PDF' : 'Upload PDF')}
+                                  <input
+                                    type="file"
+                                    accept=".pdf"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) handleUploadAmendmentPdf(amendment.id, file)
+                                      e.target.value = ''
+                                    }}
+                                    disabled={uploadingAmendmentId === amendment.id}
+                                  />
+                                </label>
+                                {amendment.fileUrl && (
+                                  <button
+                                    onClick={() => handleSendAmendment(amendment.id)}
+                                    style={{
+                                      padding: '4px 10px',
+                                      background: '#10b981',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      color: '#fff',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    Send
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteAmendment(amendment.id)}
+                                  style={{
+                                    padding: '4px 10px',
+                                    background: '#ef444420',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    color: '#ef4444',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -2009,6 +2335,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
         </div>
+      )}
+
+      {/* Amendment Create/Edit Modal */}
+      {(showAmendmentModal || editingAmendment) && (
+        <AmendmentFormModal
+          amendment={editingAmendment}
+          onSave={editingAmendment ? handleUpdateAmendment : handleCreateAmendment}
+          onClose={() => {
+            setShowAmendmentModal(false)
+            setAmendmentContractId(null)
+            setEditingAmendment(null)
+          }}
+        />
       )}
     </div>
   )

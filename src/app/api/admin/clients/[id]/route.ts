@@ -35,6 +35,11 @@ export async function GET(
         },
         contracts: {
           orderBy: { createdAt: 'desc' },
+          include: {
+            amendments: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
         },
         notes: {
           orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],

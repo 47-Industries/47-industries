@@ -1996,6 +1996,13 @@ enum ContractStatus {
   CANCELLED
 }
 
+enum AmendmentStatus {
+  DRAFT
+  SENT
+  SIGNED
+  ACTIVE
+}
+
 enum ClientActivityType {
   EMAIL_SENT
   EMAIL_RECEIVED
@@ -2242,8 +2249,60 @@ model Contract {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Amendments relation
+  amendments      ContractAmendment[]
+
   @@index([clientId])
   @@index([contractNumber])
+  @@index([status])
+}
+
+// Contract Amendments - additional work beyond monthly maintenance
+model ContractAmendment {
+  id                String           @id @default(cuid())
+  amendmentNumber   String           @unique  // AMEND-20260116-0001
+
+  // Polymorphic - exactly one must be set
+  clientContractId  String?
+  clientContract    Contract?        @relation(fields: [clientContractId], references: [id], onDelete: Cascade)
+  partnerContractId String?
+  partnerContract   PartnerContract? @relation(fields: [partnerContractId], references: [id], onDelete: Cascade)
+
+  // Details
+  title             String
+  description       String?          @db.Text
+  additionalValue   Decimal          @db.Decimal(10, 2)
+  additionalMonthlyValue Decimal?    @db.Decimal(10, 2)
+  effectiveDate     DateTime?
+
+  // File (PDF uploaded manually)
+  fileUrl           String?
+  fileName          String?
+
+  status            AmendmentStatus  @default(DRAFT)
+
+  // Client/Partner E-Signature
+  signedAt          DateTime?
+  signatureUrl      String?
+  signedByName      String?
+  signedByEmail     String?
+  signedByIp        String?
+  signedByUserId    String?
+
+  // Admin Countersignature (partner amendments only)
+  countersignedAt        DateTime?
+  countersignatureUrl    String?
+  countersignedByName    String?
+  countersignedByEmail   String?
+  countersignedByIp      String?
+  countersignedByUserId  String?
+
+  createdBy         String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([clientContractId])
+  @@index([partnerContractId])
   @@index([status])
 }
 
@@ -2331,6 +2390,9 @@ model PartnerContract {
 
   startDate     DateTime?
   endDate       DateTime?
+
+  // Amendments relation
+  amendments    ContractAmendment[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

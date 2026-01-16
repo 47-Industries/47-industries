@@ -29,6 +29,22 @@ interface Contract {
   createdAt: string
 }
 
+interface Amendment {
+  id: string
+  amendmentNumber: string
+  title: string
+  description?: string
+  additionalValue: number
+  additionalMonthlyValue?: number
+  fileUrl?: string
+  status: 'DRAFT' | 'SENT' | 'SIGNED' | 'ACTIVE'
+  signedAt?: string
+  signedByName?: string
+  countersignedAt?: string
+  countersignedByName?: string
+  createdAt: string
+}
+
 interface CommissionRates {
   firstSaleRate: number
   recurringRate: number
@@ -39,10 +55,12 @@ export default function PartnerContractPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [contract, setContract] = useState<Contract | null>(null)
+  const [amendments, setAmendments] = useState<Amendment[]>([])
   const [rates, setRates] = useState<CommissionRates | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showSigningModal, setShowSigningModal] = useState(false)
+  const [signingAmendment, setSigningAmendment] = useState<Amendment | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -53,6 +71,7 @@ export default function PartnerContractPage() {
   useEffect(() => {
     if (session?.user) {
       fetchContract()
+      fetchAmendments()
     }
   }, [session])
 
@@ -80,6 +99,18 @@ export default function PartnerContractPage() {
     }
   }
 
+  async function fetchAmendments() {
+    try {
+      const res = await fetch('/api/account/partner/amendments')
+      if (res.ok) {
+        const data = await res.json()
+        setAmendments(data.amendments)
+      }
+    } catch (err) {
+      console.error('Error fetching amendments:', err)
+    }
+  }
+
   const handleSign = async (data: { signedByName: string; signatureDataUrl: string }) => {
     const res = await fetch('/api/account/partner/contract/sign', {
       method: 'POST',
@@ -95,6 +126,32 @@ export default function PartnerContractPage() {
     // Refresh contract data
     await fetchContract()
     setShowSigningModal(false)
+  }
+
+  const handleSignAmendment = async (data: { signedByName: string; signatureDataUrl: string }) => {
+    if (!signingAmendment) return
+
+    const res = await fetch(`/api/account/partner/amendments/${signingAmendment.id}/sign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.error || 'Failed to sign amendment')
+    }
+
+    await fetchAmendments()
+    setSigningAmendment(null)
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(amount)
   }
 
   const formatDate = (dateString: string) => {
@@ -337,6 +394,86 @@ export default function PartnerContractPage() {
                 </div>
               </div>
             )}
+
+            {/* Contract Amendments */}
+            {amendments.length > 0 && (
+              <div className="border border-border rounded-xl p-6 mt-8">
+                <h2 className="text-xl font-semibold mb-4">Contract Amendments</h2>
+                <div className="space-y-4">
+                  {amendments.map((amendment) => (
+                    <div
+                      key={amendment.id}
+                      className={`p-4 rounded-lg border ${
+                        amendment.status === 'SENT'
+                          ? 'border-yellow-500/50 bg-yellow-500/5'
+                          : 'border-border bg-surface'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium">{amendment.title}</h3>
+                            <span className={`px-2 py-0.5 text-xs rounded ${getStatusColor(amendment.status)}`}>
+                              {amendment.status === 'SENT' ? 'Awaiting Signature' : amendment.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-text-secondary">{amendment.amendmentNumber}</p>
+                          {amendment.description && (
+                            <p className="text-sm text-text-secondary mt-2">{amendment.description}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-500">
+                            +{formatCurrency(Number(amendment.additionalValue))}
+                          </p>
+                          {amendment.additionalMonthlyValue && (
+                            <p className="text-sm text-text-secondary">
+                              +{formatCurrency(Number(amendment.additionalMonthlyValue))}/mo
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-border">
+                        <div className="text-sm text-text-secondary">
+                          {amendment.signedAt && (
+                            <span>Signed by {amendment.signedByName} on {formatDate(amendment.signedAt)}</span>
+                          )}
+                          {amendment.status === 'ACTIVE' && amendment.countersignedAt && (
+                            <span className="ml-2 text-green-500">
+                              | Countersigned by {amendment.countersignedByName}
+                            </span>
+                          )}
+                          {amendment.status === 'SIGNED' && (
+                            <span className="text-yellow-500"> | Awaiting admin countersignature</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {amendment.fileUrl && (
+                            <a
+                              href={amendment.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 text-sm border border-border rounded hover:border-accent transition-colors"
+                            >
+                              View PDF
+                            </a>
+                          )}
+                          {amendment.status === 'SENT' && amendment.fileUrl && (
+                            <button
+                              onClick={() => setSigningAmendment(amendment)}
+                              className="px-3 py-1.5 text-sm bg-yellow-500 text-black font-medium rounded hover:bg-yellow-400 transition-colors"
+                            >
+                              Review & Sign
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="border border-border rounded-xl p-12 text-center">
@@ -352,6 +489,16 @@ export default function PartnerContractPage() {
           contractFileUrl={contract.fileUrl}
           onSign={handleSign}
           onClose={() => setShowSigningModal(false)}
+        />
+      )}
+
+      {/* Amendment Signing Modal */}
+      {signingAmendment && signingAmendment.fileUrl && (
+        <ContractSigningModal
+          contractTitle={`Amendment: ${signingAmendment.title}`}
+          contractFileUrl={signingAmendment.fileUrl}
+          onSign={handleSignAmendment}
+          onClose={() => setSigningAmendment(null)}
         />
       )}
     </div>
