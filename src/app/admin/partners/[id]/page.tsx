@@ -522,7 +522,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <a
-                  href={`/contracts/partner-agreement/${id}`}
+                  href={`https://47industries.com/contracts/partner-agreement/${id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
