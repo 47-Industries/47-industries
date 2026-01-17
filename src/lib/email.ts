@@ -1568,6 +1568,111 @@ export async function sendPasswordChangedNotification(data: {
   }
 }
 
+// Send notification to admin when client signs their contract
+export async function sendClientContractSignedNotification(data: {
+  clientName: string
+  clientEmail: string
+  clientId: string
+  contractTitle: string
+  signedAt: Date
+  signedByName: string
+  signedByIp: string
+}) {
+  const ADMIN_URL = process.env.ADMIN_URL || 'https://admin.47industries.com'
+  const clientUrl = `${ADMIN_URL}/admin/clients/${data.clientId}`
+
+  const signedDate = data.signedAt.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Client Contract Signed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      ${data.clientName} has signed their service agreement.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Client', data.clientName)}
+        ${getDetailRow('Email', data.clientEmail)}
+        ${getDetailRow('Document', data.contractTitle)}
+        ${getDetailRow('Signed As', data.signedByName)}
+        ${getDetailRow('Signed At', signedDate)}
+        ${getDetailRow('IP Address', data.signedByIp, true)}
+      </table>
+    `)}
+
+    ${getButton('View Client Details', clientUrl)}
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      bcc: BCC_EMAIL,
+      subject: `Service Agreement Signed - ${data.clientName}`,
+      html: getEmailTemplate(content, 'Contract Signed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send client contract signed notification:', error)
+    return { success: false, error }
+  }
+}
+
+// Send notification to client when contract is fully executed (both parties signed)
+export async function sendContractFullyExecutedToClient(data: {
+  to: string
+  clientName: string
+  contractTitle: string
+  countersignedByName: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const contractUrl = `${APP_URL}/account/client`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Your Agreement is Fully Executed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.clientName}, great news! Your service agreement has been countersigned by ${data.countersignedByName} and is now fully executed.
+    </p>
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Document', data.contractTitle, true)}
+        ${getDetailRow('Status', 'Fully Executed')}
+      </table>
+    `)}
+
+    ${getButton('View Your Account', contractUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      You can access your fully executed contract anytime from your client portal. We're excited to work with you!
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Your Service Agreement is Fully Executed - 47 Industries`,
+      html: getEmailTemplate(content, 'Contract Fully Executed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send client fully executed notification:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()

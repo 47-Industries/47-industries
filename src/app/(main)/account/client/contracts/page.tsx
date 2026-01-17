@@ -22,6 +22,8 @@ interface Amendment {
   status: 'DRAFT' | 'SENT' | 'SIGNED' | 'ACTIVE'
   signedAt?: string
   signedByName?: string
+  countersignedAt?: string
+  countersignedByName?: string
   createdAt: string
   clientContract?: {
     id: string
@@ -39,6 +41,11 @@ interface Contract {
   monthlyValue?: number
   status: string
   signedAt?: string
+  signedByName?: string
+  signatureUrl?: string
+  countersignedAt?: string
+  countersignedByName?: string
+  countersignatureUrl?: string
   fileUrl?: string
   createdAt: string
 }
@@ -49,8 +56,8 @@ export default function ClientContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [amendments, setAmendments] = useState<Amendment[]>([])
   const [loading, setLoading] = useState(true)
+  const [signingContract, setSigningContract] = useState<Contract | null>(null)
   const [signingAmendment, setSigningAmendment] = useState<Amendment | null>(null)
-  const [signing, setSigning] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -91,29 +98,40 @@ export default function ClientContractsPage() {
     }
   }
 
+  async function handleSignContract(data: { signedByName: string; signatureDataUrl: string }) {
+    if (!signingContract) return
+
+    const res = await fetch(`/api/account/client/contracts/${signingContract.id}/sign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!res.ok) {
+      const result = await res.json()
+      throw new Error(result.error || 'Failed to sign contract')
+    }
+
+    await fetchContracts()
+    setSigningContract(null)
+  }
+
   async function handleSignAmendment(data: { signedByName: string; signatureDataUrl: string }) {
     if (!signingAmendment) return
 
-    try {
-      setSigning(true)
-      const res = await fetch(`/api/account/client/amendments/${signingAmendment.id}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
+    const res = await fetch(`/api/account/client/amendments/${signingAmendment.id}/sign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
 
-      if (res.ok) {
-        setSigningAmendment(null)
-        fetchAmendments()
-      } else {
-        const result = await res.json()
-        throw new Error(result.error || 'Failed to sign amendment')
-      }
-    } catch (err) {
-      throw err
-    } finally {
-      setSigning(false)
+    if (!res.ok) {
+      const result = await res.json()
+      throw new Error(result.error || 'Failed to sign amendment')
     }
+
+    await fetchAmendments()
+    setSigningAmendment(null)
   }
 
   const formatCurrency = (amount: number) => {
@@ -126,7 +144,7 @@ export default function ClientContractsPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
+      month: 'long',
       day: 'numeric',
       year: 'numeric',
     })
@@ -134,15 +152,26 @@ export default function ClientContractsPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      SIGNED: 'bg-green-500/20 text-green-500',
+      SIGNED: 'bg-blue-500/20 text-blue-500',
       ACTIVE: 'bg-green-500/20 text-green-500',
-      SENT: 'bg-blue-500/20 text-blue-500',
+      SENT: 'bg-yellow-500/20 text-yellow-500',
       DRAFT: 'bg-gray-500/20 text-gray-500',
-      COMPLETED: 'bg-purple-500/20 text-purple-500',
-      CANCELLED: 'bg-red-500/20 text-red-500',
     }
     return colors[status] || 'bg-gray-500/20 text-gray-500'
   }
+
+  const getStatusText = (status: string) => {
+    const texts: Record<string, string> = {
+      DRAFT: 'Draft',
+      SENT: 'Awaiting Your Signature',
+      SIGNED: 'Awaiting Countersignature',
+      ACTIVE: 'Fully Executed',
+    }
+    return texts[status] || status
+  }
+
+  // Check if any contracts need signature
+  const contractsNeedingSignature = contracts.filter(c => c.status === 'SENT' && c.fileUrl)
 
   if (status === 'loading' || loading) {
     return (
@@ -162,9 +191,30 @@ export default function ClientContractsPage() {
           </Link>
           <h1 className="text-3xl font-bold mb-2">Contracts</h1>
           <p className="text-text-secondary">
-            View and sign your contracts
+            View and sign your service agreements
           </p>
         </div>
+
+        {/* Signature Required Banner */}
+        {contractsNeedingSignature.length > 0 && (
+          <div className="mb-6 p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-yellow-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-yellow-500 mb-1">
+                  {contractsNeedingSignature.length === 1 ? 'Contract requires your signature' : `${contractsNeedingSignature.length} contracts require your signature`}
+                </h3>
+                <p className="text-text-secondary text-sm mb-4">
+                  Please review and sign your service agreement(s) below to proceed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Contracts List */}
         {contracts.length === 0 ? (
@@ -178,62 +228,116 @@ export default function ClientContractsPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {contracts.map((contract) => (
               <div
                 key={contract.id}
-                className="border border-border rounded-xl p-6 hover:border-accent/50 transition-colors"
+                className={`border rounded-xl overflow-hidden transition-colors ${
+                  contract.status === 'SENT' ? 'border-yellow-500/50' : 'border-border'
+                }`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold">{contract.title}</h3>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(contract.status)}`}>
-                        {contract.status}
-                      </span>
+                {/* Contract Header */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold">{contract.title}</h3>
+                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(contract.status)}`}>
+                          {getStatusText(contract.status)}
+                        </span>
+                      </div>
+                      <p className="text-text-secondary text-sm">{contract.contractNumber}</p>
                     </div>
-                    <p className="text-text-secondary text-sm mb-2">{contract.contractNumber}</p>
-                    {contract.description && (
-                      <p className="text-text-secondary text-sm">{contract.description}</p>
-                    )}
+                    <div className="text-right">
+                      <p className="font-bold text-lg">{formatCurrency(Number(contract.totalValue))}</p>
+                      {contract.monthlyValue && Number(contract.monthlyValue) > 0 && (
+                        <p className="text-sm text-text-secondary">
+                          +{formatCurrency(Number(contract.monthlyValue))}/mo
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{formatCurrency(Number(contract.totalValue))}</p>
-                    {contract.monthlyValue && Number(contract.monthlyValue) > 0 && (
-                      <p className="text-sm text-text-secondary">
-                        +{formatCurrency(Number(contract.monthlyValue))}/mo
-                      </p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="text-sm text-text-secondary">
-                    {contract.signedAt ? (
-                      <span className="text-green-500">Signed {formatDate(contract.signedAt)}</span>
-                    ) : (
-                      <span>Created {formatDate(contract.createdAt)}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-3">
-                    {contract.fileUrl && (
-                      <a
-                        href={contract.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:border-accent transition-colors"
-                      >
-                        View PDF
-                      </a>
-                    )}
-                    {contract.status === 'SENT' && (
-                      <Link
-                        href={`/contract/${contract.contractNumber}`}
-                        className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
-                      >
-                        Review & Sign
-                      </Link>
-                    )}
+                  {/* Signature Display - Show when signed */}
+                  {(contract.status === 'SIGNED' || contract.status === 'ACTIVE') && contract.signatureUrl && (
+                    <div className="mt-4 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="text-green-500">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium text-green-500">
+                          {contract.status === 'ACTIVE' ? 'Contract Fully Executed' : 'You have signed this contract'}
+                        </span>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {/* Your Signature */}
+                        <div>
+                          <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">Your Signature</p>
+                          <div className="flex items-center gap-3">
+                            <div className="bg-white rounded p-2 border border-border">
+                              <img src={contract.signatureUrl} alt="Your signature" className="h-10 w-auto" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{contract.signedByName}</p>
+                              <p className="text-xs text-text-secondary">{contract.signedAt && formatDate(contract.signedAt)}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 47 Industries Countersignature - Only show when ACTIVE */}
+                        {contract.status === 'ACTIVE' && contract.countersignatureUrl && (
+                          <div>
+                            <p className="text-xs text-text-secondary uppercase tracking-wide mb-2">47 Industries</p>
+                            <div className="flex items-center gap-3">
+                              <div className="bg-white rounded p-2 border border-border">
+                                <img src={contract.countersignatureUrl} alt="Company signature" className="h-10 w-auto" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{contract.countersignedByName}</p>
+                                <p className="text-xs text-text-secondary">{contract.countersignedAt && formatDate(contract.countersignedAt)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {contract.status === 'SIGNED' && (
+                        <p className="text-xs text-yellow-500 mt-3">
+                          Awaiting countersignature from 47 Industries. You will be notified when fully executed.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
+                    <div className="text-sm text-text-secondary">
+                      Created {formatDate(contract.createdAt)}
+                    </div>
+                    <div className="flex gap-3">
+                      {contract.fileUrl && (
+                        <a
+                          href={contract.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:border-accent transition-colors"
+                        >
+                          View PDF
+                        </a>
+                      )}
+                      {contract.status === 'SENT' && contract.fileUrl && (
+                        <button
+                          onClick={() => setSigningContract(contract)}
+                          className="px-4 py-2 bg-yellow-500 text-black rounded-lg text-sm font-semibold hover:bg-yellow-400 transition-colors flex items-center gap-2"
+                        >
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                          Review & Sign
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -260,7 +364,7 @@ export default function ClientContractsPage() {
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold">{amendment.title}</h3>
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(amendment.status)}`}>
-                          {amendment.status === 'SENT' ? 'Awaiting Signature' : amendment.status}
+                          {getStatusText(amendment.status)}
                         </span>
                       </div>
                       <p className="text-text-secondary text-sm mb-1">{amendment.amendmentNumber}</p>
@@ -268,9 +372,6 @@ export default function ClientContractsPage() {
                         <p className="text-text-secondary text-sm">
                           For: {amendment.clientContract.title}
                         </p>
-                      )}
-                      {amendment.description && (
-                        <p className="text-text-secondary text-sm mt-2">{amendment.description}</p>
                       )}
                     </div>
                     <div className="text-right">
@@ -290,6 +391,9 @@ export default function ClientContractsPage() {
                       {amendment.signedAt ? (
                         <span className="text-green-500">
                           Signed by {amendment.signedByName} on {formatDate(amendment.signedAt)}
+                          {amendment.status === 'ACTIVE' && amendment.countersignedByName && (
+                            <> | Countersigned by {amendment.countersignedByName}</>
+                          )}
                         </span>
                       ) : (
                         <span>Created {formatDate(amendment.createdAt)}</span>
@@ -306,10 +410,10 @@ export default function ClientContractsPage() {
                           View PDF
                         </a>
                       )}
-                      {amendment.status === 'SENT' && (
+                      {amendment.status === 'SENT' && amendment.fileUrl && (
                         <button
                           onClick={() => setSigningAmendment(amendment)}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                          className="px-4 py-2 bg-yellow-500 text-black rounded-lg text-sm font-semibold hover:bg-yellow-400 transition-colors"
                         >
                           Review & Sign
                         </button>
@@ -322,6 +426,16 @@ export default function ClientContractsPage() {
           </div>
         )}
       </div>
+
+      {/* Contract Signing Modal */}
+      {signingContract && signingContract.fileUrl && (
+        <ContractSigningModal
+          contractTitle={signingContract.title}
+          contractFileUrl={signingContract.fileUrl}
+          onSign={handleSignContract}
+          onClose={() => setSigningContract(null)}
+        />
+      )}
 
       {/* Amendment Signing Modal */}
       {signingAmendment && signingAmendment.fileUrl && (

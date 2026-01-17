@@ -37,8 +37,15 @@ export async function GET(req: NextRequest) {
         totalValue: true,
         monthlyValue: true,
         status: true,
-        signedAt: true,
         fileUrl: true,
+        // Signature fields
+        signedAt: true,
+        signedByName: true,
+        signatureUrl: true,
+        // Countersignature fields
+        countersignedAt: true,
+        countersignedByName: true,
+        countersignatureUrl: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
