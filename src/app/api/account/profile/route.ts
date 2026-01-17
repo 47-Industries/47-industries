@@ -46,8 +46,8 @@ export async function GET() {
             employeeNumber: true,
             title: true,
             department: true,
-            salary: true,
-            hireDate: true,
+            salaryAmount: true,
+            startDate: true,
           },
         },
         client: {

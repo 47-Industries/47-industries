@@ -38,8 +38,8 @@ interface User {
     employeeNumber: string
     title: string
     department: string | null
-    salary: number | null
-    hireDate: string | null
+    salaryAmount: number | null
+    startDate: string | null
   } | null
   client: {
     id: string
