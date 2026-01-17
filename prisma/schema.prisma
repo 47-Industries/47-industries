@@ -28,6 +28,7 @@ model User {
   username      String?   @unique
   email         String?   @unique
   name          String?
+  phone         String?   // Phone number
   title         String?   // Job title/position (e.g., "President", "CEO") for contract signing
   password      String?
   image         String?
