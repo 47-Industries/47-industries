@@ -1592,23 +1592,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         Send for Signature
                       </button>
                     )}
-                    {/* Sign as 47 Industries Button - Show when contract has PDF but not yet countersigned */}
-                    {contract.fileUrl && !contract.countersignedAt && (
-                      <button
-                        onClick={() => setCountersigningContractId(contract.id)}
-                        style={{
-                          padding: '6px 12px',
-                          background: '#10b98120',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: '#10b981',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Sign as 47 Industries
-                      </button>
-                    )}
                     <button
                       onClick={() => {
                         setAmendmentContractId(contract.id)
@@ -1628,6 +1611,51 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </button>
                   </div>
                 </div>
+
+                {/* Sign as 47 Industries Card - Show when contract has PDF and not yet countersigned */}
+                {contract.fileUrl && !contract.countersignedAt && contract.status !== 'ACTIVE' && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '16px',
+                    background: '#3b82f610',
+                    border: '1px solid #3b82f630',
+                    borderRadius: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                          {contract.signedAt
+                            ? 'Client has signed. Add your signature to fully execute the contract.'
+                            : contract.status === 'DRAFT'
+                            ? 'Sign this contract before or after sending it to the client.'
+                            : 'You can sign now or wait for the client to sign first.'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setCountersigningContractId(contract.id)}
+                        style={{
+                          padding: '10px 20px',
+                          background: '#3b82f6',
+                          border: 'none',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Sign Contract
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Amendments Section */}
                 {contract.amendments && contract.amendments.length > 0 && (
