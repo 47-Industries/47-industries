@@ -36,7 +36,7 @@ export async function GET(
             role: true,
             permissions: true,
             emailAccess: true,
-            zohoTokenExpiry: true,
+            zohoRefreshToken: true,
             orders: {
               select: {
                 id: true,
@@ -75,11 +75,19 @@ export async function GET(
       _sum: { amount: true },
     })
 
+    // Transform user data to not expose sensitive tokens
+    const transformedTeamMember = {
+      ...teamMember,
+      totalPaid: totalPaid._sum.amount || 0,
+      user: teamMember.user ? {
+        ...teamMember.user,
+        zohoRefreshToken: undefined,
+        zohoConnected: !!teamMember.user.zohoRefreshToken,
+      } : null,
+    }
+
     return NextResponse.json({
-      teamMember: {
-        ...teamMember,
-        totalPaid: totalPaid._sum.amount || 0,
-      },
+      teamMember: transformedTeamMember,
     })
   } catch (error) {
     console.error('Error fetching team member:', error)

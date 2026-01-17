@@ -52,7 +52,7 @@ interface TeamMember {
     role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'
     permissions: Permission[] | null
     emailAccess: string[] | null
-    zohoTokenExpiry: string | null
+    zohoConnected: boolean
     orders: {
       id: string
       orderNumber: string
@@ -415,7 +415,7 @@ export default function TeamMemberDetailPage() {
                 <div className="flex items-center gap-2">
                   <p className="text-white">{teamMember.workEmail || '-'}</p>
                   {teamMember.workEmail && (
-                    teamMember.user?.zohoTokenExpiry && new Date(teamMember.user.zohoTokenExpiry) > new Date() ? (
+                    teamMember.user?.zohoConnected ? (
                       <span className="px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-400">
                         Zoho Connected
                       </span>
