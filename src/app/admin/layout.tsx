@@ -27,8 +27,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // SECURITY: Redirect to login if not authenticated or not an admin
   useEffect(() => {
-    // Skip check for login page
-    if (pathname === '/admin/login') return
+    // Skip check for login and password reset pages
+    if (pathname === '/admin/login' ||
+        pathname === '/admin/forgot-password' ||
+        pathname === '/admin/reset-password') return
 
     // Wait for session to load
     if (status === 'loading') return
@@ -61,8 +63,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Login page gets NO admin layout - just render children directly
-  if (pathname === '/admin/login') {
+  // Login and password reset pages get NO admin layout - just render children directly
+  if (pathname === '/admin/login' ||
+      pathname === '/admin/forgot-password' ||
+      pathname === '/admin/reset-password') {
     return <>{children}</>
   }
 

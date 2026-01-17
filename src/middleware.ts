@@ -55,7 +55,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // SECURITY: Check authentication for admin routes on localhost (development)
-  if (url.pathname.startsWith('/admin') && !url.pathname.startsWith('/admin/login') && hostname.startsWith('localhost')) {
+  if (url.pathname.startsWith('/admin') &&
+      !url.pathname.startsWith('/admin/login') &&
+      !url.pathname.startsWith('/admin/forgot-password') &&
+      !url.pathname.startsWith('/admin/reset-password') &&
+      hostname.startsWith('localhost')) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET
