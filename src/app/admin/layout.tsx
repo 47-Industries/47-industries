@@ -215,24 +215,86 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: showMobile ? '8px' : '16px',
+              gap: showMobile ? '8px' : '12px',
               flexShrink: 0
             }}>
-              {!showMobile && session?.user && (
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    margin: 0,
-                    whiteSpace: 'nowrap'
-                  }}>{session.user.name}</p>
-                  <p style={{
-                    fontSize: '12px',
-                    color: '#71717a',
-                    margin: 0,
-                    whiteSpace: 'nowrap'
-                  }}>{session.user.email}</p>
-                </div>
+              {/* Profile Card */}
+              {session?.user && (
+                <Link
+                  href="/admin/settings/signature"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: showMobile ? '6px 10px' : '8px 14px',
+                    background: '#18181b',
+                    border: '1px solid #27272a',
+                    borderRadius: '10px',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#1f1f1f'
+                    e.currentTarget.style.borderColor = '#3f3f46'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#18181b'
+                    e.currentTarget.style.borderColor = '#27272a'
+                  }}
+                >
+                  {/* Avatar */}
+                  <div style={{
+                    width: showMobile ? '32px' : '36px',
+                    height: showMobile ? '32px' : '36px',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: showMobile ? '12px' : '14px',
+                    fontWeight: 600,
+                  }}>
+                    {session.user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A'}
+                  </div>
+                  {!showMobile && (
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <p style={{
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          color: 'white',
+                          margin: 0,
+                          whiteSpace: 'nowrap',
+                          maxWidth: '120px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>{session.user.name || 'Admin'}</p>
+                        <span style={{
+                          fontSize: '9px',
+                          fontWeight: 600,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: session.user.role === 'SUPER_ADMIN' ? '#7c3aed20' : '#3b82f620',
+                          color: session.user.role === 'SUPER_ADMIN' ? '#a78bfa' : '#60a5fa',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.03em'
+                        }}>
+                          {session.user.role === 'SUPER_ADMIN' ? 'Super' : 'Admin'}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontSize: '11px',
+                        color: '#71717a',
+                        margin: 0,
+                        whiteSpace: 'nowrap',
+                        maxWidth: '150px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>{session.user.email}</p>
+                    </div>
+                  )}
+                </Link>
               )}
               <button
                 onClick={async () => {
@@ -240,18 +302,34 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   signOut({ callbackUrl: '/admin/login' })
                 }}
                 style={{
-                  padding: showMobile ? '8px 16px' : '10px 24px',
-                  fontSize: '14px',
+                  padding: showMobile ? '8px 12px' : '10px 16px',
+                  fontSize: '13px',
                   fontWeight: 500,
-                  background: '#18181b',
-                  color: '#ffffff',
-                  border: '1px solid #3f3f46',
-                  borderRadius: '12px',
+                  background: 'transparent',
+                  color: '#a1a1aa',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}
-              >{showMobile ? '↗' : 'Logout'}</button>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#27272a'
+                  e.currentTarget.style.color = '#ffffff'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = '#a1a1aa'
+                }}
+              >
+                <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                {!showMobile && 'Logout'}
+              </button>
             </div>
           </div>
         </header>
