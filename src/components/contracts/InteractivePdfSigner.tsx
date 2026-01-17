@@ -349,11 +349,16 @@ export default function InteractivePdfSigner({
     if (!elementEl) return
 
     const elemRect = elementEl.getBoundingClientRect()
-    const newWidth = ((e.clientX - elemRect.left) / pageRect.width) * 100
+
+    // Calculate new width based on distance from element center to mouse
+    const elementCenterX = elemRect.left + elemRect.width / 2
+    const distanceFromCenter = e.clientX - elementCenterX
+    const newWidthPx = Math.abs(distanceFromCenter) * 2
+    const newWidthPercent = (newWidthPx / pageRect.width) * 100
 
     setPlacedElements(prev => prev.map(el =>
       el.id === resizingId
-        ? { ...el, width: Math.max(5, Math.min(40, newWidth * 2)) }
+        ? { ...el, width: Math.max(5, Math.min(50, newWidthPercent)) }
         : el
     ))
   }, [resizingId, placedElements])
@@ -480,10 +485,24 @@ export default function InteractivePdfSigner({
             color: rgb(0, 0, 0),
           })
         } else {
-          // Embed image
-          const image = elem.dataUrl.startsWith('data:image/png')
-            ? await pdfDoc.embedPng(elem.dataUrl)
-            : await pdfDoc.embedJpg(elem.dataUrl)
+          // Embed image - check for PNG or JPEG format
+          const isPng = elem.dataUrl.toLowerCase().includes('image/png')
+          const isJpg = elem.dataUrl.toLowerCase().includes('image/jpeg') || elem.dataUrl.toLowerCase().includes('image/jpg')
+
+          let image
+          if (isPng) {
+            image = await pdfDoc.embedPng(elem.dataUrl)
+          } else if (isJpg) {
+            image = await pdfDoc.embedJpg(elem.dataUrl)
+          } else {
+            // Default to PNG for unknown formats (most signatures are PNG)
+            try {
+              image = await pdfDoc.embedPng(elem.dataUrl)
+            } catch {
+              // If PNG fails, try JPEG
+              image = await pdfDoc.embedJpg(elem.dataUrl)
+            }
+          }
 
           const aspectRatio = image.width / image.height
           const imgWidth = (elem.width / 100) * pdfPageWidth
