@@ -126,8 +126,8 @@ export default function AccountPage() {
 
         {/* Admin Console Banner */}
         {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN') && (
-          <Link
-            href="/admin"
+          <a
+            href="https://admin.47industries.com"
             className="block p-6 mb-8 border border-purple-500/50 bg-purple-500/5 rounded-xl hover:border-purple-500 transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -141,7 +141,7 @@ export default function AccountPage() {
                 <p className="text-purple-400 text-sm">Manage platform, orders & users</p>
               </div>
             </div>
-          </Link>
+          </a>
         )}
 
         {/* Client Portal Banner */}
