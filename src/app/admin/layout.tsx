@@ -243,20 +243,33 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   }}
                 >
                   {/* Avatar */}
-                  <div style={{
-                    width: showMobile ? '32px' : '36px',
-                    height: showMobile ? '32px' : '36px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: showMobile ? '12px' : '14px',
-                    fontWeight: 600,
-                  }}>
-                    {session.user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A'}
-                  </div>
+                  {session.user.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || 'Profile'}
+                      style={{
+                        width: showMobile ? '32px' : '36px',
+                        height: showMobile ? '32px' : '36px',
+                        borderRadius: '8px',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: showMobile ? '32px' : '36px',
+                      height: showMobile ? '32px' : '36px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: showMobile ? '12px' : '14px',
+                      fontWeight: 600,
+                    }}>
+                      {session.user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A'}
+                    </div>
+                  )}
                   {!showMobile && (
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

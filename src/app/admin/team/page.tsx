@@ -19,7 +19,7 @@ interface TeamMember {
   salaryAmount?: number
   salaryFrequency?: string
   equityPercentage?: number
-  user?: { id: string; email: string; role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN' }
+  user?: { id: string; email: string; role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'; image?: string | null }
   _count: {
     contracts: number
     documents: number
@@ -292,9 +292,40 @@ export default function TeamPage() {
                 gap: '16px',
                 marginBottom: '16px',
               }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: '18px' }}>{member.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {/* Avatar */}
+                  {member.user?.image ? (
+                    <img
+                      src={member.user.image}
+                      alt={member.name}
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '12px',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}>
+                      {member.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, fontSize: '18px' }}>{member.name}</span>
                     <span style={{ color: '#71717a', fontSize: '14px' }}>{member.employeeNumber}</span>
                     <span style={{
                       display: 'inline-block',
@@ -334,11 +365,12 @@ export default function TeamPage() {
                       </span>
                     )}
                   </div>
-                  <p style={{ color: '#a1a1aa', margin: 0, fontSize: '14px' }}>
-                    {member.title}
-                    {member.department && ` | ${member.department}`}
-                    {` | Since ${formatDate(member.startDate)}`}
-                  </p>
+                    <p style={{ color: '#a1a1aa', margin: 0, fontSize: '14px' }}>
+                      {member.title}
+                      {member.department && ` | ${member.department}`}
+                      {` | Since ${formatDate(member.startDate)}`}
+                    </p>
+                  </div>
                 </div>
                 <Link
                   href={`/admin/team/${member.id}`}

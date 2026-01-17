@@ -49,6 +49,7 @@ interface TeamMember {
     email: string
     name: string | null
     username: string | null
+    image: string | null
     role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'
     permissions: Permission[] | null
     emailAccess: string[] | null
@@ -354,6 +355,18 @@ export default function TeamMemberDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
+          {/* Profile Picture */}
+          {teamMember.user?.image ? (
+            <img
+              src={teamMember.user.image}
+              alt={teamMember.name}
+              className="w-14 h-14 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xl font-bold">
+              {teamMember.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+          )}
           <div>
             <h1 className="text-2xl font-bold text-white">{teamMember.name}</h1>
             <p className="text-zinc-400">{teamMember.employeeNumber} - {teamMember.title}</p>

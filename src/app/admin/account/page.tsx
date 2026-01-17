@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 import SignaturePad from 'signature_pad'
 
 type CreateMode = 'draw' | 'type' | 'upload'
@@ -55,6 +56,7 @@ interface User {
 }
 
 export default function MyAccountPage() {
+  const { update: updateSession } = useSession()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [user, setUser] = useState<User | null>(null)
@@ -213,6 +215,8 @@ export default function MyAccountPage() {
         setUser(prev => prev ? { ...prev, ...data.user } : null)
         setPendingImageUpload(null)
         setMessage({ type: 'success', text: 'Profile updated successfully' })
+        // Refresh session to update header profile picture
+        await updateSession()
       } else {
         const data = await res.json()
         setMessage({ type: 'error', text: data.error || 'Failed to update profile' })
