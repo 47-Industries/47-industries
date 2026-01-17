@@ -1480,6 +1480,94 @@ export async function sendTeamContractSignedNotification(data: {
   }
 }
 
+// Password Reset Email
+export async function sendPasswordResetEmail(data: {
+  to: string
+  name: string
+  resetToken: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const resetUrl = `${APP_URL}/reset-password?token=${data.resetToken}`
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Reset Your Password
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.name}, we received a request to reset your password. Click the button below to create a new password.
+    </p>
+
+    ${getButton('Reset Password', resetUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      This link will expire in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email.
+    </p>
+
+    <p style="margin: 24px 0 0 0; color: #71717a; font-size: 13px; line-height: 1.6;" class="text-muted">
+      If the button doesn't work, copy and paste this URL into your browser:<br>
+      <a href="${resetUrl}" style="color: #3b82f6; text-decoration: none; word-break: break-all;">${resetUrl}</a>
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: `Reset Your Password - 47 Industries`,
+      html: getEmailTemplate(content, 'Reset Your Password'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send password reset email:', error)
+    return { success: false, error }
+  }
+}
+
+// Password Changed Notification (sent after password is changed by admin or user)
+export async function sendPasswordChangedNotification(data: {
+  to: string
+  name: string
+  changedByAdmin?: boolean
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Your Password Has Been Changed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.name}, ${data.changedByAdmin
+        ? 'an administrator has reset your password. You can now log in with your new password.'
+        : 'your password was successfully changed.'}
+    </p>
+
+    ${getCard(`
+      <p style="margin: 0; color: #52525b; font-size: 15px; line-height: 1.6;" class="text-secondary">
+        <strong style="color: #18181b;" class="text-primary">When:</strong> ${new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}
+      </p>
+    `)}
+
+    ${getButton('Go to Login', APP_URL + '/login')}
+
+    <p style="margin: 32px 0 0 0; color: #71717a; font-size: 13px; line-height: 1.6;" class="text-muted">
+      If you did not make this change or believe this was done in error, please contact support immediately at support@47industries.com
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      subject: `Your Password Has Been Changed - 47 Industries`,
+      html: getEmailTemplate(content, 'Password Changed'),
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send password changed notification:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()

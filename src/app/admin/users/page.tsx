@@ -60,6 +60,14 @@ function CustomersTab() {
   const [showNewSegmentModal, setShowNewSegmentModal] = useState(false)
   const [showEditSegmentModal, setShowEditSegmentModal] = useState<CustomerSegment | null>(null)
 
+  // Password reset modal state
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
+  const [resetPasswordError, setResetPasswordError] = useState('')
+  const [resettingPassword, setResettingPassword] = useState(false)
+
   useEffect(() => {
     fetchCustomers()
     fetchSegments()
@@ -114,6 +122,52 @@ function CustomersTab() {
       }
     } catch (error) {
       console.error('Failed to delete segment:', error)
+    }
+  }
+
+  const openResetPasswordModal = (user: User) => {
+    setResetPasswordUser(user)
+    setResetPassword('')
+    setResetPasswordConfirm('')
+    setSendNotification(true)
+    setResetPasswordError('')
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser) return
+
+    if (resetPassword.length < 8) {
+      setResetPasswordError('Password must be at least 8 characters')
+      return
+    }
+
+    if (resetPassword !== resetPasswordConfirm) {
+      setResetPasswordError('Passwords do not match')
+      return
+    }
+
+    setResettingPassword(true)
+    setResetPasswordError('')
+
+    try {
+      const res = await fetch(`/api/admin/users/${resetPasswordUser.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newPassword: resetPassword,
+          sendNotification,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password')
+
+      setResetPasswordUser(null)
+      alert('Password reset successfully' + (data.notificationSent ? ' - notification email sent' : ''))
+    } catch (err: any) {
+      setResetPasswordError(err.message)
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -339,10 +393,25 @@ function CustomersTab() {
                           fontSize: '13px',
                           color: '#fff',
                           textDecoration: 'none',
+                          marginRight: '8px',
                         }}
                       >
                         View
                       </Link>
+                      <button
+                        onClick={() => openResetPasswordModal(customer)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#f59e0b20',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          color: '#f59e0b',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Reset Password
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -413,6 +482,171 @@ function CustomersTab() {
           }}
         />
       )}
+
+      {/* Password Reset Modal */}
+      {resetPasswordUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            border: '1px solid #27272a',
+            width: '100%',
+            maxWidth: '450px',
+          }}>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Reset Password</h2>
+              <button
+                onClick={() => setResetPasswordUser(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#a1a1aa',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                }}
+              >
+                x
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              <p style={{ color: '#a1a1aa', marginBottom: '20px', fontSize: '14px' }}>
+                Reset password for <strong style={{ color: '#fff' }}>{resetPasswordUser.name || resetPasswordUser.email}</strong>
+              </p>
+
+              {resetPasswordError && (
+                <div style={{
+                  background: '#7f1d1d',
+                  border: '1px solid #991b1b',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  color: '#fca5a5',
+                  fontSize: '14px'
+                }}>
+                  {resetPasswordError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  placeholder="Re-enter password"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#a1a1aa',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={sendNotification}
+                    onChange={(e) => setSendNotification(e.target.checked)}
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  Send email notification to user
+                </label>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '20px',
+              borderTop: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+            }}>
+              <button
+                onClick={() => setResetPasswordUser(null)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resettingPassword || !resetPassword || !resetPasswordConfirm}
+                style={{
+                  padding: '10px 20px',
+                  background: resettingPassword ? '#52525b' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: resettingPassword ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {resettingPassword ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -426,6 +660,14 @@ function AdminsTab() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Password reset modal state
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
+  const [resetPasswordError, setResetPasswordError] = useState('')
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -543,6 +785,52 @@ function AdminsTab() {
       fetchUsers()
     } catch (err: any) {
       alert(err.message)
+    }
+  }
+
+  const openResetPasswordModal = (user: User) => {
+    setResetPasswordUser(user)
+    setResetPassword('')
+    setResetPasswordConfirm('')
+    setSendNotification(true)
+    setResetPasswordError('')
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser) return
+
+    if (resetPassword.length < 8) {
+      setResetPasswordError('Password must be at least 8 characters')
+      return
+    }
+
+    if (resetPassword !== resetPasswordConfirm) {
+      setResetPasswordError('Passwords do not match')
+      return
+    }
+
+    setResettingPassword(true)
+    setResetPasswordError('')
+
+    try {
+      const res = await fetch(`/api/admin/users/${resetPasswordUser.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newPassword: resetPassword,
+          sendNotification,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password')
+
+      setResetPasswordUser(null)
+      alert('Password reset successfully' + (data.notificationSent ? ' - notification email sent' : ''))
+    } catch (err: any) {
+      setResetPasswordError(err.message)
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -709,6 +997,21 @@ function AdminsTab() {
                       Edit
                     </button>
                     <button
+                      onClick={() => openResetPasswordModal(user)}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#f59e0b20',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: '#f59e0b',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        marginRight: '8px',
+                      }}
+                    >
+                      Reset Password
+                    </button>
+                    <button
                       onClick={() => handleDelete(user)}
                       style={{
                         padding: '6px 12px',
@@ -729,6 +1032,171 @@ function AdminsTab() {
           </table>
         )}
       </div>
+
+      {/* Password Reset Modal */}
+      {resetPasswordUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            border: '1px solid #27272a',
+            width: '100%',
+            maxWidth: '450px',
+          }}>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Reset Password</h2>
+              <button
+                onClick={() => setResetPasswordUser(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#a1a1aa',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                }}
+              >
+                x
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              <p style={{ color: '#a1a1aa', marginBottom: '20px', fontSize: '14px' }}>
+                Reset password for <strong style={{ color: '#fff' }}>{resetPasswordUser.name || resetPasswordUser.email}</strong>
+              </p>
+
+              {resetPasswordError && (
+                <div style={{
+                  background: '#7f1d1d',
+                  border: '1px solid #991b1b',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  color: '#fca5a5',
+                  fontSize: '14px'
+                }}>
+                  {resetPasswordError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  placeholder="Re-enter password"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#a1a1aa',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={sendNotification}
+                    onChange={(e) => setSendNotification(e.target.checked)}
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  Send email notification to user
+                </label>
+              </div>
+            </div>
+
+            <div style={{
+              padding: '20px',
+              borderTop: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+            }}>
+              <button
+                onClick={() => setResetPasswordUser(null)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resettingPassword || !resetPassword || !resetPasswordConfirm}
+                style={{
+                  padding: '10px 20px',
+                  background: resettingPassword ? '#52525b' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: resettingPassword ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {resettingPassword ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Admin Modal */}
       {showModal && (

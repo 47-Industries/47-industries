@@ -147,15 +147,30 @@ export default function AdminLoginPage() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '14px',
-                fontWeight: 500,
-                marginBottom: '8px',
-                color: '#a1a1aa'
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px'
               }}>
-                Password
-              </label>
+                <label style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: '#a1a1aa'
+                }}>
+                  Password
+                </label>
+                <a
+                  href="/forgot-password"
+                  style={{
+                    fontSize: '13px',
+                    color: '#3b82f6',
+                    textDecoration: 'none'
+                  }}
+                >
+                  Forgot password?
+                </a>
+              </div>
               <input
                 type="password"
                 value={password}
