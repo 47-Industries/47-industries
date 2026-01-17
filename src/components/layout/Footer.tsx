@@ -1,8 +1,15 @@
+'use client'
+
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import Logo from './Logo'
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear()
+  const [currentYear, setCurrentYear] = useState<number | null>(null)
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear())
+  }, [])
 
   return (
     <footer className="bg-surface border-t border-border">
@@ -91,7 +98,7 @@ export default function Footer() {
 
           {/* Copyright */}
           <div className="text-center text-xs text-text-secondary">
-            <p>&copy; {currentYear} 47 Industries. All rights reserved.</p>
+            <p>&copy; {currentYear || '2025'} 47 Industries. All rights reserved.</p>
             <p className="mt-1 text-text-muted">In loving memory of Bryce Raiford</p>
           </div>
         </div>
@@ -185,7 +192,7 @@ export default function Footer() {
           </div>
 
           <div className="border-t border-border mt-8 pt-8 text-center text-sm text-text-secondary">
-            <p>&copy; {currentYear} 47 Industries. All rights reserved.</p>
+            <p>&copy; {currentYear || '2025'} 47 Industries. All rights reserved.</p>
             <p className="mt-2 text-text-muted text-xs">In loving memory of Bryce Raiford</p>
           </div>
         </div>
