@@ -19,7 +19,7 @@ interface TeamMember {
   salaryAmount?: number
   salaryFrequency?: string
   equityPercentage?: number
-  user?: { id: string; email: string }
+  user?: { id: string; email: string; role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN' }
   _count: {
     contracts: number
     documents: number
@@ -306,6 +306,32 @@ export default function TeamPage() {
                     }}>
                       {member.status}
                     </span>
+                    {member.user?.role && member.user.role !== 'CUSTOMER' && (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        background: member.user.role === 'SUPER_ADMIN' ? '#7c3aed20' : '#3b82f620',
+                        color: member.user.role === 'SUPER_ADMIN' ? '#a78bfa' : '#60a5fa',
+                      }}>
+                        {member.user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
+                      </span>
+                    )}
+                    {!member.user && (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        background: '#71717a20',
+                        color: '#71717a',
+                      }}>
+                        No Account
+                      </span>
+                    )}
                   </div>
                   <p style={{ color: '#a1a1aa', margin: 0, fontSize: '14px' }}>
                     {member.title}

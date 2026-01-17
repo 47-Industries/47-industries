@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         user: {
-          select: { id: true, email: true, name: true },
+          select: { id: true, email: true, name: true, role: true },
         },
         _count: {
           select: {
