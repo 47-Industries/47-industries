@@ -124,6 +124,26 @@ export default function AccountPage() {
           </button>
         </div>
 
+        {/* Admin Console Banner */}
+        {(session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN') && (
+          <Link
+            href="/admin"
+            className="block p-6 mb-8 border border-purple-500/50 bg-purple-500/5 rounded-xl hover:border-purple-500 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Admin Console</h3>
+                <p className="text-text-secondary text-sm">
+                  {session?.user?.role === 'SUPER_ADMIN' ? 'Super Administrator' : 'Administrator'}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-purple-400 text-sm">Manage platform, orders & users</p>
+              </div>
+            </div>
+          </Link>
+        )}
+
         {/* Client Portal Banner */}
         {clientInfo && (
           <Link
