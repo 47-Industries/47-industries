@@ -151,7 +151,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <div style={{
-        marginLeft: showMobile ? 0 : '256px',
+        marginLeft: showMobile ? 0 : '240px',
         transition: 'margin-left 0.3s ease-in-out',
         minHeight: '100vh',
         display: 'flex',

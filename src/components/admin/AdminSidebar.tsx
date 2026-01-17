@@ -8,12 +8,11 @@ import { usePathname, useSearchParams } from 'next/navigation'
 interface NavItem {
   label: string
   href: string
-  icon?: string
-  subitems?: { label: string; href: string; tabValue?: string }[]
+  badge?: string
 }
 
 interface NavSection {
-  title?: string
+  title: string
   items: NavItem[]
 }
 
@@ -27,47 +26,61 @@ interface AdminSidebarProps {
 export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile, brandingFontClass }: AdminSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [expandedItems, setExpandedItems] = useState<string[]>([])
+  const [collapsedSections, setCollapsedSections] = useState<string[]>([])
 
   const navSections: NavSection[] = [
     {
+      title: 'Overview',
       items: [
         { label: 'Dashboard', href: '/admin' },
         { label: 'Analytics', href: '/admin/analytics' },
       ],
     },
     {
-      title: 'Shop',
+      title: 'Sales',
       items: [
-        { label: 'Products', href: '/admin/products' },
-        { label: 'Categories', href: '/admin/categories' },
         { label: 'Orders', href: '/admin/orders' },
-        { label: 'Inventory', href: '/admin/inventory' },
+        { label: 'Invoices', href: '/admin/invoices' },
         { label: 'Returns', href: '/admin/returns' },
+      ],
+    },
+    {
+      title: 'Products',
+      items: [
+        { label: 'All Products', href: '/admin/products' },
+        { label: 'Categories', href: '/admin/categories' },
+        { label: 'Inventory', href: '/admin/inventory' },
+        { label: 'Variants', href: '/admin/products/variants' },
       ],
     },
     {
       title: 'Services',
       items: [
-        { label: 'Service Packages', href: '/admin/services' },
+        { label: 'Packages', href: '/admin/services' },
         { label: 'Portfolio', href: '/admin/services/projects/new' },
-        {
-          label: 'Inquiries',
-          href: '/admin/inquiries',
-          subitems: [
-            { label: '3D Print Requests', href: '/admin/inquiries', tabValue: 'print-requests' },
-            { label: 'Service Inquiries', href: '/admin/inquiries', tabValue: 'service-inquiries' },
-            { label: 'General Inquiries', href: '/admin/inquiries', tabValue: 'contact-forms' },
-          ],
-        },
+        { label: 'Inquiries', href: '/admin/inquiries' },
+        { label: '3D Print Requests', href: '/admin/custom-requests' },
       ],
     },
     {
-      title: 'CRM',
+      title: 'Clients',
       items: [
-        { label: 'Clients', href: '/admin/clients' },
-        { label: 'Invoices', href: '/admin/invoices' },
-        { label: 'Partners', href: '/admin/partners' },
+        { label: 'All Clients', href: '/admin/clients' },
+      ],
+    },
+    {
+      title: 'Partners',
+      items: [
+        { label: 'All Partners', href: '/admin/partners' },
+        { label: 'Leads', href: '/admin/partners/leads' },
+        { label: 'Commissions', href: '/admin/partners/commissions' },
+        { label: 'Payouts', href: '/admin/partners/payouts' },
+      ],
+    },
+    {
+      title: 'People',
+      items: [
+        { label: 'Customers', href: '/admin/users' },
         { label: 'Team', href: '/admin/team' },
       ],
     },
@@ -87,64 +100,34 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       ],
     },
     {
-      title: 'Customers',
-      items: [
-        { label: 'All Customers', href: '/admin/customers' },
-        { label: 'Users', href: '/admin/users' },
-      ],
-    },
-    {
       title: 'Settings',
       items: [
         { label: 'General', href: '/admin/settings' },
         { label: 'My Profile', href: '/admin/settings/signature' },
         { label: 'Shipping', href: '/admin/settings/shipping' },
         { label: 'Tax', href: '/admin/settings/tax' },
-        { label: 'OAuth Apps', href: '/admin/oauth-applications' },
         { label: 'Notifications', href: '/admin/notifications' },
+        { label: 'OAuth Apps', href: '/admin/oauth-applications' },
       ],
     },
   ]
 
-  // Flatten items for auto-expand logic
-  const allNavItems = navSections.flatMap((section) => section.items)
-
-  // Auto-expand items based on current path
-  useEffect(() => {
-    const itemsToExpand: string[] = []
-    allNavItems.forEach((item) => {
-      if (item.subitems) {
-        const hasActiveSubitem = item.subitems.some((sub) => {
-          if (sub.tabValue) {
-            const currentTab = searchParams.get('tab')
-            return pathname === sub.href && currentTab === sub.tabValue
-          }
-          return pathname.startsWith(sub.href)
-        })
-        if (hasActiveSubitem || pathname.startsWith(item.href)) {
-          itemsToExpand.push(item.label)
-        }
-      }
-    })
-    setExpandedItems(itemsToExpand)
-  }, [pathname, searchParams])
-
-  const toggleExpanded = (label: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+  const toggleSection = (title: string) => {
+    setCollapsedSections((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
     )
   }
 
-  const isActive = (href: string, tabValue?: string) => {
-    if (tabValue) {
-      const currentTab = searchParams.get('tab')
-      const basePath = href.split('?')[0]
-      return pathname === basePath && currentTab === tabValue
-    }
+  const isActive = (href: string) => {
     if (href === '/admin') {
       return pathname === '/admin'
     }
-    return pathname.startsWith(href) && href !== '#'
+    return pathname.startsWith(href)
+  }
+
+  // Check if section has active item
+  const sectionHasActiveItem = (section: NavSection) => {
+    return section.items.some((item) => isActive(item.href))
   }
 
   return (
@@ -168,30 +151,29 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       {/* Sidebar */}
       <aside
         style={{
-          width: '256px',
+          width: '240px',
           height: '100vh',
           position: 'fixed',
           top: 0,
-          left: isMobile ? (isMobileMenuOpen ? 0 : '-256px') : 0,
+          left: isMobile ? (isMobileMenuOpen ? 0 : '-240px') : 0,
           background: '#0a0a0a',
-          borderRight: '1px solid #27272a',
+          borderRight: '1px solid #1f1f1f',
           overflowY: 'auto',
           transition: 'left 0.3s ease',
           zIndex: 50,
         }}
       >
-        <div style={{ padding: '24px 16px' }}>
+        <div style={{ padding: '20px 12px' }}>
           {/* Logo and Branding */}
-          <Link href="/admin" style={{ textDecoration: 'none', display: 'block', marginBottom: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 4px' }}>
+          <Link href="/admin" style={{ textDecoration: 'none', display: 'block', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 8px' }}>
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
                   overflow: 'hidden',
-                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-                  border: '1px solid #27272a',
+                  background: '#111',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -201,8 +183,8 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
                 <Image
                   src="/logo.png"
                   alt="47 Industries"
-                  width={32}
-                  height={32}
+                  width={28}
+                  height={28}
                   style={{ objectFit: 'contain' }}
                 />
               </div>
@@ -210,184 +192,151 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
                 <h1
                   className={brandingFontClass}
                   style={{
-                    fontSize: '18px',
+                    fontSize: '16px',
                     fontWeight: 700,
                     color: 'white',
                     margin: 0,
                     letterSpacing: '-0.02em',
-                    lineHeight: 1.2,
                   }}
                 >
-                  <span style={{ color: '#3b82f6' }}>47</span> Admin
+                  47 Industries
                 </h1>
                 <p
                   style={{
                     fontSize: '10px',
-                    color: '#52525b',
+                    color: '#525252',
                     margin: 0,
-                    marginTop: '2px',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    fontWeight: 500,
+                    letterSpacing: '0.05em',
                   }}
                 >
-                  Control Center
+                  Admin
                 </p>
               </div>
             </div>
           </Link>
 
           <nav>
-            {navSections.map((section, sectionIndex) => (
-              <div key={sectionIndex} style={{ marginBottom: '20px' }}>
-                {section.title && (
-                  <p
+            {navSections.map((section) => {
+              const isCollapsed = collapsedSections.includes(section.title)
+              const hasActive = sectionHasActiveItem(section)
+
+              return (
+                <div key={section.title} style={{ marginBottom: '4px' }}>
+                  {/* Section Header */}
+                  <button
+                    onClick={() => toggleSection(section.title)}
                     style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: '#71717a',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      padding: '0 8px',
-                      marginBottom: '8px',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#141414'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
                     }}
                   >
-                    {section.title}
-                  </p>
-                )}
-                {section.items.map((item) => (
-                  <div key={item.label} style={{ marginBottom: '2px' }}>
-                    {item.subitems ? (
-                      <>
-                        <button
-                          onClick={() => toggleExpanded(item.label)}
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 12px',
-                            background: expandedItems.includes(item.label) ? '#18181b' : 'transparent',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: expandedItems.includes(item.label) ? 'white' : '#a1a1aa',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!expandedItems.includes(item.label)) {
-                              e.currentTarget.style.background = '#18181b'
-                              e.currentTarget.style.color = 'white'
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!expandedItems.includes(item.label)) {
-                              e.currentTarget.style.background = 'transparent'
-                              e.currentTarget.style.color = '#a1a1aa'
-                            }
-                          }}
-                        >
-                          <span>{item.label}</span>
-                          <svg
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: hasActive ? '#3b82f6' : '#737373',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {section.title}
+                    </span>
+                    <svg
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        color: '#525252',
+                        transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.15s',
+                      }}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Section Items */}
+                  {!isCollapsed && (
+                    <div style={{ marginTop: '2px' }}>
+                      {section.items.map((item) => {
+                        const active = isActive(item.href)
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={isMobile ? onCloseMobile : undefined}
                             style={{
-                              width: '12px',
-                              height: '12px',
-                              transform: expandedItems.includes(item.label)
-                                ? 'rotate(90deg)'
-                                : 'rotate(0deg)',
-                              transition: 'transform 0.15s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '7px 12px 7px 24px',
+                              background: active ? '#1a1a2e' : 'transparent',
+                              borderRadius: '6px',
+                              color: active ? '#3b82f6' : '#a3a3a3',
+                              fontSize: '13px',
+                              textDecoration: 'none',
+                              transition: 'all 0.15s',
+                              marginBottom: '1px',
                             }}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                            onMouseEnter={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = '#141414'
+                                e.currentTarget.style.color = '#e5e5e5'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.color = '#a3a3a3'
+                              }
+                            }}
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                        {expandedItems.includes(item.label) && (
-                          <div style={{ marginLeft: '12px', marginTop: '4px', borderLeft: '1px solid #27272a', paddingLeft: '12px' }}>
-                            {item.subitems.map((subitem) => {
-                              const active = isActive(subitem.href, subitem.tabValue)
-                              const href = subitem.tabValue
-                                ? `${subitem.href}?tab=${subitem.tabValue}`
-                                : subitem.href
-                              return (
-                                <Link
-                                  key={subitem.label}
-                                  href={href}
-                                  onClick={isMobile ? onCloseMobile : undefined}
-                                  style={{
-                                    display: 'block',
-                                    padding: '6px 12px',
-                                    background: active ? '#3b82f6' : 'transparent',
-                                    borderRadius: '4px',
-                                    color: active ? 'white' : '#a1a1aa',
-                                    fontSize: '12px',
-                                    textDecoration: 'none',
-                                    marginBottom: '2px',
-                                    transition: 'all 0.15s',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    if (!active) {
-                                      e.currentTarget.style.background = '#18181b'
-                                      e.currentTarget.style.color = 'white'
-                                    }
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    if (!active) {
-                                      e.currentTarget.style.background = 'transparent'
-                                      e.currentTarget.style.color = '#a1a1aa'
-                                    }
-                                  }}
-                                >
-                                  {subitem.label}
-                                </Link>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        onClick={isMobile ? onCloseMobile : undefined}
-                        style={{
-                          display: 'block',
-                          padding: '8px 12px',
-                          background: isActive(item.href) ? '#3b82f6' : 'transparent',
-                          borderRadius: '6px',
-                          color: isActive(item.href) ? 'white' : '#a1a1aa',
-                          fontSize: '13px',
-                          textDecoration: 'none',
-                          transition: 'all 0.15s',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isActive(item.href)) {
-                            e.currentTarget.style.background = '#18181b'
-                            e.currentTarget.style.color = 'white'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isActive(item.href)) {
-                            e.currentTarget.style.background = 'transparent'
-                            e.currentTarget.style.color = '#a1a1aa'
-                          }
-                        }}
-                      >
-                        {item.label}
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
+                            <span>{item.label}</span>
+                            {item.badge && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  padding: '2px 6px',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  borderRadius: '10px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </nav>
 
-          {/* Version */}
-          <div style={{ marginTop: '32px', padding: '0 8px' }}>
-            <p style={{ fontSize: '11px', color: '#52525b' }}>
-              47 Industries Admin v1.0
+          {/* Footer */}
+          <div style={{ marginTop: '24px', padding: '12px', borderTop: '1px solid #1f1f1f' }}>
+            <p style={{ fontSize: '10px', color: '#404040', margin: 0 }}>
+              47 Industries v2.0
             </p>
           </div>
         </div>
