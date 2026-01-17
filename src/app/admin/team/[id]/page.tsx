@@ -165,6 +165,7 @@ export default function TeamMemberDetailPage() {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      timeZone: 'UTC',
     })
   }
 
@@ -498,24 +499,6 @@ export default function TeamMemberDetailPage() {
             </div>
           </div>
 
-          {/* Equity */}
-          <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Equity</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-zinc-500">Equity Percentage</label>
-                <p className="text-white text-xl font-semibold">
-                  {teamMember.equityPercentage ? `${teamMember.equityPercentage}%` : 'None'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-zinc-500">Notes</label>
-                <p className="text-white whitespace-pre-wrap">
-                  {teamMember.equityNotes || '-'}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1068,8 +1051,6 @@ function EditTeamMemberModal({
     salaryType: teamMember.salaryType,
     salaryAmount: teamMember.salaryAmount?.toString() || '',
     salaryFrequency: teamMember.salaryFrequency || '',
-    equityPercentage: teamMember.equityPercentage?.toString() || '',
-    equityNotes: teamMember.equityNotes || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1251,36 +1232,6 @@ function EditTeamMemberModal({
                   <option value="BIWEEKLY">Bi-weekly</option>
                   <option value="HOURLY">Hourly</option>
                 </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Equity */}
-          <div>
-            <h3 className="text-sm font-medium text-zinc-400 mb-3">Equity</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Equity Percentage</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={formData.equityPercentage}
-                  onChange={(e) => setFormData({ ...formData, equityPercentage: e.target.value })}
-                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
-                  placeholder="e.g., 2.5"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Equity Notes</label>
-                <input
-                  type="text"
-                  value={formData.equityNotes}
-                  onChange={(e) => setFormData({ ...formData, equityNotes: e.target.value })}
-                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
-                  placeholder="e.g., Vesting over 4 years"
-                />
               </div>
             </div>
           </div>
