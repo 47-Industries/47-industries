@@ -24,20 +24,8 @@ async function main() {
   })
 
   if (existingUser) {
-    console.log('Admin user already exists - updating to ensure correct settings...')
-    const hashedPassword = await bcrypt.hash(password, 12)
-    await prisma.user.update({
-      where: { id: existingUser.id },
-      data: {
-        username,
-        email,
-        name,
-        password: hashedPassword,
-        role: 'ADMIN',
-        emailVerified: new Date(),
-      }
-    })
-    console.log('✅ Admin user updated!')
+    console.log('Admin user already exists - skipping to preserve existing settings')
+    console.log('Current role:', existingUser.role)
     return
   }
 
@@ -51,7 +39,7 @@ async function main() {
       email,
       name,
       password: hashedPassword,
-      role: 'ADMIN',
+      role: 'SUPER_ADMIN',
       emailVerified: new Date(),
     }
   })
