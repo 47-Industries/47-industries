@@ -1592,8 +1592,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         Send for Signature
                       </button>
                     )}
-                    {/* Countersign Button - Show when contract has PDF but not yet countersigned */}
-                    {contract.fileUrl && !contract.countersignedAt && contract.status !== 'DRAFT' && (
+                    {/* Sign as 47 Industries Button - Show when contract has PDF but not yet countersigned */}
+                    {contract.fileUrl && !contract.countersignedAt && (
                       <button
                         onClick={() => setCountersigningContractId(contract.id)}
                         style={{
@@ -1606,7 +1606,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                           cursor: 'pointer',
                         }}
                       >
-                        Sign as Admin
+                        Sign as 47 Industries
                       </button>
                     )}
                     <button
