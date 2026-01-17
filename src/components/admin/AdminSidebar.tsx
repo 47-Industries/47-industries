@@ -97,6 +97,7 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       title: 'Settings',
       items: [
         { label: 'General', href: '/admin/settings' },
+        { label: 'My Profile', href: '/admin/settings/signature' },
         { label: 'Shipping', href: '/admin/settings/shipping' },
         { label: 'Tax', href: '/admin/settings/tax' },
         { label: 'OAuth Apps', href: '/admin/oauth-applications' },
