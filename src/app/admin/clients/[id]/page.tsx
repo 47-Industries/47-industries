@@ -547,6 +547,25 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  // Send contract for signature
+  const handleSendContract = async (contractId: string) => {
+    try {
+      const res = await fetch(`/api/admin/contracts/${contractId}/send`, {
+        method: 'POST',
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showToast('Contract sent for signature!', 'success')
+        fetchClient()
+      } else {
+        showToast(data.error || 'Failed to send contract', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send contract', 'error')
+    }
+  }
+
   // Amendment handlers
   const handleCreateAmendment = async (data: {
     title: string
@@ -1555,6 +1574,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       >
                         View
                       </a>
+                    )}
+                    {/* Send for Signature Button - Show when contract is DRAFT and has PDF */}
+                    {contract.fileUrl && contract.status === 'DRAFT' && (
+                      <button
+                        onClick={() => handleSendContract(contract.id)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#f59e0b20',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#f59e0b',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Send for Signature
+                      </button>
                     )}
                     {/* Countersign Button - Show when contract has PDF but not yet countersigned */}
                     {contract.fileUrl && !contract.countersignedAt && contract.status !== 'DRAFT' && (
