@@ -408,7 +408,7 @@ export default function TeamMemberDetailPage() {
               </div>
               <div>
                 <label className="text-sm text-zinc-500">Personal Email</label>
-                <p className="text-white">{teamMember.email}</p>
+                <p className="text-white">{teamMember.user?.email || '-'}</p>
               </div>
               <div>
                 <label className="text-sm text-zinc-500">Work Email</label>
@@ -1054,7 +1054,7 @@ function EditTeamMemberModal({
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: teamMember.name,
-    email: teamMember.email,
+    personalEmail: teamMember.user?.email || '',
     workEmail: teamMember.workEmail || '',
     phone: teamMember.phone || '',
     address: teamMember.address || '',
@@ -1116,12 +1116,16 @@ function EditTeamMemberModal({
                 <label className="block text-sm text-zinc-400 mb-1">Personal Email *</label>
                 <input
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.personalEmail}
+                  onChange={(e) => setFormData({ ...formData, personalEmail: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
                   placeholder="personal@gmail.com"
                   required
+                  disabled={!teamMember.user}
                 />
+                {!teamMember.user && (
+                  <p className="text-xs text-zinc-500 mt-1">No linked user account</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Work Email</label>

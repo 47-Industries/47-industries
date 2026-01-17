@@ -390,20 +390,6 @@ export default function TeamPage() {
                   )}
                 </div>
 
-                {/* Equity */}
-                <div>
-                  <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>
-                    Equity
-                  </p>
-                  {member.equityPercentage ? (
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: '16px', color: '#8b5cf6' }}>
-                      {member.equityPercentage}%
-                    </p>
-                  ) : (
-                    <p style={{ margin: 0, color: '#71717a', fontStyle: 'italic', fontSize: '14px' }}>None</p>
-                  )}
-                </div>
-
                 {/* Records */}
                 <div>
                   <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 4px 0', textTransform: 'uppercase' }}>
@@ -456,7 +442,6 @@ function CreateTeamMemberModal({
     salaryType: 'SALARY',
     salaryAmount: '',
     salaryFrequency: 'ANNUAL',
-    equityPercentage: '',
   })
   const { showToast } = useToast()
 
@@ -748,33 +733,6 @@ function CreateTeamMemberModal({
               </div>
             </div>
 
-            {/* Equity */}
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
-              Equity (Optional)
-            </h3>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
-                Equity Percentage
-              </label>
-              <input
-                type="number"
-                value={formData.equityPercentage}
-                onChange={(e) => setFormData({ ...formData, equityPercentage: e.target.value })}
-                placeholder="0.5"
-                step="0.01"
-                min="0"
-                max="100"
-                style={{
-                  width: '200px',
-                  padding: '10px 12px',
-                  background: '#0a0a0a',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                }}
-              />
-            </div>
           </div>
 
           {/* Modal Footer */}

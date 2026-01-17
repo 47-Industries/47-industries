@@ -122,7 +122,6 @@ export async function PUT(
 
     // Basic info
     if (body.name !== undefined) updateData.name = body.name
-    if (body.email !== undefined) updateData.email = body.email
     if (body.workEmail !== undefined) updateData.workEmail = body.workEmail || null
     if (body.phone !== undefined) updateData.phone = body.phone || null
     if (body.address !== undefined) updateData.address = body.address || null
@@ -165,35 +164,56 @@ export async function PUT(
         },
       })
 
-      // Update username on linked user if provided
-      if (body.username !== undefined && teamMemberUpdated.userId) {
-        const newUsername = body.username || null
+      // Update linked user fields (username and personalEmail)
+      if (teamMemberUpdated.userId) {
+        const userUpdateData: any = {}
 
-        // Check if username is taken by another user
-        if (newUsername) {
-          const existingUser = await tx.user.findFirst({
-            where: {
-              username: newUsername,
-              NOT: { id: teamMemberUpdated.userId },
-            },
-          })
-          if (existingUser) {
-            throw new Error('Username is already taken')
+        // Handle username update
+        if (body.username !== undefined) {
+          const newUsername = body.username || null
+          if (newUsername) {
+            const existingUser = await tx.user.findFirst({
+              where: {
+                username: newUsername,
+                NOT: { id: teamMemberUpdated.userId },
+              },
+            })
+            if (existingUser) {
+              throw new Error('Username is already taken')
+            }
           }
+          userUpdateData.username = newUsername
         }
 
-        await tx.user.update({
-          where: { id: teamMemberUpdated.userId },
-          data: { username: newUsername },
-        })
+        // Handle personal email update
+        if (body.personalEmail !== undefined) {
+          const newEmail = body.personalEmail || null
+          if (newEmail) {
+            const existingUser = await tx.user.findFirst({
+              where: {
+                email: newEmail,
+                NOT: { id: teamMemberUpdated.userId },
+              },
+            })
+            if (existingUser) {
+              throw new Error('Email is already taken')
+            }
+          }
+          userUpdateData.email = newEmail
+        }
 
-        // Return updated data with new username
-        return {
-          ...teamMemberUpdated,
-          user: teamMemberUpdated.user ? {
-            ...teamMemberUpdated.user,
-            username: newUsername,
-          } : null,
+        // Update user if there are changes
+        if (Object.keys(userUpdateData).length > 0) {
+          const updatedUser = await tx.user.update({
+            where: { id: teamMemberUpdated.userId },
+            data: userUpdateData,
+            select: { id: true, email: true, username: true },
+          })
+
+          return {
+            ...teamMemberUpdated,
+            user: updatedUser,
+          }
         }
       }
 
