@@ -36,6 +36,7 @@ export async function GET(
             role: true,
             permissions: true,
             emailAccess: true,
+            zohoTokenExpiry: true,
             orders: {
               select: {
                 id: true,
