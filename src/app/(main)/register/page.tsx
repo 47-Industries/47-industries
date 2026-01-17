@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
@@ -9,12 +9,14 @@ export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [formLoadTime] = useState(() => Date.now())
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
+    website: '', // Honeypot field - should remain empty
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +51,8 @@ export default function RegisterPage() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
+          website: formData.website, // Honeypot
+          formLoadTime: formLoadTime.toString(),
         }),
       })
 
@@ -88,6 +92,20 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Honeypot field - hidden from humans, bots will fill it */}
+          <div style={{ position: 'absolute', left: '-9999px', opacity: 0 }} aria-hidden="true">
+            <label htmlFor="website">Website</label>
+            <input
+              type="text"
+              name="website"
+              id="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={formData.website}
+              onChange={handleChange}
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Full Name</label>
             <input
