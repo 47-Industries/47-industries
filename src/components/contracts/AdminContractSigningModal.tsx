@@ -13,8 +13,10 @@ interface Admin {
   id: string
   email: string
   name: string | null
+  title: string | null
   role: string
   signatureUrl?: string | null
+  initialsUrl?: string | null
 }
 
 interface AdminContractSigningModalProps {
@@ -41,6 +43,8 @@ export default function AdminContractSigningModal({
   const [loadingAdmins, setLoadingAdmins] = useState(true)
   const [showPdfSigner, setShowPdfSigner] = useState(false)
   const [savedSignatureDataUrl, setSavedSignatureDataUrl] = useState<string | null>(null)
+  const [savedInitialsDataUrl, setSavedInitialsDataUrl] = useState<string | null>(null)
+  const [savedTitle, setSavedTitle] = useState<string | null>(null)
   const [loadingSignature, setLoadingSignature] = useState(false)
   const [error, setError] = useState('')
 
@@ -48,12 +52,14 @@ export default function AdminContractSigningModal({
     fetchAdmins()
   }, [])
 
-  // Load saved signature when admin is selected
+  // Load saved signature, initials, and title when admin is selected
   useEffect(() => {
     if (selectedAdmin) {
       loadSavedSignature(selectedAdmin.id)
     } else {
       setSavedSignatureDataUrl(null)
+      setSavedInitialsDataUrl(null)
+      setSavedTitle(null)
     }
   }, [selectedAdmin])
 
@@ -79,10 +85,19 @@ export default function AdminContractSigningModal({
   const loadSavedSignature = async (userId: string) => {
     setLoadingSignature(true)
     setSavedSignatureDataUrl(null)
+    setSavedInitialsDataUrl(null)
+    setSavedTitle(null)
     try {
       const res = await fetch(`/api/admin/users/${userId}/signature`)
       if (res.ok) {
         const data = await res.json()
+
+        // Load saved title
+        if (data.title) {
+          setSavedTitle(data.title)
+        }
+
+        // Load signature image
         if (data.signatureUrl) {
           // Convert URL to data URL for the signature pad
           const imgRes = await fetch(`/api/proxy/pdf?url=${encodeURIComponent(data.signatureUrl)}`)
@@ -91,6 +106,19 @@ export default function AdminContractSigningModal({
             const reader = new FileReader()
             reader.onloadend = () => {
               setSavedSignatureDataUrl(reader.result as string)
+            }
+            reader.readAsDataURL(blob)
+          }
+        }
+
+        // Load initials image
+        if (data.initialsUrl) {
+          const initialsRes = await fetch(`/api/proxy/pdf?url=${encodeURIComponent(data.initialsUrl)}`)
+          if (initialsRes.ok) {
+            const blob = await initialsRes.blob()
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              setSavedInitialsDataUrl(reader.result as string)
             }
             reader.readAsDataURL(blob)
           }
@@ -111,7 +139,7 @@ export default function AdminContractSigningModal({
     setShowPdfSigner(true)
   }
 
-  const handleSave = async (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string) => {
+  const handleSave = async (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string, initialsDataUrl?: string) => {
     const formData = new FormData()
     formData.append('signedPdf', signedPdfBlob, 'signed-contract.pdf')
     formData.append('signerName', signerName)
@@ -129,17 +157,28 @@ export default function AdminContractSigningModal({
       throw new Error(result.error || 'Failed to save signed contract')
     }
 
-    // Save signature to user account if this is a new signature
-    if (selectedAdmin && signatureDataUrl !== savedSignatureDataUrl) {
-      try {
-        await fetch(`/api/admin/users/${selectedAdmin.id}/signature`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ signatureDataUrl }),
-        })
-      } catch (err) {
-        console.error('Failed to save signature to account:', err)
-        // Don't fail the whole operation for this
+    // Save signature, initials, and title to user account if changed
+    if (selectedAdmin) {
+      const hasNewSignature = signatureDataUrl && signatureDataUrl !== savedSignatureDataUrl
+      const hasNewInitials = initialsDataUrl && initialsDataUrl !== savedInitialsDataUrl
+      const hasNewTitle = signerTitle && signerTitle !== savedTitle
+
+      if (hasNewSignature || hasNewInitials || hasNewTitle) {
+        try {
+          const updateData: Record<string, string> = {}
+          if (hasNewSignature) updateData.signatureDataUrl = signatureDataUrl
+          if (hasNewInitials) updateData.initialsDataUrl = initialsDataUrl!
+          if (hasNewTitle) updateData.title = signerTitle
+
+          await fetch(`/api/admin/users/${selectedAdmin.id}/signature`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData),
+          })
+        } catch (err) {
+          console.error('Failed to save signature data to account:', err)
+          // Don't fail the whole operation for this
+        }
       }
     }
 
@@ -155,7 +194,9 @@ export default function AdminContractSigningModal({
         onSave={handleSave}
         onClose={() => setShowPdfSigner(false)}
         initialSignerName={selectedAdmin?.name || ''}
+        initialSignerTitle={savedTitle || selectedAdmin?.title || ''}
         initialSignatureDataUrl={savedSignatureDataUrl}
+        initialInitialsDataUrl={savedInitialsDataUrl}
       />
     )
   }
@@ -203,10 +244,20 @@ export default function AdminContractSigningModal({
                         </p>
                         <p className="text-sm text-zinc-400">{admin.email}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         {admin.signatureUrl && (
                           <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
-                            Signature Saved
+                            Signature
+                          </span>
+                        )}
+                        {admin.initialsUrl && (
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
+                            Initials
+                          </span>
+                        )}
+                        {admin.title && (
+                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                            {admin.title}
                           </span>
                         )}
                         {admin.role === 'SUPER_ADMIN' && (

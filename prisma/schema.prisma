@@ -28,9 +28,11 @@ model User {
   username      String?   @unique
   email         String?   @unique
   name          String?
+  title         String?   // Job title/position (e.g., "President", "CEO") for contract signing
   password      String?
   image         String?
   signatureUrl  String?   // Saved signature image URL for contract signing
+  initialsUrl   String?   // Saved initials image URL for contract signing
   role          Role      @default(CUSTOMER)
   emailVerified DateTime?
 

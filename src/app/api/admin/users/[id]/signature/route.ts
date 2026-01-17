@@ -19,7 +19,7 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { signatureUrl: true, name: true, email: true },
+      select: { signatureUrl: true, initialsUrl: true, name: true, title: true, email: true },
     })
 
     if (!user) {
@@ -28,7 +28,9 @@ export async function GET(
 
     return NextResponse.json({
       signatureUrl: user.signatureUrl || null,
+      initialsUrl: user.initialsUrl || null,
       name: user.name || null,
+      title: user.title || null,
       email: user.email || null,
     })
   } catch (error) {
@@ -37,7 +39,7 @@ export async function GET(
   }
 }
 
-// POST - Save signature for a user (admin only)
+// POST - Save signature, initials, and title for a user (admin only)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,11 +51,7 @@ export async function POST(
     }
 
     const { id } = await params
-    const { signatureDataUrl } = await request.json()
-
-    if (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,')) {
-      return NextResponse.json({ error: 'Invalid signature data' }, { status: 400 })
-    }
+    const { signatureDataUrl, initialsDataUrl, title } = await request.json()
 
     // Verify user exists
     const user = await prisma.user.findUnique({
@@ -65,21 +63,54 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Convert base64 to buffer
-    const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
-    const buffer = Buffer.from(base64Data, 'base64')
+    const updateData: Record<string, string | null> = {}
 
-    // Upload to R2
-    const fileName = `signatures/users/${id}-${Date.now()}.png`
-    const signatureUrl = await uploadToR2(fileName, buffer, 'image/png')
+    // Handle signature upload
+    if (signatureDataUrl) {
+      if (!signatureDataUrl.startsWith('data:image/png;base64,')) {
+        return NextResponse.json({ error: 'Invalid signature data' }, { status: 400 })
+      }
+      const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const fileName = `signatures/users/${id}-signature-${Date.now()}.png`
+      updateData.signatureUrl = await uploadToR2(fileName, buffer, 'image/png')
+    }
+
+    // Handle initials upload
+    if (initialsDataUrl) {
+      if (!initialsDataUrl.startsWith('data:image/png;base64,')) {
+        return NextResponse.json({ error: 'Invalid initials data' }, { status: 400 })
+      }
+      const base64Data = initialsDataUrl.replace(/^data:image\/png;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+      const fileName = `signatures/users/${id}-initials-${Date.now()}.png`
+      updateData.initialsUrl = await uploadToR2(fileName, buffer, 'image/png')
+    }
+
+    // Handle title update
+    if (title !== undefined) {
+      updateData.title = title?.trim() || null
+    }
 
     // Update user record
-    await prisma.user.update({
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({
+        where: { id },
+        data: updateData,
+      })
+    }
+
+    // Fetch updated user
+    const updatedUser = await prisma.user.findUnique({
       where: { id },
-      data: { signatureUrl },
+      select: { signatureUrl: true, initialsUrl: true, title: true },
     })
 
-    return NextResponse.json({ signatureUrl })
+    return NextResponse.json({
+      signatureUrl: updatedUser?.signatureUrl || null,
+      initialsUrl: updatedUser?.initialsUrl || null,
+      title: updatedUser?.title || null,
+    })
   } catch (error) {
     console.error('Error saving user signature:', error)
     return NextResponse.json({ error: 'Failed to save signature' }, { status: 500 })

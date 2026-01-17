@@ -18,8 +18,10 @@ export async function GET(req: NextRequest) {
         id: true,
         email: true,
         name: true,
+        title: true,
         role: true,
         signatureUrl: true,
+        initialsUrl: true,
       },
       orderBy: [
         { role: 'desc' }, // SUPER_ADMIN first
