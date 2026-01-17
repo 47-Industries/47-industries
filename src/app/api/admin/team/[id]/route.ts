@@ -122,6 +122,7 @@ export async function PUT(
     // Basic info
     if (body.name !== undefined) updateData.name = body.name
     if (body.email !== undefined) updateData.email = body.email
+    if (body.workEmail !== undefined) updateData.workEmail = body.workEmail || null
     if (body.phone !== undefined) updateData.phone = body.phone || null
     if (body.address !== undefined) updateData.address = body.address || null
     if (body.dateOfBirth !== undefined) {

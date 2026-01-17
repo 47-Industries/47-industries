@@ -2551,7 +2551,8 @@ model TeamMember {
 
   // Personal Info
   name              String
-  email             String
+  email             String            // Personal email (gmail, etc.)
+  workEmail         String?           // Work email (47industries.com)
   phone             String?
   address           String?  @db.Text
   dateOfBirth       DateTime?

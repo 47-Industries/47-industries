@@ -29,6 +29,7 @@ interface TeamMember {
   employeeNumber: string
   name: string
   email: string
+  workEmail: string | null
   phone: string | null
   address: string | null
   dateOfBirth: string | null
@@ -405,8 +406,12 @@ export default function TeamMemberDetailPage() {
                 <p className="text-white">{teamMember.name}</p>
               </div>
               <div>
-                <label className="text-sm text-zinc-500">Email</label>
+                <label className="text-sm text-zinc-500">Personal Email</label>
                 <p className="text-white">{teamMember.email}</p>
+              </div>
+              <div>
+                <label className="text-sm text-zinc-500">Work Email</label>
+                <p className="text-white">{teamMember.workEmail || '-'}</p>
               </div>
               <div>
                 <label className="text-sm text-zinc-500">Phone</label>
@@ -1040,6 +1045,7 @@ function EditTeamMemberModal({
   const [formData, setFormData] = useState({
     name: teamMember.name,
     email: teamMember.email,
+    workEmail: teamMember.workEmail || '',
     phone: teamMember.phone || '',
     address: teamMember.address || '',
     dateOfBirth: teamMember.dateOfBirth ? teamMember.dateOfBirth.split('T')[0] : '',
@@ -1097,13 +1103,24 @@ function EditTeamMemberModal({
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Email *</label>
+                <label className="block text-sm text-zinc-400 mb-1">Personal Email *</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="personal@gmail.com"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Work Email</label>
+                <input
+                  type="email"
+                  value={formData.workEmail}
+                  onChange={(e) => setFormData({ ...formData, workEmail: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="name@47industries.com"
                 />
               </div>
               <div>
