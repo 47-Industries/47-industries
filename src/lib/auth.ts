@@ -21,14 +21,14 @@ export const authOptions: NextAuthOptions = {
         const identifier = credentials.usernameOrEmail.trim()
         const password = credentials.password
 
-        // Try to find user by username first, then by email (case-insensitive)
+        // Try to find user by username first
         let user = await prisma.user.findUnique({
           where: {
             username: identifier
           }
         })
 
-        // If not found by username, try email
+        // If not found by username, try personal email (User.email)
         // MySQL is case-insensitive by default for VARCHAR columns
         if (!user) {
           user = await prisma.user.findFirst({
@@ -45,6 +45,37 @@ export const authOptions: NextAuthOptions = {
               email: identifier
             }
           })
+        }
+
+        // If still not found, try work email (TeamMember.workEmail)
+        // MySQL is case-insensitive by default
+        if (!user) {
+          const teamMember = await prisma.teamMember.findFirst({
+            where: {
+              workEmail: identifier.toLowerCase()
+            },
+            include: {
+              user: true
+            }
+          })
+          if (teamMember?.user) {
+            user = teamMember.user
+          }
+        }
+
+        // Also try work email with original case
+        if (!user) {
+          const teamMember = await prisma.teamMember.findFirst({
+            where: {
+              workEmail: identifier
+            },
+            include: {
+              user: true
+            }
+          })
+          if (teamMember?.user) {
+            user = teamMember.user
+          }
         }
 
         if (!user) {
