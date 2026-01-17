@@ -28,7 +28,15 @@ export async function GET(
       where: { id },
       include: {
         user: {
-          select: { id: true, email: true, name: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            username: true,
+            role: true,
+            permissions: true,
+            emailAccess: true,
+          },
         },
         contracts: {
           orderBy: { createdAt: 'desc' },

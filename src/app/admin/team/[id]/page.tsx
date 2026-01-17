@@ -4,6 +4,26 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+type Permission = 'products' | 'orders' | 'users' | 'settings' | 'email' | 'custom_requests' | 'analytics' | 'expenses'
+
+const AVAILABLE_PERMISSIONS: { key: Permission; label: string; description: string }[] = [
+  { key: 'products', label: 'Products', description: 'Manage products and categories' },
+  { key: 'orders', label: 'Orders', description: 'View and manage orders' },
+  { key: 'users', label: 'Users', description: 'Manage user accounts' },
+  { key: 'settings', label: 'Settings', description: 'Access site settings' },
+  { key: 'email', label: 'Email', description: 'Access company email' },
+  { key: 'custom_requests', label: 'Custom Requests', description: 'Manage 3D printing requests' },
+  { key: 'analytics', label: 'Analytics', description: 'View analytics dashboard' },
+  { key: 'expenses', label: 'Expenses', description: 'View household bills and notifications' },
+]
+
+const COMPANY_EMAILS = [
+  'support@47industries.com',
+  'sales@47industries.com',
+  'admin@47industries.com',
+  'info@47industries.com',
+]
+
 interface TeamMember {
   id: string
   employeeNumber: string
@@ -22,12 +42,16 @@ interface TeamMember {
   salaryFrequency: string | null
   equityPercentage: number | null
   equityNotes: string | null
-  userId: string
+  userId: string | null
   user: {
     id: string
     email: string
     name: string | null
-  }
+    username: string | null
+    role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'
+    permissions: Permission[] | null
+    emailAccess: string[] | null
+  } | null
   contracts: Contract[]
   documents: Document[]
   payments: Payment[]
@@ -83,10 +107,28 @@ export default function TeamMemberDetailPage() {
   const [showContractModal, setShowContractModal] = useState(false)
   const [showDocumentModal, setShowDocumentModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+
+  // Account access state
+  const [accountSaving, setAccountSaving] = useState(false)
+  const [accountError, setAccountError] = useState('')
+  const [accountRole, setAccountRole] = useState<'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'>('CUSTOMER')
+  const [accountPermissions, setAccountPermissions] = useState<Permission[]>([])
+  const [accountEmailAccess, setAccountEmailAccess] = useState<string[]>([])
 
   useEffect(() => {
     fetchTeamMember()
   }, [params.id])
+
+  // Sync account state when teamMember loads
+  useEffect(() => {
+    if (teamMember?.user) {
+      setAccountRole(teamMember.user.role)
+      setAccountPermissions(teamMember.user.permissions || [])
+      setAccountEmailAccess(teamMember.user.emailAccess || [])
+    }
+  }, [teamMember])
 
   const fetchTeamMember = async () => {
     try {
@@ -191,6 +233,76 @@ export default function TeamMemberDetailPage() {
     return labels[type] || type
   }
 
+  const togglePermission = (perm: Permission) => {
+    setAccountPermissions(prev =>
+      prev.includes(perm)
+        ? prev.filter(p => p !== perm)
+        : [...prev, perm]
+    )
+  }
+
+  const toggleEmailAccess = (email: string) => {
+    setAccountEmailAccess(prev =>
+      prev.includes(email)
+        ? prev.filter(e => e !== email)
+        : [...prev, email]
+    )
+  }
+
+  const handleUpdateAccountAccess = async () => {
+    if (!teamMember?.user) return
+
+    setAccountSaving(true)
+    setAccountError('')
+
+    try {
+      const res = await fetch(`/api/admin/team/${teamMember.id}/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          role: accountRole,
+          permissions: accountPermissions,
+          emailAccess: accountEmailAccess,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update account')
+
+      fetchTeamMember()
+    } catch (err: any) {
+      setAccountError(err.message)
+    } finally {
+      setAccountSaving(false)
+    }
+  }
+
+  const handleUnlinkAccount = async () => {
+    if (!teamMember?.user) return
+    if (!confirm('Are you sure you want to unlink this user account? The user will no longer be associated with this team member.')) return
+
+    setAccountSaving(true)
+    setAccountError('')
+
+    try {
+      const res = await fetch(`/api/admin/team/${teamMember.id}/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unlink' }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to unlink account')
+
+      fetchTeamMember()
+    } catch (err: any) {
+      setAccountError(err.message)
+    } finally {
+      setAccountSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8">
@@ -249,7 +361,7 @@ export default function TeamMemberDetailPage() {
       {/* Tabs */}
       <div className="border-b border-zinc-800 mb-6">
         <div className="flex gap-6">
-          {['overview', 'contracts', 'documents', 'payments'].map((tab) => (
+          {['overview', 'account', 'contracts', 'documents', 'payments'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -259,7 +371,7 @@ export default function TeamMemberDetailPage() {
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'account' ? 'Account Access' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               {tab === 'contracts' && ` (${teamMember.contracts.length})`}
               {tab === 'documents' && ` (${teamMember.documents.length})`}
               {tab === 'payments' && ` (${teamMember.payments.length})`}
@@ -386,6 +498,194 @@ export default function TeamMemberDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Account Access Tab */}
+      {activeTab === 'account' && (
+        <div className="space-y-6">
+          {accountError && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg">
+              {accountError}
+            </div>
+          )}
+
+          {!teamMember.user ? (
+            // No user account linked
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-8 text-center">
+              <svg className="w-12 h-12 mx-auto mb-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-white mb-2">No User Account Linked</h3>
+              <p className="text-zinc-400 mb-6">
+                This team member does not have a user account for admin access. Create one to grant system access.
+              </p>
+              <button
+                onClick={() => setShowCreateAccountModal(true)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Create User Account
+              </button>
+            </div>
+          ) : (
+            // User account exists
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Account Info */}
+              <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-white">Account Information</h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowResetPasswordModal(true)}
+                      className="px-3 py-1.5 bg-amber-500/10 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 transition-colors"
+                    >
+                      Reset Password
+                    </button>
+                    <button
+                      onClick={handleUnlinkAccount}
+                      disabled={accountSaving}
+                      className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-zinc-500">Email</label>
+                    <p className="text-white">{teamMember.user.email}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-zinc-500">Username</label>
+                    <p className="text-white font-mono">{teamMember.user.username || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-zinc-500">Current Role</label>
+                    <p>
+                      <span className={`inline-block px-2 py-1 rounded text-sm ${
+                        teamMember.user.role === 'SUPER_ADMIN'
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : teamMember.user.role === 'ADMIN'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-zinc-500/20 text-zinc-400'
+                      }`}>
+                        {teamMember.user.role === 'SUPER_ADMIN' ? 'Super Admin' : teamMember.user.role === 'ADMIN' ? 'Admin' : 'Customer'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Role Selection */}
+              <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-white mb-4">System Role</h2>
+                <p className="text-sm text-zinc-400 mb-4">
+                  Determines what level of admin access this user has.
+                </p>
+                <div className="flex gap-2">
+                  {(['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'] as const).map(role => (
+                    <button
+                      key={role}
+                      onClick={() => setAccountRole(role)}
+                      className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                        accountRole === role
+                          ? role === 'SUPER_ADMIN'
+                            ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-400'
+                            : role === 'ADMIN'
+                            ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-400'
+                            : 'bg-zinc-500/20 border-2 border-zinc-500 text-zinc-300'
+                          : 'bg-zinc-900 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                      }`}
+                    >
+                      {role === 'SUPER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Admin' : 'No Admin Access'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-500 mt-3">
+                  {accountRole === 'SUPER_ADMIN' && 'Full access to all features including user management and settings.'}
+                  {accountRole === 'ADMIN' && 'Access based on permissions below. Cannot manage other admins.'}
+                  {accountRole === 'CUSTOMER' && 'No admin panel access. Standard customer account only.'}
+                </p>
+              </div>
+
+              {/* Permissions */}
+              {accountRole !== 'CUSTOMER' && (
+                <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+                  <h2 className="text-lg font-semibold text-white mb-4">Permissions</h2>
+                  <p className="text-sm text-zinc-400 mb-4">
+                    Select which areas this admin can access.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {AVAILABLE_PERMISSIONS.map(perm => (
+                      <button
+                        key={perm.key}
+                        onClick={() => togglePermission(perm.key)}
+                        className={`p-3 rounded-lg text-left transition-all ${
+                          accountPermissions.includes(perm.key)
+                            ? 'bg-green-500/10 border-2 border-green-500'
+                            : 'bg-zinc-900 border border-zinc-700 hover:border-zinc-500'
+                        }`}
+                      >
+                        <div className={`text-sm font-medium ${accountPermissions.includes(perm.key) ? 'text-green-400' : 'text-white'}`}>
+                          {perm.label}
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1">{perm.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Email Access */}
+              {accountRole !== 'CUSTOMER' && (
+                <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+                  <h2 className="text-lg font-semibold text-white mb-4">Company Email Access</h2>
+                  <p className="text-sm text-zinc-400 mb-4">
+                    Select which company email inboxes this admin can access.
+                  </p>
+                  <div className="space-y-2">
+                    {COMPANY_EMAILS.map(email => (
+                      <button
+                        key={email}
+                        onClick={() => toggleEmailAccess(email)}
+                        className={`w-full p-3 rounded-lg text-left transition-all flex items-center gap-3 ${
+                          accountEmailAccess.includes(email)
+                            ? 'bg-blue-500/10 border-2 border-blue-500'
+                            : 'bg-zinc-900 border border-zinc-700 hover:border-zinc-500'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded flex items-center justify-center ${
+                          accountEmailAccess.includes(email) ? 'bg-blue-500' : 'border border-zinc-600'
+                        }`}>
+                          {accountEmailAccess.includes(email) && (
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-sm ${accountEmailAccess.includes(email) ? 'text-blue-400' : 'text-white'}`}>
+                          {email}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Save Button */}
+          {teamMember.user && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleUpdateAccountAccess}
+                disabled={accountSaving}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {accountSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -623,6 +923,29 @@ export default function TeamMemberDetailPage() {
           onSaved={() => {
             setShowPaymentModal(false)
             fetchTeamMember()
+          }}
+        />
+      )}
+
+      {/* Create Account Modal */}
+      {showCreateAccountModal && (
+        <CreateAccountModal
+          teamMember={teamMember}
+          onClose={() => setShowCreateAccountModal(false)}
+          onSaved={() => {
+            setShowCreateAccountModal(false)
+            fetchTeamMember()
+          }}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && teamMember.user && (
+        <ResetPasswordModal
+          user={teamMember.user}
+          onClose={() => setShowResetPasswordModal(false)}
+          onSaved={() => {
+            setShowResetPasswordModal(false)
           }}
         />
       )}
@@ -1311,6 +1634,374 @@ function RecordPaymentModal({
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               {loading ? 'Recording...' : 'Record Payment'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Create Account Modal
+function CreateAccountModal({
+  teamMember,
+  onClose,
+  onSaved,
+}: {
+  teamMember: TeamMember
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [formData, setFormData] = useState({
+    email: teamMember.email,
+    username: '',
+    password: '',
+    confirmPassword: '',
+    role: 'ADMIN' as 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN',
+    permissions: [] as Permission[],
+    emailAccess: [] as string[],
+  })
+
+  const togglePermission = (perm: Permission) => {
+    setFormData(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(perm)
+        ? prev.permissions.filter(p => p !== perm)
+        : [...prev.permissions, perm]
+    }))
+  }
+
+  const toggleEmailAccess = (email: string) => {
+    setFormData(prev => ({
+      ...prev,
+      emailAccess: prev.emailAccess.includes(email)
+        ? prev.emailAccess.filter(e => e !== email)
+        : [...prev.emailAccess, email]
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/team/${teamMember.id}/account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          email: formData.email,
+          username: formData.username || undefined,
+          password: formData.password,
+          role: formData.role,
+          permissions: formData.permissions,
+          emailAccess: formData.emailAccess,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create account')
+      onSaved()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-zinc-800">
+          <h2 className="text-xl font-semibold text-white">Create User Account</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Create a user account for {teamMember.name}
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">Email *</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">Username (optional)</label>
+            <input
+              type="text"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              placeholder="e.g., johndoe"
+            />
+            <p className="text-xs text-zinc-500 mt-1">Lowercase letters and numbers only</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">Password *</label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                placeholder="Min 8 characters"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1">Confirm Password *</label>
+              <input
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Role</label>
+            <div className="flex gap-2">
+              {(['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'] as const).map(role => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role }))}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm transition-all ${
+                    formData.role === role
+                      ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-400'
+                      : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  {role === 'SUPER_ADMIN' ? 'Super Admin' : role === 'ADMIN' ? 'Admin' : 'Customer'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {formData.role !== 'CUSTOMER' && (
+            <>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">Permissions</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {AVAILABLE_PERMISSIONS.map(perm => (
+                    <button
+                      key={perm.key}
+                      type="button"
+                      onClick={() => togglePermission(perm.key)}
+                      className={`p-2 rounded-lg text-left text-sm transition-all ${
+                        formData.permissions.includes(perm.key)
+                          ? 'bg-green-500/10 border border-green-500 text-green-400'
+                          : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
+                      }`}
+                    >
+                      {perm.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">Email Access</label>
+                <div className="space-y-2">
+                  {COMPANY_EMAILS.map(email => (
+                    <button
+                      key={email}
+                      type="button"
+                      onClick={() => toggleEmailAccess(email)}
+                      className={`w-full p-2 rounded-lg text-left text-sm transition-all flex items-center gap-2 ${
+                        formData.emailAccess.includes(email)
+                          ? 'bg-blue-500/10 border border-blue-500 text-blue-400'
+                          : 'bg-zinc-900 border border-zinc-700 text-zinc-400'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded flex items-center justify-center ${
+                        formData.emailAccess.includes(email) ? 'bg-blue-500' : 'border border-zinc-600'
+                      }`}>
+                        {formData.emailAccess.includes(email) && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      {email}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : 'Create Account'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Reset Password Modal
+function ResetPasswordModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: { id: string; email: string; name: string | null }
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newPassword: password,
+          sendNotification,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password')
+
+      alert('Password reset successfully' + (data.notificationSent ? ' - notification email sent' : ''))
+      onSaved()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-md">
+        <div className="p-6 border-b border-zinc-800">
+          <h2 className="text-xl font-semibold text-white">Reset Password</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Reset password for {user.name || user.email}
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">New Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              placeholder="Min 8 characters"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendNotification}
+                onChange={(e) => setSendNotification(e.target.checked)}
+                className="w-4 h-4 rounded"
+              />
+              <span className="text-sm text-zinc-400">Send email notification to user</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </div>
         </form>
