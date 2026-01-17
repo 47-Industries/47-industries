@@ -37,11 +37,22 @@ interface User {
   teamMember: {
     id: string
     employeeNumber: string
+    name: string
+    email: string
+    workEmail: string | null
+    phone: string | null
+    address: string | null
+    dateOfBirth: string | null
     title: string
     department: string | null
+    startDate: string
+    endDate: string | null
+    status: string
+    salaryType: string
     salaryAmount: number | null
-    startDate: string | null
-    phone: string | null
+    salaryFrequency: string | null
+    equityPercentage: number | null
+    equityNotes: string | null
   } | null
   client: {
     id: string
@@ -626,7 +637,7 @@ export default function MyAccountPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Email</label>
+                <label className="block text-sm text-zinc-400 mb-1">Personal Email</label>
                 <input
                   type="email"
                   value={user.email || ''}
@@ -634,6 +645,29 @@ export default function MyAccountPage() {
                   className="w-full px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-zinc-400 cursor-not-allowed"
                 />
                 <p className="text-xs text-zinc-500 mt-1">Email cannot be changed</p>
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Work Email</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={user.teamMember?.workEmail || ''}
+                    disabled
+                    className="flex-1 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-zinc-400 cursor-not-allowed"
+                    placeholder="No work email"
+                  />
+                  {user.teamMember?.workEmail && (
+                    user.zohoConnected ? (
+                      <span className="px-2 py-1 text-xs rounded bg-green-500/20 text-green-400 whitespace-nowrap">
+                        Zoho Connected
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs rounded bg-zinc-700 text-zinc-400 whitespace-nowrap">
+                        Not Connected
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-zinc-400 mb-1">Phone</label>
@@ -653,16 +687,6 @@ export default function MyAccountPage() {
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
                   placeholder="e.g., President, CEO"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1">Backup Email</label>
-                <input
-                  type="email"
-                  value={backupEmail}
-                  onChange={(e) => setBackupEmail(e.target.value)}
-                  className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
-                  placeholder="Recovery email address"
                 />
               </div>
             </div>
@@ -1156,6 +1180,94 @@ export default function MyAccountPage() {
               </div>
             )}
           </div>
+
+          {/* Employment Details - Only for team members */}
+          {user.teamMember && (
+            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+              <h2 className="text-lg font-semibold text-white mb-4">Employment Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Title</label>
+                  <p className="text-white">{user.teamMember.title}</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Department</label>
+                  <p className="text-white">{user.teamMember.department || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Start Date</label>
+                  <p className="text-white">
+                    {new Date(user.teamMember.startDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      timeZone: 'UTC',
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">End Date</label>
+                  <p className="text-white">
+                    {user.teamMember.endDate
+                      ? new Date(user.teamMember.endDate).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          timeZone: 'UTC',
+                        })
+                      : 'Current'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Status</label>
+                  <span className={`px-2 py-1 rounded text-sm ${
+                    user.teamMember.status === 'ACTIVE'
+                      ? 'bg-green-500/20 text-green-400'
+                      : user.teamMember.status === 'ON_LEAVE'
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-zinc-700 text-zinc-400'
+                  }`}>
+                    {user.teamMember.status}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Employee Number</label>
+                  <p className="text-white font-mono">{user.teamMember.employeeNumber}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Compensation - Only for team members */}
+          {user.teamMember && (
+            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+              <h2 className="text-lg font-semibold text-white mb-4">Compensation</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Salary Type</label>
+                  <p className="text-white">{user.teamMember.salaryType || 'NONE'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Salary Amount</label>
+                  <p className="text-white text-xl font-semibold">
+                    {user.teamMember.salaryAmount
+                      ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(user.teamMember.salaryAmount))
+                      : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Frequency</label>
+                  <p className="text-white">{user.teamMember.salaryFrequency || '-'}</p>
+                </div>
+                {user.teamMember.equityPercentage && (
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-1">Equity</label>
+                    <p className="text-white">{user.teamMember.equityPercentage}%</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Account Status */}
           <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
