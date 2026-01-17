@@ -961,6 +961,60 @@ export default function AdminSettingsPage() {
                 </Link>
               </div>
             </div>
+
+            {/* Signature Settings Card */}
+            <div style={{
+              background: '#09090b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '20px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: '#3b82f620',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <svg style={{ width: '24px', height: '24px', color: '#3b82f6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Signature Settings</h3>
+                    </div>
+                    <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>
+                      Manage your signing credentials for contracts. Save your signature, initials, and job title.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/admin/settings/signature"
+                  style={{
+                    padding: '10px 20px',
+                    background: '#3b82f6',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Manage Signature
+                  <FontAwesomeIcon icon={faExternalLinkAlt} style={{ fontSize: '12px' }} />
+                </Link>
+              </div>
+            </div>
           </div>
         )}
 
