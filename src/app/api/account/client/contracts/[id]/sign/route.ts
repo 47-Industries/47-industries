@@ -55,10 +55,22 @@ export async function POST(
     }
 
     const body = await req.json()
-    const { signedByName, signatureDataUrl } = body
+    const { signedByName, signedByTitle, signedByCompany, signedByEmail, signatureDataUrl } = body
 
     if (!signedByName || signedByName.trim().length < 2) {
       return NextResponse.json({ error: 'Legal name is required' }, { status: 400 })
+    }
+
+    if (!signedByTitle || signedByTitle.trim().length < 2) {
+      return NextResponse.json({ error: 'Title/Position is required' }, { status: 400 })
+    }
+
+    if (!signedByCompany || signedByCompany.trim().length < 2) {
+      return NextResponse.json({ error: 'Company/Organization is required' }, { status: 400 })
+    }
+
+    if (!signedByEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signedByEmail)) {
+      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
 
     if (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,')) {
@@ -94,7 +106,9 @@ export async function POST(
         signedAt: new Date(),
         signatureUrl,
         signedByName: signedByName.trim(),
-        signedByEmail: user.client.email,
+        signedByTitle: signedByTitle.trim(),
+        signedByCompany: signedByCompany.trim(),
+        signedByEmail: signedByEmail.trim().toLowerCase(),
         signedByIp: ip,
         signedByUserId: session.user.id,
       },

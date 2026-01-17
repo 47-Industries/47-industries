@@ -51,6 +51,12 @@ interface CommissionRates {
   commissionType: string
 }
 
+interface PartnerInfo {
+  name: string
+  email: string
+  company?: string
+}
+
 export default function PartnerContractPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -61,6 +67,7 @@ export default function PartnerContractPage() {
   const [error, setError] = useState('')
   const [showSigningModal, setShowSigningModal] = useState(false)
   const [signingAmendment, setSigningAmendment] = useState<Amendment | null>(null)
+  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -72,8 +79,27 @@ export default function PartnerContractPage() {
     if (session?.user) {
       fetchContract()
       fetchAmendments()
+      fetchPartnerInfo()
     }
   }, [session])
+
+  async function fetchPartnerInfo() {
+    try {
+      const res = await fetch('/api/account/partner')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.partner) {
+          setPartnerInfo({
+            name: data.partner.name,
+            email: data.partner.email,
+            company: data.partner.company || data.partner.name,
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching partner info:', err)
+    }
+  }
 
   async function fetchContract() {
     try {
@@ -111,7 +137,13 @@ export default function PartnerContractPage() {
     }
   }
 
-  const handleSign = async (data: { signedByName: string; signatureDataUrl: string }) => {
+  const handleSign = async (data: {
+    signedByName: string
+    signedByTitle: string
+    signedByCompany: string
+    signedByEmail: string
+    signatureDataUrl: string
+  }) => {
     const res = await fetch('/api/account/partner/contract/sign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,7 +160,13 @@ export default function PartnerContractPage() {
     setShowSigningModal(false)
   }
 
-  const handleSignAmendment = async (data: { signedByName: string; signatureDataUrl: string }) => {
+  const handleSignAmendment = async (data: {
+    signedByName: string
+    signedByTitle: string
+    signedByCompany: string
+    signedByEmail: string
+    signatureDataUrl: string
+  }) => {
     if (!signingAmendment) return
 
     const res = await fetch(`/api/account/partner/amendments/${signingAmendment.id}/sign`, {
@@ -489,6 +527,9 @@ export default function PartnerContractPage() {
           contractFileUrl={contract.fileUrl}
           onSign={handleSign}
           onClose={() => setShowSigningModal(false)}
+          defaultName={partnerInfo?.name}
+          defaultEmail={partnerInfo?.email}
+          defaultCompany={partnerInfo?.company}
         />
       )}
 
@@ -499,6 +540,9 @@ export default function PartnerContractPage() {
           contractFileUrl={signingAmendment.fileUrl}
           onSign={handleSignAmendment}
           onClose={() => setSigningAmendment(null)}
+          defaultName={partnerInfo?.name}
+          defaultEmail={partnerInfo?.email}
+          defaultCompany={partnerInfo?.company}
         />
       )}
     </div>

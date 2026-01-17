@@ -3,11 +3,22 @@
 import { useRef, useEffect, useState } from 'react'
 import SignaturePad from 'signature_pad'
 
+interface SignatureData {
+  signedByName: string
+  signedByTitle: string
+  signedByCompany: string
+  signedByEmail: string
+  signatureDataUrl: string
+}
+
 interface ContractSigningModalProps {
   contractTitle: string
   contractFileUrl: string
-  onSign: (data: { signedByName: string; signatureDataUrl: string }) => Promise<void>
+  onSign: (data: SignatureData) => Promise<void>
   onClose: () => void
+  defaultName?: string
+  defaultEmail?: string
+  defaultCompany?: string
 }
 
 export default function ContractSigningModal({
@@ -15,12 +26,18 @@ export default function ContractSigningModal({
   contractFileUrl,
   onSign,
   onClose,
+  defaultName = '',
+  defaultEmail = '',
+  defaultCompany = '',
 }: ContractSigningModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [signaturePad, setSignaturePad] = useState<SignaturePad | null>(null)
   const [isEmpty, setIsEmpty] = useState(true)
   const [agreed, setAgreed] = useState(false)
-  const [legalName, setLegalName] = useState('')
+  const [legalName, setLegalName] = useState(defaultName)
+  const [title, setTitle] = useState('')
+  const [company, setCompany] = useState(defaultCompany)
+  const [email, setEmail] = useState(defaultEmail)
   const [signing, setSigning] = useState(false)
   const [error, setError] = useState('')
 
@@ -54,7 +71,8 @@ export default function ContractSigningModal({
     setIsEmpty(true)
   }
 
-  const canSign = agreed && legalName.trim().length > 2 && !isEmpty
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
+  const canSign = agreed && legalName.trim().length > 2 && title.trim().length > 1 && company.trim().length > 1 && isValidEmail(email) && !isEmpty
 
   const handleSign = async () => {
     if (!canSign || !signaturePad) return
@@ -65,6 +83,9 @@ export default function ContractSigningModal({
       const signatureDataUrl = signaturePad.toDataURL('image/png')
       await onSign({
         signedByName: legalName.trim(),
+        signedByTitle: title.trim(),
+        signedByCompany: company.trim(),
+        signedByEmail: email.trim().toLowerCase(),
         signatureDataUrl,
       })
     } catch (err) {
@@ -150,19 +171,67 @@ export default function ContractSigningModal({
             </span>
           </label>
 
-          {/* Legal Name */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Legal Name (as it should appear on the contract)
-            </label>
-            <input
-              type="text"
-              value={legalName}
-              onChange={(e) => setLegalName(e.target.value)}
-              placeholder="Enter your full legal name"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
-              disabled={signing}
-            />
+          {/* Signer Information */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Legal Name */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Full Legal Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                placeholder="John Smith"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                disabled={signing}
+              />
+            </div>
+
+            {/* Title/Position */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Title / Position <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="CEO, Owner, Partner, etc."
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                disabled={signing}
+              />
+            </div>
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Company / Organization <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Acme Corporation"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                disabled={signing}
+              />
+            </div>
+
+            {/* Email Address */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                Email Address <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                disabled={signing}
+              />
+            </div>
           </div>
 
           {/* Signature Pad */}
@@ -244,7 +313,10 @@ export default function ContractSigningModal({
               <p>To sign, you must:</p>
               <ul className="list-disc list-inside mt-1 space-y-1">
                 {!agreed && <li>Agree to the terms above</li>}
-                {legalName.trim().length <= 2 && <li>Enter your legal name</li>}
+                {legalName.trim().length <= 2 && <li>Enter your full legal name</li>}
+                {title.trim().length <= 1 && <li>Enter your title or position</li>}
+                {company.trim().length <= 1 && <li>Enter your company or organization</li>}
+                {!isValidEmail(email) && <li>Enter a valid email address</li>}
                 {isEmpty && <li>Draw your signature</li>}
               </ul>
             </div>

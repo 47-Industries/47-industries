@@ -50,6 +50,11 @@ interface Contract {
   createdAt: string
 }
 
+interface ClientInfo {
+  name: string
+  email: string
+}
+
 export default function ClientContractsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -58,6 +63,7 @@ export default function ClientContractsPage() {
   const [loading, setLoading] = useState(true)
   const [signingContract, setSigningContract] = useState<Contract | null>(null)
   const [signingAmendment, setSigningAmendment] = useState<Amendment | null>(null)
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -69,8 +75,23 @@ export default function ClientContractsPage() {
     if (session?.user) {
       fetchContracts()
       fetchAmendments()
+      fetchClientInfo()
     }
   }, [session])
+
+  async function fetchClientInfo() {
+    try {
+      const res = await fetch('/api/account/client')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.client) {
+          setClientInfo({ name: data.client.name, email: data.client.email })
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching client info:', err)
+    }
+  }
 
   async function fetchContracts() {
     try {
@@ -98,7 +119,13 @@ export default function ClientContractsPage() {
     }
   }
 
-  async function handleSignContract(data: { signedByName: string; signatureDataUrl: string }) {
+  async function handleSignContract(data: {
+    signedByName: string
+    signedByTitle: string
+    signedByCompany: string
+    signedByEmail: string
+    signatureDataUrl: string
+  }) {
     if (!signingContract) return
 
     const res = await fetch(`/api/account/client/contracts/${signingContract.id}/sign`, {
@@ -116,7 +143,13 @@ export default function ClientContractsPage() {
     setSigningContract(null)
   }
 
-  async function handleSignAmendment(data: { signedByName: string; signatureDataUrl: string }) {
+  async function handleSignAmendment(data: {
+    signedByName: string
+    signedByTitle: string
+    signedByCompany: string
+    signedByEmail: string
+    signatureDataUrl: string
+  }) {
     if (!signingAmendment) return
 
     const res = await fetch(`/api/account/client/amendments/${signingAmendment.id}/sign`, {
@@ -434,6 +467,9 @@ export default function ClientContractsPage() {
           contractFileUrl={signingContract.fileUrl}
           onSign={handleSignContract}
           onClose={() => setSigningContract(null)}
+          defaultName={clientInfo?.name}
+          defaultEmail={clientInfo?.email}
+          defaultCompany={clientInfo?.name}
         />
       )}
 
@@ -444,6 +480,9 @@ export default function ClientContractsPage() {
           contractFileUrl={signingAmendment.fileUrl}
           onSign={handleSignAmendment}
           onClose={() => setSigningAmendment(null)}
+          defaultName={clientInfo?.name}
+          defaultEmail={clientInfo?.email}
+          defaultCompany={clientInfo?.name}
         />
       )}
     </div>

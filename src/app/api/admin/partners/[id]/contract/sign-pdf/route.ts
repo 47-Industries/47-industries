@@ -46,11 +46,12 @@ export async function POST(
     const formData = await req.formData()
     const signedPdf = formData.get('signedPdf') as File | null
     const signerName = formData.get('signerName') as string | null
+    const signerTitle = formData.get('signerTitle') as string | null
     const signatureDataUrl = formData.get('signatureDataUrl') as string | null
     const signatureType = formData.get('signatureType') as string || 'admin' // 'admin' or 'partner'
 
-    if (!signedPdf || !signerName) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!signedPdf || !signerName || !signerTitle) {
+      return NextResponse.json({ error: 'Missing required fields (name and title required)' }, { status: 400 })
     }
 
     // Get client IP address
@@ -90,6 +91,7 @@ export async function POST(
       // Admin countersigning
       updateData.countersignatureUrl = signatureUrl
       updateData.countersignedByName = signerName.trim()
+      updateData.countersignedByTitle = signerTitle.trim()
       updateData.countersignedByEmail = user.email
       updateData.countersignedByIp = ip
       updateData.countersignedByUserId = user.id
@@ -103,6 +105,7 @@ export async function POST(
       // Partner signing (admin signing on behalf)
       updateData.signatureUrl = signatureUrl
       updateData.signedByName = signerName.trim()
+      updateData.signedByTitle = signerTitle.trim()
       updateData.signedByEmail = user.email // Admin's email since they're doing it
       updateData.signedByIp = ip
       updateData.signedByUserId = user.id

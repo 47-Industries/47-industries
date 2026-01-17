@@ -16,15 +16,17 @@ interface PlacedSignature {
   y: number // percentage from top
   width: number // percentage of page width
   signerName: string
+  signerTitle: string
 }
 
 interface InteractivePdfSignerProps {
   pdfUrl: string
   contractTitle: string
-  onSave: (signedPdfBlob: Blob, signerName: string, signatureDataUrl: string) => Promise<void>
+  onSave: (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string) => Promise<void>
   onClose: () => void
   existingSignatures?: PlacedSignature[]
   initialSignerName?: string
+  initialSignerTitle?: string
   initialSignatureDataUrl?: string | null
 }
 
@@ -35,6 +37,7 @@ export default function InteractivePdfSigner({
   onClose,
   existingSignatures = [],
   initialSignerName = '',
+  initialSignerTitle = '',
   initialSignatureDataUrl = null,
 }: InteractivePdfSignerProps) {
   const [numPages, setNumPages] = useState<number>(0)
@@ -61,6 +64,7 @@ export default function InteractivePdfSigner({
   const [clickPosition, setClickPosition] = useState<{ pageNumber: number; x: number; y: number } | null>(null)
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(initialSignatureDataUrl)
   const [signerName, setSignerName] = useState(initialSignerName)
+  const [signerTitle, setSignerTitle] = useState(initialSignerTitle)
   const [placedSignatures, setPlacedSignatures] = useState<PlacedSignature[]>(existingSignatures)
 
   // Signature pad
@@ -141,7 +145,7 @@ export default function InteractivePdfSigner({
 
   const handlePageClick = (pageNumber: number, event: React.MouseEvent<HTMLDivElement>) => {
     // If we already have a signature captured, place it
-    if (signatureDataUrl && signerName) {
+    if (signatureDataUrl && signerName && signerTitle) {
       const rect = event.currentTarget.getBoundingClientRect()
       const x = ((event.clientX - rect.left) / rect.width) * 100
       const y = ((event.clientY - rect.top) / rect.height) * 100
@@ -152,6 +156,7 @@ export default function InteractivePdfSigner({
         y,
         width: 20, // 20% of page width
         signerName,
+        signerTitle,
       }])
     } else {
       // Open signature capture modal
@@ -170,7 +175,7 @@ export default function InteractivePdfSigner({
   }
 
   const handleCaptureSignature = () => {
-    if (!signaturePad || isEmpty || !signerName.trim()) return
+    if (!signaturePad || isEmpty || !signerName.trim() || !signerTitle.trim()) return
 
     const dataUrl = signaturePad.toDataURL('image/png')
     setSignatureDataUrl(dataUrl)
@@ -183,6 +188,7 @@ export default function InteractivePdfSigner({
         y: clickPosition.y,
         width: 20,
         signerName: signerName.trim(),
+        signerTitle: signerTitle.trim(),
       }])
     }
 
@@ -195,7 +201,7 @@ export default function InteractivePdfSigner({
   }
 
   const handleSave = async () => {
-    if (placedSignatures.length === 0 || !signatureDataUrl || !signerName) {
+    if (placedSignatures.length === 0 || !signatureDataUrl || !signerName || !signerTitle) {
       setError('Please place at least one signature on the document')
       return
     }
@@ -247,7 +253,7 @@ export default function InteractivePdfSigner({
       const modifiedPdfBytes = await pdfDoc.save()
       const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' })
 
-      await onSave(blob, signerName.trim(), signatureDataUrl)
+      await onSave(blob, signerName.trim(), signerTitle.trim(), signatureDataUrl)
     } catch (err) {
       console.error('Error saving signed PDF:', err)
       setError(err instanceof Error ? err.message : 'Failed to save signed PDF')
@@ -258,6 +264,7 @@ export default function InteractivePdfSigner({
   const resetSignature = () => {
     setSignatureDataUrl(null)
     setSignerName('')
+    setSignerTitle('')
     setPlacedSignatures([])
     setSignaturePad(null)
     setIsEmpty(true)
@@ -275,7 +282,7 @@ export default function InteractivePdfSigner({
           {signatureDataUrl && (
             <div className="flex items-center gap-2 bg-zinc-800 px-3 py-2 rounded-lg">
               <span className="text-sm text-zinc-400">Signing as:</span>
-              <span className="text-sm text-white font-medium">{signerName}</span>
+              <span className="text-sm text-white font-medium">{signerName}, {signerTitle}</span>
               <button
                 onClick={resetSignature}
                 className="text-zinc-500 hover:text-white ml-2"
@@ -479,18 +486,32 @@ export default function InteractivePdfSigner({
             </div>
 
             <div className="p-6">
-              {/* Signer Name */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-zinc-400 mb-2">
-                  Full Legal Name
-                </label>
-                <input
-                  type="text"
-                  value={signerName}
-                  onChange={(e) => setSignerName(e.target.value)}
-                  placeholder="Enter your full legal name"
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
-                />
+              {/* Signer Name & Title */}
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    Full Legal Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={signerName}
+                    onChange={(e) => setSignerName(e.target.value)}
+                    placeholder="Kyle Rivers"
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    Title / Position <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={signerTitle}
+                    onChange={(e) => setSignerTitle(e.target.value)}
+                    placeholder="President, CEO, etc."
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               {/* Signature Pad */}
@@ -534,9 +555,9 @@ export default function InteractivePdfSigner({
                 </button>
                 <button
                   onClick={handleCaptureSignature}
-                  disabled={isEmpty || !signerName.trim()}
+                  disabled={isEmpty || !signerName.trim() || !signerTitle.trim()}
                   className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
-                    !isEmpty && signerName.trim()
+                    !isEmpty && signerName.trim() && signerTitle.trim()
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                   }`}

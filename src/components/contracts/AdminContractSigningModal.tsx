@@ -111,10 +111,11 @@ export default function AdminContractSigningModal({
     setShowPdfSigner(true)
   }
 
-  const handleSave = async (signedPdfBlob: Blob, signerName: string, signatureDataUrl: string) => {
+  const handleSave = async (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string) => {
     const formData = new FormData()
     formData.append('signedPdf', signedPdfBlob, 'signed-contract.pdf')
     formData.append('signerName', signerName)
+    formData.append('signerTitle', signerTitle)
     formData.append('signatureDataUrl', signatureDataUrl)
     formData.append('signatureType', signatureType === 'partner' ? 'partner' : signatureType)
 

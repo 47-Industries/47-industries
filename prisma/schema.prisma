@@ -2259,6 +2259,8 @@ model Contract {
   annotations     Json?               // Stored annotations as JSON (highlights, comments, drawings)
   signatureUrl    String?             // Signature image URL (stored in R2)
   signedByName    String?             // Full name of signer
+  signedByTitle   String?             // Title/Position of signer
+  signedByCompany String?             // Company/Organization of signer
   signedByEmail   String?             // Email of signer
   signedByIp      String?             // IP address when signed
   signedByUserId  String?             // User ID who signed
@@ -2266,6 +2268,7 @@ model Contract {
   // Admin countersignature fields
   countersignatureUrl    String?       // Admin's drawn signature (R2 URL)
   countersignedByName    String?       // Admin's typed name
+  countersignedByTitle   String?       // Admin's title/position
   countersignedByEmail   String?       // Admin's email
   countersignedByIp      String?       // Admin's IP for audit trail
   countersignedByUserId  String?       // Admin user who countersigned
@@ -2311,6 +2314,8 @@ model ContractAmendment {
   signedAt          DateTime?
   signatureUrl      String?
   signedByName      String?
+  signedByTitle     String?
+  signedByCompany   String?
   signedByEmail     String?
   signedByIp        String?
   signedByUserId    String?
@@ -2319,6 +2324,7 @@ model ContractAmendment {
   countersignedAt        DateTime?
   countersignatureUrl    String?
   countersignedByName    String?
+  countersignedByTitle   String?
   countersignedByEmail   String?
   countersignedByIp      String?
   countersignedByUserId  String?
@@ -2402,6 +2408,8 @@ model PartnerContract {
   // E-signature fields (Partner signature)
   signatureUrl    String?       // Drawn signature image (R2 URL)
   signedByName    String?       // Typed legal name
+  signedByTitle   String?       // Title/Position
+  signedByCompany String?       // Company/Organization
   signedByEmail   String?       // Email at time of signing
   signedByIp      String?       // IP address for audit trail
   signedByUserId  String?       // User who signed
@@ -2409,6 +2417,7 @@ model PartnerContract {
   // Admin countersignature fields
   countersignatureUrl    String?       // Admin's drawn signature (R2 URL)
   countersignedByName    String?       // Admin's typed name
+  countersignedByTitle   String?       // Admin's title/position
   countersignedByEmail   String?       // Admin's email
   countersignedByIp      String?       // Admin's IP for audit trail
   countersignedByUserId  String?       // Admin user who countersigned
