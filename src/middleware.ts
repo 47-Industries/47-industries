@@ -23,8 +23,11 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/admin' + url.pathname
     }
 
-    // SECURITY: Check authentication for ALL admin routes except login page and .well-known
-    if (!url.pathname.startsWith('/admin/login') && !url.pathname.startsWith('/.well-known')) {
+    // SECURITY: Check authentication for ALL admin routes except login, forgot-password, reset-password, and .well-known
+    if (!url.pathname.startsWith('/admin/login') &&
+        !url.pathname.startsWith('/admin/forgot-password') &&
+        !url.pathname.startsWith('/admin/reset-password') &&
+        !url.pathname.startsWith('/.well-known')) {
       const token = await getToken({
         req: request,
         secret: process.env.NEXTAUTH_SECRET
