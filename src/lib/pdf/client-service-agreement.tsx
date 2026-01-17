@@ -358,7 +358,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
               <Text style={styles.dateLine}>Date: _______________________</Text>
 
               <View style={[styles.signatureLine, { marginTop: 30 }]} />
-              <Text style={styles.signatureName}>Dean Saber, Managing Member</Text>
+              <Text style={styles.signatureName}>Dean Sabr, Managing Member</Text>
               <Text style={styles.dateLine}>Date: _______________________</Text>
             </View>
 
