@@ -447,10 +447,6 @@ export default function TeamMemberDetailPage() {
                   {teamMember.user?.username ? `@${teamMember.user.username}` : '-'}
                 </p>
               </div>
-              <div>
-                <label className="text-sm text-zinc-500">User Account</label>
-                <p className="text-white">{teamMember.user?.email || 'Not linked'}</p>
-              </div>
             </div>
           </div>
 
