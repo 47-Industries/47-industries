@@ -4,6 +4,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 const styles = StyleSheet.create({
   page: {
     padding: 50,
+    paddingBottom: 70,
     fontSize: 11,
     fontFamily: 'Helvetica',
     lineHeight: 1.5,
@@ -139,8 +140,13 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
 
   return (
     <Document>
-      {/* Page 1 */}
-      <Page size="LETTER" style={styles.page}>
+      <Page size="LETTER" style={styles.page} wrap>
+        {/* Fixed footer on every page */}
+        <View style={styles.footer} fixed>
+          <Text>47 Industries LLC | 11275 52nd Ave N, St. Petersburg, FL 33708</Text>
+          <Text>www.47industries.com | info@47industries.com</Text>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>SERVICE AGREEMENT</Text>
           <Text style={styles.subtitle}>Agreement Number: {contract.contractNumber}</Text>
@@ -154,8 +160,8 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
 
           <Text style={styles.indent}>
             <Text style={styles.bold}>47 Industries LLC</Text>, a limited liability company organized under the
-            laws of the State of Florida, with its principal place of business at 3725 Coconut Creek Pkwy,
-            Coconut Creek, FL 33066 (hereinafter referred to as the "Company")
+            laws of the State of Florida, with its principal place of business at 11275 52nd Ave N,
+            St. Petersburg, FL 33708 (hereinafter referred to as the "Company")
           </Text>
 
           <Text style={[styles.paragraph, { textAlign: 'center' }]}>and</Text>
@@ -173,7 +179,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.section} wrap={false}>
           <Text style={styles.articleTitle}>ARTICLE 1: SCOPE OF SERVICES</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>1.1 Project Overview.</Text> The Company agrees to provide{' '}
@@ -218,15 +224,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.footer}>
-          <Text>47 Industries LLC | 3725 Coconut Creek Pkwy, Coconut Creek, FL 33066</Text>
-          <Text>www.47industries.com | info@47industries.com</Text>
-        </View>
-      </Page>
-
-      {/* Page 2 */}
-      <Page size="LETTER" style={styles.page}>
-        <View style={styles.section}>
+        <View style={styles.section} wrap={false}>
           <Text style={styles.articleTitle}>ARTICLE 3: TIMELINE</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>3.1 Project Timeline.</Text> The Company shall use reasonable efforts to
@@ -244,7 +242,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.section} wrap={false}>
           <Text style={styles.articleTitle}>ARTICLE 4: INTELLECTUAL PROPERTY</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>4.1 Ownership.</Text> Upon full payment of all fees, the Client shall own
@@ -272,7 +270,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.section} wrap={false}>
           <Text style={styles.articleTitle}>ARTICLE 6: WARRANTIES AND LIMITATIONS</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>6.1 Warranty.</Text> The Company warrants that all services will be
@@ -285,14 +283,6 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.footer}>
-          <Text>47 Industries LLC | 3725 Coconut Creek Pkwy, Coconut Creek, FL 33066</Text>
-          <Text>www.47industries.com | info@47industries.com</Text>
-        </View>
-      </Page>
-
-      {/* Page 3 - Final page with signatures */}
-      <Page size="LETTER" style={styles.page}>
         <View style={styles.section}>
           <Text style={styles.articleTitle}>ARTICLE 7: TERM AND TERMINATION</Text>
           <Text style={styles.paragraph}>
@@ -344,7 +334,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.signatureSection}>
+        <View style={styles.signatureSection} wrap={false}>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>IN WITNESS WHEREOF</Text>, the Parties have executed this Agreement as of
             the date first written above.
@@ -354,11 +344,11 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
             <View style={styles.signatureBlock}>
               <Text style={styles.signatureLabel}>47 INDUSTRIES LLC</Text>
               <View style={styles.signatureLine} />
-              <Text style={styles.signatureName}>Kyle Rivers, Managing Member</Text>
+              <Text style={styles.signatureName}>Kyle Rivers, President</Text>
               <Text style={styles.dateLine}>Date: _______________________</Text>
 
               <View style={[styles.signatureLine, { marginTop: 30 }]} />
-              <Text style={styles.signatureName}>Dean Sabr, Managing Member</Text>
+              <Text style={styles.signatureName}>Dean Sabr, Chief Executive Officer</Text>
               <Text style={styles.dateLine}>Date: _______________________</Text>
             </View>
 
@@ -369,11 +359,6 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
               <Text style={styles.dateLine}>Date: _______________________</Text>
             </View>
           </View>
-        </View>
-
-        <View style={styles.footer}>
-          <Text>47 Industries LLC | 3725 Coconut Creek Pkwy, Coconut Creek, FL 33066</Text>
-          <Text>www.47industries.com | info@47industries.com</Text>
         </View>
       </Page>
     </Document>
