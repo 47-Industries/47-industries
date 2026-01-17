@@ -39,10 +39,18 @@ export default function CustomerDetailPage() {
     department: '',
     grantAdminAccess: true,
   })
+  const [editUsername, setEditUsername] = useState('')
+  const [savingUsername, setSavingUsername] = useState(false)
 
   useEffect(() => {
     fetchCustomer()
   }, [params.id])
+
+  useEffect(() => {
+    if (customer) {
+      setEditUsername(customer.username || '')
+    }
+  }, [customer])
 
   const fetchCustomer = async () => {
     try {
@@ -78,6 +86,28 @@ export default function CustomerDetailPage() {
       style: 'currency',
       currency: 'USD',
     }).format(amount)
+  }
+
+  const handleSaveUsername = async () => {
+    if (!customer) return
+    setSavingUsername(true)
+
+    try {
+      const res = await fetch(`/api/admin/customers/${customer.id}/username`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: editUsername || null }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update username')
+
+      fetchCustomer()
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setSavingUsername(false)
+    }
   }
 
   const handlePromoteToTeam = async () => {
@@ -296,6 +326,10 @@ export default function CustomerDetailPage() {
           </h2>
           <div style={{ display: 'grid', gap: '12px' }}>
             <div>
+              <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Name</p>
+              <p style={{ margin: '4px 0 0 0' }}>{customer.name || '-'}</p>
+            </div>
+            <div>
               <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Email</p>
               <p style={{ margin: '4px 0 0 0' }}>{customer.email || '-'}</p>
             </div>
@@ -311,6 +345,60 @@ export default function CustomerDetailPage() {
                 ) : (
                   <span style={{ color: '#f59e0b' }}>Not verified</span>
                 )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '24px',
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
+            Account Settings
+          </h2>
+          <div style={{ display: 'grid', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', color: '#71717a', fontSize: '12px', marginBottom: '6px' }}>
+                Username
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                  placeholder="e.g., johndoe"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+                <button
+                  onClick={handleSaveUsername}
+                  disabled={savingUsername || editUsername === (customer.username || '')}
+                  style={{
+                    padding: '8px 16px',
+                    background: savingUsername || editUsername === (customer.username || '') ? '#27272a' : '#3b82f6',
+                    color: savingUsername || editUsername === (customer.username || '') ? '#71717a' : '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: savingUsername || editUsername === (customer.username || '') ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingUsername ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              <p style={{ color: '#52525b', fontSize: '11px', marginTop: '6px' }}>
+                Lowercase letters and numbers only. Used for login.
               </p>
             </div>
           </div>
