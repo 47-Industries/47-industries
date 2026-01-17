@@ -4,7 +4,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 const styles = StyleSheet.create({
   page: {
     padding: 50,
-    paddingBottom: 70,
+    paddingBottom: 80,
     fontSize: 11,
     fontFamily: 'Helvetica',
     lineHeight: 1.5,
@@ -179,22 +179,18 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section} wrap={false}>
+        <View style={styles.section}>
           <Text style={styles.articleTitle}>ARTICLE 1: SCOPE OF SERVICES</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>1.1 Project Overview.</Text> The Company agrees to provide{' '}
             <Text style={styles.bold}>{serviceTypeLabel}</Text> services to the Client for the project titled{' '}
             <Text style={styles.bold}>"{project.name}"</Text> as described herein.
           </Text>
-          {project.description && (
-            <Text style={styles.paragraph}>
-              <Text style={styles.bold}>1.2 Project Description.</Text> {project.description}
-            </Text>
-          )}
           <Text style={styles.paragraph}>
-            <Text style={styles.bold}>1.3 Deliverables.</Text> The Company shall deliver the completed project
-            in accordance with the specifications agreed upon by both Parties. Any changes to the scope of work
-            must be agreed upon in writing by both Parties.
+            <Text style={styles.bold}>1.2 Deliverables.</Text> The Company shall deliver the completed project
+            in accordance with the specifications agreed upon by both Parties. The detailed scope of work,
+            deliverables, and milestones will be documented separately and provided to the Client.
+            Any changes to the scope of work must be agreed upon in writing by both Parties.
           </Text>
         </View>
 
@@ -224,7 +220,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section} wrap={false}>
+        <View style={styles.section}>
           <Text style={styles.articleTitle}>ARTICLE 3: TIMELINE</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>3.1 Project Timeline.</Text> The Company shall use reasonable efforts to
@@ -242,7 +238,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section} wrap={false}>
+        <View style={styles.section}>
           <Text style={styles.articleTitle}>ARTICLE 4: INTELLECTUAL PROPERTY</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>4.1 Ownership.</Text> Upon full payment of all fees, the Client shall own
@@ -270,7 +266,7 @@ export function ClientServiceAgreementPDF({ client, project, contract, effective
           </Text>
         </View>
 
-        <View style={styles.section} wrap={false}>
+        <View style={styles.section}>
           <Text style={styles.articleTitle}>ARTICLE 6: WARRANTIES AND LIMITATIONS</Text>
           <Text style={styles.paragraph}>
             <Text style={styles.bold}>6.1 Warranty.</Text> The Company warrants that all services will be
