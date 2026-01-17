@@ -40,6 +40,7 @@ interface User {
     department: string | null
     salaryAmount: number | null
     startDate: string | null
+    phone: string | null
   } | null
   client: {
     id: string

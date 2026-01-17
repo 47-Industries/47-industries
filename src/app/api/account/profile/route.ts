@@ -48,6 +48,7 @@ export async function GET() {
             department: true,
             salaryAmount: true,
             startDate: true,
+            phone: true,
           },
         },
         client: {
@@ -71,9 +72,10 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Transform response
+    // Transform response - use teamMember phone if user phone is empty
     const response = {
       ...user,
+      phone: user.phone || user.teamMember?.phone || null,
       zohoConnected: !!user.zohoRefreshToken,
       lastSession: user.sessions[0] || null,
       zohoRefreshToken: undefined,
