@@ -98,9 +98,17 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true, project })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating project:', error)
-    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+    })
+    return NextResponse.json({
+      error: 'Failed to update project',
+      details: error?.message || 'Unknown error'
+    }, { status: 500 })
   }
 }
 
