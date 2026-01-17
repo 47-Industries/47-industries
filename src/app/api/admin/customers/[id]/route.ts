@@ -33,6 +33,7 @@ export async function GET(
         id: true,
         name: true,
         email: true,
+        username: true,
         phone: true,
         createdAt: true,
         emailVerified: true,

@@ -36,6 +36,20 @@ export async function GET(
             role: true,
             permissions: true,
             emailAccess: true,
+            orders: {
+              select: {
+                id: true,
+                orderNumber: true,
+                status: true,
+                total: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 50,
+            },
+            _count: {
+              select: { orders: true },
+            },
           },
         },
         contracts: {

@@ -51,6 +51,14 @@ interface TeamMember {
     role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'
     permissions: Permission[] | null
     emailAccess: string[] | null
+    orders: {
+      id: string
+      orderNumber: string
+      status: string
+      total: number
+      createdAt: string
+    }[]
+    _count: { orders: number }
   } | null
   contracts: Contract[]
   documents: Document[]
@@ -116,6 +124,7 @@ export default function TeamMemberDetailPage() {
   const [accountRole, setAccountRole] = useState<'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'>('CUSTOMER')
   const [accountPermissions, setAccountPermissions] = useState<Permission[]>([])
   const [accountEmailAccess, setAccountEmailAccess] = useState<string[]>([])
+  const [accountUsername, setAccountUsername] = useState('')
 
   useEffect(() => {
     fetchTeamMember()
@@ -127,6 +136,7 @@ export default function TeamMemberDetailPage() {
       setAccountRole(teamMember.user.role)
       setAccountPermissions(teamMember.user.permissions || [])
       setAccountEmailAccess(teamMember.user.emailAccess || [])
+      setAccountUsername(teamMember.user.username || '')
     }
   }, [teamMember])
 
@@ -264,6 +274,7 @@ export default function TeamMemberDetailPage() {
           role: accountRole,
           permissions: accountPermissions,
           emailAccess: accountEmailAccess,
+          username: accountUsername || null,
         }),
       })
 
@@ -361,7 +372,7 @@ export default function TeamMemberDetailPage() {
       {/* Tabs */}
       <div className="border-b border-zinc-800 mb-6">
         <div className="flex gap-6">
-          {['overview', 'account', 'contracts', 'documents', 'payments'].map((tab) => (
+          {['overview', 'account', 'orders', 'contracts', 'documents', 'payments'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -372,6 +383,7 @@ export default function TeamMemberDetailPage() {
               }`}
             >
               {tab === 'account' ? 'Account Access' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'orders' && teamMember.user && ` (${teamMember.user._count?.orders || 0})`}
               {tab === 'contracts' && ` (${teamMember.contracts.length})`}
               {tab === 'documents' && ` (${teamMember.documents.length})`}
               {tab === 'payments' && ` (${teamMember.payments.length})`}
@@ -556,8 +568,15 @@ export default function TeamMemberDetailPage() {
                     <p className="text-white">{teamMember.user.email}</p>
                   </div>
                   <div>
-                    <label className="text-sm text-zinc-500">Username</label>
-                    <p className="text-white font-mono">{teamMember.user.username || '-'}</p>
+                    <label className="text-sm text-zinc-500 mb-1 block">Username</label>
+                    <input
+                      type="text"
+                      value={accountUsername}
+                      onChange={(e) => setAccountUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                      placeholder="e.g., johndoe"
+                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white font-mono text-sm"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Lowercase letters and numbers only. Used for login.</p>
                   </div>
                   <div>
                     <label className="text-sm text-zinc-500">Current Role</label>
@@ -684,6 +703,71 @@ export default function TeamMemberDetailPage() {
               >
                 {accountSaving ? 'Saving...' : 'Save Changes'}
               </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Orders Tab */}
+      {activeTab === 'orders' && (
+        <div>
+          <h2 className="text-lg font-semibold text-white mb-4">Purchase History</h2>
+          {!teamMember.user ? (
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-8 text-center">
+              <p className="text-zinc-400">No user account linked - cannot view orders</p>
+            </div>
+          ) : !teamMember.user.orders || teamMember.user.orders.length === 0 ? (
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-8 text-center">
+              <p className="text-zinc-400">No orders found</p>
+            </div>
+          ) : (
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-zinc-900">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Order</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Date</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Status</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">Total</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {teamMember.user.orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-zinc-900/50">
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-sm text-blue-400">{order.orderNumber}</span>
+                      </td>
+                      <td className="py-3 px-4 text-zinc-400 text-sm">
+                        {formatDate(order.createdAt)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          order.status === 'DELIVERED' ? 'bg-green-500/20 text-green-400' :
+                          order.status === 'SHIPPED' ? 'bg-purple-500/20 text-purple-400' :
+                          order.status === 'PROCESSING' ? 'bg-blue-500/20 text-blue-400' :
+                          order.status === 'CANCELLED' ? 'bg-red-500/20 text-red-400' :
+                          order.status === 'REFUNDED' ? 'bg-zinc-500/20 text-zinc-400' :
+                          'bg-amber-500/20 text-amber-400'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-white">
+                        {formatCurrency(order.total)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <a
+                          href={`/admin/orders/${order.id}`}
+                          className="text-blue-400 hover:text-blue-300 text-sm"
+                        >
+                          View
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
