@@ -1051,6 +1051,7 @@ function EditTeamMemberModal({
     salaryType: teamMember.salaryType,
     salaryAmount: teamMember.salaryAmount?.toString() || '',
     salaryFrequency: teamMember.salaryFrequency || '',
+    username: teamMember.user?.username || '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1133,6 +1134,19 @@ function EditTeamMemberModal({
                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
               />
             </div>
+            {teamMember.user && (
+              <div className="mt-4">
+                <label className="block text-sm text-zinc-400 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white font-mono"
+                  placeholder="e.g., johndoe"
+                />
+                <p className="text-xs text-zinc-500 mt-1">Lowercase letters and numbers only. Used for login.</p>
+              </div>
+            )}
           </div>
 
           {/* Employment Info */}

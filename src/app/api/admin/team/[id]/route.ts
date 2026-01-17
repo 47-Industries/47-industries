@@ -150,14 +150,52 @@ export async function PUT(
     }
     if (body.equityNotes !== undefined) updateData.equityNotes = body.equityNotes || null
 
-    const updated = await prisma.teamMember.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: { id: true, email: true },
+    // Update team member and optionally update linked user's username
+    const updated = await prisma.$transaction(async (tx) => {
+      // Update team member
+      const teamMemberUpdated = await tx.teamMember.update({
+        where: { id },
+        data: updateData,
+        include: {
+          user: {
+            select: { id: true, email: true, username: true },
+          },
         },
-      },
+      })
+
+      // Update username on linked user if provided
+      if (body.username !== undefined && teamMemberUpdated.userId) {
+        const newUsername = body.username || null
+
+        // Check if username is taken by another user
+        if (newUsername) {
+          const existingUser = await tx.user.findFirst({
+            where: {
+              username: newUsername,
+              NOT: { id: teamMemberUpdated.userId },
+            },
+          })
+          if (existingUser) {
+            throw new Error('Username is already taken')
+          }
+        }
+
+        await tx.user.update({
+          where: { id: teamMemberUpdated.userId },
+          data: { username: newUsername },
+        })
+
+        // Return updated data with new username
+        return {
+          ...teamMemberUpdated,
+          user: teamMemberUpdated.user ? {
+            ...teamMemberUpdated.user,
+            username: newUsername,
+          } : null,
+        }
+      }
+
+      return teamMemberUpdated
     })
 
     return NextResponse.json({ success: true, teamMember: updated })
