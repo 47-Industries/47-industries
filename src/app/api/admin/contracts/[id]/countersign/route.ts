@@ -48,13 +48,21 @@ export async function POST(
     }
 
     const body = await req.json()
-    const { signedByName, signatureDataUrl } = body
+    const {
+      signedByName,
+      signedByTitle,
+      signatureDataUrl,
+      signedPdfBlob, // Base64 encoded PDF with signatures embedded
+      signatureFields, // Array of { type, pageNumber, xPercent, yPercent, widthPercent, heightPercent, assignedTo, label }
+    } = body
 
     if (!signedByName || signedByName.trim().length < 2) {
       return NextResponse.json({ error: 'Legal name is required' }, { status: 400 })
     }
 
-    if (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,')) {
+    // Signature is only required if no signed PDF is provided
+    const hasSignedPdf = !!signedPdfBlob
+    if (!hasSignedPdf && (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,'))) {
       return NextResponse.json({ error: 'Valid signature is required' }, { status: 400 })
     }
 
@@ -62,9 +70,9 @@ export async function POST(
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.headers.get('x-real-ip') || 'unknown'
 
-    // Upload signature image to R2
+    // Upload signature image to R2 (if provided)
     let countersignatureUrl: string | null = null
-    if (isR2Configured) {
+    if (isR2Configured && signatureDataUrl && signatureDataUrl.startsWith('data:image/png;base64,')) {
       // Convert base64 to buffer
       const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
@@ -78,6 +86,46 @@ export async function POST(
       countersignatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
+    // Upload signed PDF if provided
+    let signedPdfUrl: string | null = null
+    if (isR2Configured && signedPdfBlob) {
+      const pdfBuffer = Buffer.from(signedPdfBlob, 'base64')
+      const timestamp = new Date().toISOString().split('T')[0]
+      const pdfFileName = `signed-${contract.contractNumber}-${timestamp}.pdf`
+      const pdfFileKey = `contracts/signed/${contract.contractNumber}/${pdfFileName}`
+
+      signedPdfUrl = await uploadToR2(pdfFileKey, pdfBuffer, 'application/pdf')
+    }
+
+    // Save signature fields if provided (these are placeholders for client/partner)
+    if (signatureFields && Array.isArray(signatureFields) && signatureFields.length > 0) {
+      // Delete existing unsigned fields and create new ones
+      await prisma.contractSignatureField.deleteMany({
+        where: {
+          contractId,
+          isSigned: false,
+        },
+      })
+
+      // Create new signature fields
+      for (const field of signatureFields) {
+        await prisma.contractSignatureField.create({
+          data: {
+            contractId,
+            type: field.type?.toUpperCase() || 'SIGNATURE',
+            pageNumber: field.pageNumber || 1,
+            xPercent: field.x || field.xPercent || 50,
+            yPercent: field.y || field.yPercent || 50,
+            widthPercent: field.width || field.widthPercent || 20,
+            heightPercent: field.height || field.heightPercent || 6,
+            assignedTo: field.assignedTo || 'CLIENT',
+            label: field.label || null,
+            isSigned: false,
+          },
+        })
+      }
+    }
+
     // Determine new status - ACTIVE if client already signed, keep current if admin signs first
     const newStatus = contract.signedAt ? 'ACTIVE' : contract.status
 
@@ -86,12 +134,15 @@ export async function POST(
       where: { id: contractId },
       data: {
         status: newStatus,
-        countersignatureUrl,
+        countersignatureUrl: countersignatureUrl || undefined,
         countersignedByName: signedByName.trim(),
+        countersignedByTitle: signedByTitle?.trim() || null,
         countersignedByEmail: user.email,
         countersignedByIp: ip,
         countersignedByUserId: user.id,
         countersignedAt: new Date(),
+        // Update fileUrl to signed PDF if provided
+        fileUrl: signedPdfUrl || undefined,
       },
     })
 

@@ -5,6 +5,40 @@ import { prisma } from '@/lib/prisma'
 import { uploadToR2, isR2Configured } from '@/lib/r2'
 import { sendContractSignedNotification, sendContractFullyExecutedNotification } from '@/lib/email'
 
+// GET /api/account/partner/contract/sign - Get signature fields for partner contract
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const partner = await prisma.partner.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        contract: {
+          include: {
+            signatureFields: {
+              orderBy: [{ pageNumber: 'asc' }, { yPercent: 'asc' }],
+            },
+          },
+        },
+      },
+    })
+
+    if (!partner || !partner.contract) {
+      return NextResponse.json({ signatureFields: [] })
+    }
+
+    return NextResponse.json({
+      signatureFields: partner.contract.signatureFields,
+    })
+  } catch (error) {
+    console.error('Error fetching partner contract signature fields:', error)
+    return NextResponse.json({ error: 'Failed to fetch signature fields' }, { status: 500 })
+  }
+}
+
 // POST /api/account/partner/contract/sign - Partner signs their contract
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +52,11 @@ export async function POST(req: NextRequest) {
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id },
       include: {
-        contract: true,
+        contract: {
+          include: {
+            signatureFields: true,
+          },
+        },
       },
     })
 
@@ -39,7 +77,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { signedByName, signedByTitle, signedByCompany, signedByEmail, signatureDataUrl } = body
+    const {
+      signedByName,
+      signedByTitle,
+      signedByCompany,
+      signedByEmail,
+      signatureDataUrl,
+      signedPdfBlob, // Base64 encoded PDF with signatures embedded
+      signedFields, // Array of { fieldId, signatureDataUrl, value? }
+    } = body
 
     if (!signedByName || signedByName.trim().length < 2) {
       return NextResponse.json({ error: 'Legal name is required' }, { status: 400 })
@@ -57,7 +103,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
     }
 
-    if (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,')) {
+    // Signature is only required if no signature fields are being used
+    const hasSignatureFields = signedFields && signedFields.length > 0
+    if (!hasSignatureFields && (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,'))) {
       return NextResponse.json({ error: 'Valid signature is required' }, { status: 400 })
     }
 
@@ -65,9 +113,9 @@ export async function POST(req: NextRequest) {
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.headers.get('x-real-ip') || 'unknown'
 
-    // Upload signature image to R2
+    // Upload signature image to R2 (legacy flow)
     let signatureUrl: string | null = null
-    if (isR2Configured) {
+    if (isR2Configured && signatureDataUrl && signatureDataUrl.startsWith('data:image/png;base64,')) {
       // Convert base64 to buffer
       const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
@@ -81,6 +129,49 @@ export async function POST(req: NextRequest) {
       signatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
+    // Upload signed PDF if provided
+    let signedPdfUrl: string | null = null
+    if (isR2Configured && signedPdfBlob) {
+      const pdfBuffer = Buffer.from(signedPdfBlob, 'base64')
+      const timestamp = new Date().toISOString().split('T')[0]
+      const pdfFileName = `signed-partner-${partner.partnerNumber}-${timestamp}.pdf`
+      const pdfFileKey = `contracts/signed/partners/${partner.partnerNumber}/${pdfFileName}`
+
+      signedPdfUrl = await uploadToR2(pdfFileKey, pdfBuffer, 'application/pdf')
+    }
+
+    // Update signature fields if provided
+    if (hasSignatureFields && Array.isArray(signedFields)) {
+      for (const field of signedFields) {
+        if (!field.fieldId || !field.signatureDataUrl) continue
+
+        // Upload field signature to R2
+        let fieldSignatureUrl: string | null = null
+        if (isR2Configured) {
+          const base64Data = field.signatureDataUrl.replace(/^data:image\/\w+;base64,/, '')
+          const buffer = Buffer.from(base64Data, 'base64')
+          const fieldFileName = `field-${field.fieldId}-${Date.now()}.png`
+          const fieldFileKey = `contracts/signatures/${partner.partnerNumber}/fields/${fieldFileName}`
+          fieldSignatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
+        }
+
+        // Update the signature field
+        await prisma.contractSignatureField.update({
+          where: { id: field.fieldId },
+          data: {
+            isSigned: true,
+            signatureUrl: fieldSignatureUrl || field.signatureDataUrl,
+            signedValue: field.value || null,
+            signedByName: signedByName.trim(),
+            signedByEmail: signedByEmail.trim().toLowerCase(),
+            signedByIp: ip,
+            signedByUserId: session.user.id,
+            signedAt: new Date(),
+          },
+        })
+      }
+    }
+
     // Determine status - ACTIVE if admin already countersigned, otherwise SIGNED
     const newStatus = partner.contract.countersignedAt ? 'ACTIVE' : 'SIGNED'
 
@@ -90,7 +181,9 @@ export async function POST(req: NextRequest) {
       data: {
         status: newStatus,
         signedAt: new Date(),
-        signatureUrl,
+        signatureUrl: signatureUrl || undefined,
+        // Update fileUrl to signed PDF if provided
+        fileUrl: signedPdfUrl || undefined,
         signedByName: signedByName.trim(),
         signedByTitle: signedByTitle.trim(),
         signedByCompany: signedByCompany.trim(),

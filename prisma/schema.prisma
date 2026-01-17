@@ -2284,9 +2284,56 @@ model Contract {
   // Amendments relation
   amendments      ContractAmendment[]
 
+  // Signature fields relation (DocuSign-like signature placement)
+  signatureFields ContractSignatureField[]
+
   @@index([clientId])
   @@index([contractNumber])
   @@index([status])
+}
+
+// Contract Signature Fields - designated signature/initial/date placement areas
+model ContractSignatureField {
+  id              String   @id @default(cuid())
+
+  // Polymorphic - exactly one must be set
+  contractId          String?
+  contract            Contract?        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  partnerContractId   String?
+  partnerContract     PartnerContract? @relation(fields: [partnerContractId], references: [id], onDelete: Cascade)
+
+  // Field type
+  type            String   // SIGNATURE, INITIALS, DATE, TEXT
+
+  // Position on PDF (percentages for responsive placement)
+  pageNumber      Int
+  xPercent        Float    // X position as percentage of page width
+  yPercent        Float    // Y position as percentage of page height
+  widthPercent    Float    // Width as percentage of page width
+  heightPercent   Float    // Height as percentage of page height
+
+  // Assignment
+  assignedTo      String   // ADMIN, ADMIN_2, CLIENT, PARTNER (who should sign here)
+  assignedUserId  String?  // Specific user ID if assigned to a specific admin
+  label           String?  // Optional label like "Client Signature" shown as placeholder
+
+  // Signature data (filled when signed)
+  isSigned        Boolean  @default(false)
+  signatureUrl    String?  // R2 URL to signature image
+  signedValue     String?  // For text/date fields, the actual value
+  signedByName    String?
+  signedByEmail   String?
+  signedByIp      String?
+  signedByUserId  String?
+  signedAt        DateTime?
+
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([partnerContractId])
+  @@index([assignedTo])
 }
 
 // Contract Amendments - additional work beyond monthly maintenance
@@ -2431,6 +2478,9 @@ model PartnerContract {
 
   // Amendments relation
   amendments    ContractAmendment[]
+
+  // Signature fields relation (DocuSign-like signature placement)
+  signatureFields ContractSignatureField[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
