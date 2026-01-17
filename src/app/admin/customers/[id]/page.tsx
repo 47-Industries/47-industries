@@ -10,12 +10,24 @@ interface Customer {
   email: string | null
   username: string | null
   phone: string | null
-  createdAt: string
+  title: string | null
+  image: string | null
+  role: string
+  permissions: string[] | null
+  emailAccess: string[] | null
+  backupEmail: string | null
+  isFounder: boolean
   emailVerified: string | null
+  createdAt: string
+  zohoConnected: boolean
+  lastSession: { expires: string } | null
   orders: Order[]
   _count: {
     orders: number
   }
+  teamMember: { id: string; employeeNumber: string; title: string } | null
+  client: { id: string; clientNumber: string; name: string } | null
+  partner: { id: string; partnerNumber: string; name: string } | null
 }
 
 interface Order {
@@ -32,15 +44,22 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState('overview')
   const [showPromoteModal, setShowPromoteModal] = useState(false)
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [promoting, setPromoting] = useState(false)
   const [promoteData, setPromoteData] = useState({
     title: '',
     department: '',
     grantAdminAccess: true,
   })
+
+  // Edit state
+  const [editName, setEditName] = useState('')
   const [editUsername, setEditUsername] = useState('')
-  const [savingUsername, setSavingUsername] = useState(false)
+  const [editPhone, setEditPhone] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchCustomer()
@@ -48,7 +67,10 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     if (customer) {
+      setEditName(customer.name || '')
       setEditUsername(customer.username || '')
+      setEditPhone(customer.phone || '')
+      setEditTitle(customer.title || '')
     }
   }, [customer])
 
@@ -89,25 +111,30 @@ export default function CustomerDetailPage() {
     }).format(amount)
   }
 
-  const handleSaveUsername = async () => {
+  const handleSave = async () => {
     if (!customer) return
-    setSavingUsername(true)
+    setSaving(true)
 
     try {
-      const res = await fetch(`/api/admin/customers/${customer.id}/username`, {
-        method: 'PUT',
+      const res = await fetch(`/api/admin/customers/${customer.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: editUsername || null }),
+        body: JSON.stringify({
+          name: editName || null,
+          username: editUsername || null,
+          phone: editPhone || null,
+          title: editTitle || null,
+        }),
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update username')
+      if (!res.ok) throw new Error(data.error || 'Failed to update')
 
       fetchCustomer()
     } catch (err: any) {
       alert(err.message)
     } finally {
-      setSavingUsername(false)
+      setSaving(false)
     }
   }
 
@@ -125,7 +152,6 @@ export default function CustomerDetailPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to promote customer')
 
-      // Redirect to the new team member page
       router.push(`/admin/team/${data.teamMemberId}`)
     } catch (err: any) {
       alert(err.message)
@@ -136,21 +162,29 @@ export default function CustomerDetailPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      PENDING: '#f59e0b',
-      PROCESSING: '#3b82f6',
-      SHIPPED: '#8b5cf6',
-      DELIVERED: '#10b981',
-      CANCELLED: '#ef4444',
-      REFUNDED: '#6b7280',
+      PENDING: 'bg-amber-500/20 text-amber-400',
+      PROCESSING: 'bg-blue-500/20 text-blue-400',
+      SHIPPED: 'bg-purple-500/20 text-purple-400',
+      DELIVERED: 'bg-green-500/20 text-green-400',
+      CANCELLED: 'bg-red-500/20 text-red-400',
+      REFUNDED: 'bg-zinc-500/20 text-zinc-400',
     }
-    return colors[status] || '#6b7280'
+    return colors[status] || 'bg-zinc-500/20 text-zinc-400'
   }
+
+  const hasChanges = customer && (
+    editName !== (customer.name || '') ||
+    editUsername !== (customer.username || '') ||
+    editPhone !== (customer.phone || '') ||
+    editTitle !== (customer.title || '')
+  )
 
   if (loading) {
     return (
-      <div style={{ padding: '32px', color: '#fff' }}>
-        <div style={{ textAlign: 'center', padding: '48px' }}>
-          Loading...
+      <div className="p-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-zinc-800 rounded w-64"></div>
+          <div className="h-64 bg-zinc-800 rounded"></div>
         </div>
       </div>
     )
@@ -158,27 +192,12 @@ export default function CustomerDetailPage() {
 
   if (error || !customer) {
     return (
-      <div style={{ padding: '32px', color: '#fff' }}>
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '48px',
-          textAlign: 'center',
-        }}>
-          <p style={{ color: '#ef4444', fontSize: '18px', marginBottom: '16px' }}>
-            {error || 'Customer not found'}
-          </p>
+      <div className="p-8">
+        <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-12 text-center">
+          <p className="text-red-400 text-lg mb-4">{error || 'Customer not found'}</p>
           <Link
             href="/admin/users"
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: '#3b82f6',
-              color: '#fff',
-              borderRadius: '8px',
-              textDecoration: 'none',
-            }}
+            className="inline-block px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Customers
           </Link>
@@ -195,421 +214,634 @@ export default function CustomerDetailPage() {
   }, 0) || 0
 
   return (
-    <div style={{ padding: '32px', color: '#fff' }}>
+    <div className="p-8">
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Link
-          href="/admin/users"
-          style={{
-            color: '#71717a',
-            textDecoration: 'none',
-            fontSize: '14px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            marginBottom: '12px',
-          }}
-        >
-          <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Customers
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '24px',
-              fontWeight: 600,
-            }}>
-              {customer.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || customer.email?.[0]?.toUpperCase() || '?'}
-            </div>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin/users"
+            className="text-zinc-400 hover:text-white transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div className="flex items-center gap-4">
+            {customer.image ? (
+              <img
+                src={customer.image}
+                alt={customer.name || 'User'}
+                className="w-16 h-16 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl font-semibold">
+                {customer.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || customer.email?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
             <div>
-              <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+              <h1 className="text-2xl font-bold text-white">
                 {customer.name || 'Unnamed Customer'}
               </h1>
-              <p style={{ color: '#a1a1aa', margin: 0 }}>{customer.email}</p>
+              <p className="text-zinc-400">{customer.email}</p>
               {customer.username && (
-                <p style={{ color: '#71717a', margin: '4px 0 0 0', fontSize: '13px' }}>
-                  @{customer.username}
-                </p>
+                <p className="text-zinc-500 text-sm font-mono">@{customer.username}</p>
               )}
             </div>
           </div>
-          <button
-            onClick={() => setShowPromoteModal(true)}
-            style={{
-              padding: '10px 20px',
-              background: '#7c3aed',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-            </svg>
-            Promote to Team
-          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Linked accounts badges */}
+          {customer.client && (
+            <Link
+              href={`/admin/clients/${customer.client.id}`}
+              className="px-3 py-1 rounded-full text-sm bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+            >
+              Client: {customer.client.clientNumber}
+            </Link>
+          )}
+          {customer.partner && (
+            <Link
+              href={`/admin/partners/${customer.partner.id}`}
+              className="px-3 py-1 rounded-full text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors"
+            >
+              Partner: {customer.partner.partnerNumber}
+            </Link>
+          )}
+          {customer.teamMember && (
+            <Link
+              href={`/admin/team/${customer.teamMember.id}`}
+              className="px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+            >
+              Team: {customer.teamMember.employeeNumber}
+            </Link>
+          )}
+          {!customer.teamMember && (
+            <button
+              onClick={() => setShowPromoteModal(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+              Promote to Team
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px',
-      }}>
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '20px',
-        }}>
-          <p style={{ color: '#71717a', fontSize: '14px', margin: 0 }}>Total Orders</p>
-          <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '8px 0 0 0' }}>
-            {customer._count?.orders || 0}
-          </p>
-        </div>
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '20px',
-        }}>
-          <p style={{ color: '#71717a', fontSize: '14px', margin: 0 }}>Total Spent</p>
-          <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '8px 0 0 0', color: '#10b981' }}>
-            {formatCurrency(totalSpent)}
-          </p>
-        </div>
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '20px',
-        }}>
-          <p style={{ color: '#71717a', fontSize: '14px', margin: 0 }}>Customer Since</p>
-          <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '8px 0 0 0' }}>
-            {formatDate(customer.createdAt)}
-          </p>
+      {/* Tabs */}
+      <div className="border-b border-zinc-800 mb-6">
+        <div className="flex gap-6">
+          {['overview', 'orders', 'account'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 px-1 text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {tab === 'overview' ? 'Overview' : tab === 'orders' ? `Orders (${customer._count?.orders || 0})` : 'Account'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Customer Info */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '24px',
-        marginBottom: '24px',
-      }}>
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '24px',
-        }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
-            Contact Information
-          </h2>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <div>
-              <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Name</p>
-              <p style={{ margin: '4px 0 0 0' }}>{customer.name || '-'}</p>
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+              <p className="text-zinc-500 text-sm">Total Orders</p>
+              <p className="text-2xl font-bold text-white mt-1">{customer._count?.orders || 0}</p>
             </div>
-            <div>
-              <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Email</p>
-              <p style={{ margin: '4px 0 0 0' }}>{customer.email || '-'}</p>
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+              <p className="text-zinc-500 text-sm">Total Spent</p>
+              <p className="text-2xl font-bold text-green-400 mt-1">{formatCurrency(totalSpent)}</p>
             </div>
-            <div>
-              <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Phone</p>
-              <p style={{ margin: '4px 0 0 0' }}>{customer.phone || '-'}</p>
-            </div>
-            <div>
-              <p style={{ color: '#71717a', fontSize: '12px', margin: 0 }}>Email Verified</p>
-              <p style={{ margin: '4px 0 0 0' }}>
-                {customer.emailVerified ? (
-                  <span style={{ color: '#10b981' }}>Yes - {formatDate(customer.emailVerified)}</span>
-                ) : (
-                  <span style={{ color: '#f59e0b' }}>Not verified</span>
-                )}
-              </p>
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-5">
+              <p className="text-zinc-500 text-sm">Customer Since</p>
+              <p className="text-2xl font-bold text-white mt-1">{formatDate(customer.createdAt)}</p>
             </div>
           </div>
-        </div>
 
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '12px',
-          padding: '24px',
-        }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
-            Account Settings
-          </h2>
-          <div style={{ display: 'grid', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', color: '#71717a', fontSize: '12px', marginBottom: '6px' }}>
-                Username
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Contact Information */}
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Contact Information</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-zinc-500">Name</label>
+                  <p className="text-white">{customer.name || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Email</label>
+                  <p className="text-white">{customer.email || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Phone</label>
+                  <p className="text-white">{customer.phone || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Title/Position</label>
+                  <p className="text-white">{customer.title || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Username</label>
+                  <p className="text-white font-mono">{customer.username ? `@${customer.username}` : '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Status */}
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Account Status</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-zinc-500">Email Verified</label>
+                  <p>
+                    {customer.emailVerified ? (
+                      <span className="text-green-400">Yes - {formatDate(customer.emailVerified)}</span>
+                    ) : (
+                      <span className="text-amber-400">Not verified</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Account Role</label>
+                  <p>
+                    <span className="inline-block px-2 py-1 rounded text-sm bg-zinc-500/20 text-zinc-400">
+                      Customer
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-zinc-500">Created</label>
+                  <p className="text-white">{formatDate(customer.createdAt)}</p>
+                </div>
+                {customer.lastSession && (
+                  <div>
+                    <label className="text-sm text-zinc-500">Session Expires</label>
+                    <p className="text-white">{formatDate(customer.lastSession.expires)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Linked Accounts */}
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Linked Accounts</h2>
+              <div className="space-y-3">
+                {customer.client ? (
+                  <Link
+                    href={`/admin/clients/${customer.client.id}`}
+                    className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
+                  >
+                    <div>
+                      <p className="text-white font-medium">{customer.client.name}</p>
+                      <p className="text-sm text-zinc-500">Client - {customer.client.clientNumber}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ) : (
+                  <div className="p-3 bg-zinc-900 rounded-lg text-zinc-500 text-sm">No client account linked</div>
+                )}
+                {customer.partner ? (
+                  <Link
+                    href={`/admin/partners/${customer.partner.id}`}
+                    className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
+                  >
+                    <div>
+                      <p className="text-white font-medium">{customer.partner.name}</p>
+                      <p className="text-sm text-zinc-500">Partner - {customer.partner.partnerNumber}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ) : (
+                  <div className="p-3 bg-zinc-900 rounded-lg text-zinc-500 text-sm">No partner account linked</div>
+                )}
+                {customer.teamMember ? (
+                  <Link
+                    href={`/admin/team/${customer.teamMember.id}`}
+                    className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
+                  >
+                    <div>
+                      <p className="text-white font-medium">{customer.teamMember.title}</p>
+                      <p className="text-sm text-zinc-500">Team Member - {customer.teamMember.employeeNumber}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ) : (
+                  <div className="p-3 bg-zinc-900 rounded-lg text-zinc-500 text-sm">No team member record</div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Orders Preview */}
+            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-white">Recent Orders</h2>
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  View All
+                </button>
+              </div>
+              {!customer.orders || customer.orders.length === 0 ? (
+                <p className="text-zinc-500 text-sm">No orders yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {customer.orders.slice(0, 3).map((order) => (
+                    <Link
+                      key={order.id}
+                      href={`/admin/orders/${order.id}`}
+                      className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors"
+                    >
+                      <div>
+                        <p className="text-blue-400 font-mono text-sm">{order.orderNumber}</p>
+                        <p className="text-xs text-zinc-500">{formatDate(order.createdAt)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-medium">{formatCurrency(order.total)}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Orders Tab */}
+      {activeTab === 'orders' && (
+        <div className="bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden">
+          {!customer.orders || customer.orders.length === 0 ? (
+            <div className="p-12 text-center text-zinc-500">No orders found</div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-zinc-900">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Order</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Date</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-zinc-400">Status</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">Total</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-zinc-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {customer.orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-zinc-900/50">
+                    <td className="py-3 px-4">
+                      <span className="font-mono text-sm text-blue-400">{order.orderNumber}</span>
+                    </td>
+                    <td className="py-3 px-4 text-zinc-400 text-sm">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-1 rounded text-xs ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-white">
+                      {formatCurrency(order.total)}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <Link
+                        href={`/admin/orders/${order.id}`}
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Account Tab */}
+      {activeTab === 'account' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Edit Profile */}
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Edit Profile</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="Full name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Username</label>
                 <input
                   type="text"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
-                  placeholder="e.g., johndoe"
-                  style={{
-                    flex: 1,
-                    padding: '8px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontFamily: 'monospace',
-                  }}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white font-mono"
+                  placeholder="username"
                 />
+                <p className="text-xs text-zinc-500 mt-1">Lowercase letters and numbers only</p>
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="Phone number"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Title/Position</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="e.g., CEO, Manager"
+                />
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={saving || !hasChanges}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+
+          {/* Account Actions */}
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Account Actions</h2>
+            <div className="space-y-4">
+              <div className="p-4 bg-zinc-900 rounded-lg">
+                <h3 className="text-white font-medium mb-1">Reset Password</h3>
+                <p className="text-sm text-zinc-500 mb-3">
+                  Set a new password for this user account.
+                </p>
                 <button
-                  onClick={handleSaveUsername}
-                  disabled={savingUsername || editUsername === (customer.username || '')}
-                  style={{
-                    padding: '8px 16px',
-                    background: savingUsername || editUsername === (customer.username || '') ? '#27272a' : '#3b82f6',
-                    color: savingUsername || editUsername === (customer.username || '') ? '#71717a' : '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: savingUsername || editUsername === (customer.username || '') ? 'not-allowed' : 'pointer',
-                  }}
+                  onClick={() => setShowResetPasswordModal(true)}
+                  className="px-4 py-2 bg-amber-500/10 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors text-sm"
                 >
-                  {savingUsername ? 'Saving...' : 'Save'}
+                  Reset Password
                 </button>
               </div>
-              <p style={{ color: '#52525b', fontSize: '11px', marginTop: '6px' }}>
-                Lowercase letters and numbers only. Used for login.
-              </p>
+
+              {!customer.teamMember && (
+                <div className="p-4 bg-zinc-900 rounded-lg">
+                  <h3 className="text-white font-medium mb-1">Promote to Team Member</h3>
+                  <p className="text-sm text-zinc-500 mb-3">
+                    Create a team member record and optionally grant admin access.
+                  </p>
+                  <button
+                    onClick={() => setShowPromoteModal(true)}
+                    className="px-4 py-2 bg-purple-500/10 text-purple-400 rounded-lg hover:bg-purple-500/20 transition-colors text-sm"
+                  >
+                    Promote to Team
+                  </button>
+                </div>
+              )}
+
+              <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
+                <h3 className="text-white font-medium mb-1">Account Information</h3>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">User ID</span>
+                    <span className="text-zinc-400 font-mono text-xs">{customer.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Created</span>
+                    <span className="text-zinc-400">{formatDate(customer.createdAt)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Email Verified</span>
+                    <span className={customer.emailVerified ? 'text-green-400' : 'text-amber-400'}>
+                      {customer.emailVerified ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Orders */}
-      <div style={{
-        background: '#18181b',
-        border: '1px solid #27272a',
-        borderRadius: '12px',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid #27272a',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
-            Order History
-          </h2>
-        </div>
-
-        {!customer.orders || customer.orders.length === 0 ? (
-          <div style={{ padding: '48px', textAlign: 'center', color: '#71717a' }}>
-            No orders yet
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#27272a' }}>
-                <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>Order</th>
-                <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>Date</th>
-                <th style={{ padding: '12px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>Status</th>
-                <th style={{ padding: '12px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>Total</th>
-                <th style={{ padding: '12px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customer.orders.map((order) => (
-                <tr key={order.id} style={{ borderBottom: '1px solid #27272a' }}>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{ fontFamily: 'monospace', color: '#3b82f6' }}>
-                      {order.orderNumber}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', color: '#a1a1aa' }}>
-                    {formatDate(order.createdAt)}
-                  </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      background: `${getStatusColor(order.status)}20`,
-                      color: getStatusColor(order.status),
-                    }}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 600 }}>
-                    {formatCurrency(order.total)}
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                    <Link
-                      href={`/admin/orders/${order.id}`}
-                      style={{
-                        color: '#3b82f6',
-                        textDecoration: 'none',
-                        fontSize: '14px',
-                      }}
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      )}
 
       {/* Promote to Team Modal */}
       {showPromoteModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 50,
-          padding: '16px',
-        }}>
-          <div style={{
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '12px',
-            width: '100%',
-            maxWidth: '500px',
-          }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #27272a' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>Promote to Team Member</h2>
-              <p style={{ color: '#71717a', fontSize: '14px', margin: '8px 0 0 0' }}>
-                This will create a team member record and optionally grant admin access.
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-md">
+            <div className="p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-white">Promote to Team Member</h2>
+              <p className="text-sm text-zinc-400 mt-1">
+                Create a team member record for {customer.name || customer.email}
               </p>
             </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-                  Job Title *
-                </label>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Job Title *</label>
                 <input
                   type="text"
                   value={promoteData.title}
                   onChange={(e) => setPromoteData({ ...promoteData, title: e.target.value })}
-                  placeholder="e.g., Software Engineer, Sales Manager"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '14px',
-                  }}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="e.g., Software Engineer"
                 />
               </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-                  Department
-                </label>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Department</label>
                 <input
                   type="text"
                   value={promoteData.department}
                   onChange={(e) => setPromoteData({ ...promoteData, department: e.target.value })}
-                  placeholder="e.g., Engineering, Sales, Marketing"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '14px',
-                  }}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                  placeholder="e.g., Engineering"
                 />
               </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={promoteData.grantAdminAccess}
-                    onChange={(e) => setPromoteData({ ...promoteData, grantAdminAccess: e.target.checked })}
-                    style={{ width: '18px', height: '18px' }}
-                  />
-                  <span style={{ color: '#fff', fontSize: '14px' }}>
-                    Grant admin access (change role from Customer to Admin)
-                  </span>
-                </label>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={promoteData.grantAdminAccess}
+                  onChange={(e) => setPromoteData({ ...promoteData, grantAdminAccess: e.target.checked })}
+                  className="w-4 h-4 rounded"
+                />
+                <span className="text-sm text-zinc-400">Grant admin access</span>
+              </label>
+              <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowPromoteModal(false)}
-                  style={{
-                    padding: '10px 20px',
-                    background: 'transparent',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: '#a1a1aa',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                  }}
+                  className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePromoteToTeam}
                   disabled={!promoteData.title || promoting}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#7c3aed',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: promoting || !promoteData.title ? 'not-allowed' : 'pointer',
-                    opacity: promoting || !promoteData.title ? 0.5 : 1,
-                  }}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                 >
-                  {promoting ? 'Promoting...' : 'Promote to Team'}
+                  {promoting ? 'Promoting...' : 'Promote'}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && (
+        <ResetPasswordModal
+          user={{ id: customer.id, email: customer.email, name: customer.name }}
+          onClose={() => setShowResetPasswordModal(false)}
+          onSaved={() => setShowResetPasswordModal(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Reset Password Modal Component
+function ResetPasswordModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: { id: string; email: string | null; name: string | null }
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [sendNotification, setSendNotification] = useState(true)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newPassword: password,
+          sendNotification,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password')
+
+      alert('Password reset successfully' + (data.notificationSent ? ' - notification email sent' : ''))
+      onSaved()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-md">
+        <div className="p-6 border-b border-zinc-800">
+          <h2 className="text-xl font-semibold text-white">Reset Password</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Set a new password for {user.name || user.email}
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">New Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              placeholder="Min 8 characters"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-zinc-400 mb-1">Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+              required
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendNotification}
+              onChange={(e) => setSendNotification(e.target.checked)}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm text-zinc-400">Send email notification to user</span>
+          </label>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

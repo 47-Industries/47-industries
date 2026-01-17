@@ -221,7 +221,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               {/* Profile Card */}
               {session?.user && (
                 <Link
-                  href="/admin/settings/signature"
+                  href="/admin/account"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
