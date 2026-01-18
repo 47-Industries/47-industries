@@ -58,7 +58,9 @@ export interface SignerOption {
   type: 'admin' | 'client' | 'partner'
   name: string
   email?: string
+  title?: string // Job title/role from database
   hasSignature?: boolean
+  hasInitials?: boolean
   assignedTo: AssignedTo
 }
 
@@ -147,7 +149,6 @@ export default function InteractivePdfSigner({
   const [isCreatingPlaceholder, setIsCreatingPlaceholder] = useState(false)
   const [selectedSigner, setSelectedSigner] = useState<SignerOption | null>(null)
   const [placeholderAssignedTo, setPlaceholderAssignedTo] = useState<AssignedTo>('CLIENT')
-  const [placeholderLabel, setPlaceholderLabel] = useState('')
 
   // Saved signature data
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(initialSignatureDataUrl)
@@ -284,13 +285,15 @@ export default function InteractivePdfSigner({
         const adminsRes = await fetch('/api/admin/users/admins')
         if (adminsRes.ok) {
           const adminsData = await adminsRes.json()
-          adminsData.admins?.forEach((admin: { id: string; name: string; email: string; signatureUrl?: string }, index: number) => {
+          adminsData.admins?.forEach((admin: { id: string; name: string; email: string; title?: string; signatureUrl?: string; initialsUrl?: string }, index: number) => {
             options.push({
               id: admin.id,
               type: 'admin',
               name: admin.name || admin.email,
               email: admin.email,
+              title: admin.title || undefined,
               hasSignature: !!admin.signatureUrl,
+              hasInitials: !!admin.initialsUrl,
               assignedTo: index === 0 ? 'ADMIN' : 'ADMIN_2' as AssignedTo,
             })
           })
@@ -534,9 +537,9 @@ export default function InteractivePdfSigner({
       },
     }
 
-    // Use selected signer's name for label if available
+    // Build label from signer's name and title
     const signerLabel = selectedSigner
-      ? `${selectedSigner.name} ${createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'}`
+      ? `${selectedSigner.name}${selectedSigner.title ? ` (${selectedSigner.title})` : ''}`
       : defaultLabels[createType][placeholderAssignedTo]
 
     const newElement: PlacedElement = {
@@ -547,12 +550,12 @@ export default function InteractivePdfSigner({
       y: clickPosition.y,
       width: createType === 'initials' || createType === 'date' ? 12 : 25,
       height: createType === 'initials' || createType === 'date' ? 4 : 6,
-      signerName: '',
-      signerTitle: '',
+      signerName: selectedSigner?.name || '',
+      signerTitle: selectedSigner?.title || '',
       isPlaceholder: true,
       assignedTo: placeholderAssignedTo,
       assignedUserId: selectedSigner?.id || undefined,
-      label: placeholderLabel.trim() || signerLabel,
+      label: signerLabel,
       isSigned: false,
     }
 
@@ -560,8 +563,7 @@ export default function InteractivePdfSigner({
     setShowCreateModal(false)
     setClickPosition(null)
     setIsCreatingPlaceholder(false)
-    setPlaceholderLabel('')
-    setSelectedSigner(null) // Reset selected signer
+    setSelectedSigner(null)
   }
 
   const handleRemoveElement = (id: string) => {
@@ -1061,21 +1063,21 @@ export default function InteractivePdfSigner({
                 </div>
               )}
 
-              {/* Placeholder Creation Mode */}
+              {/* Placeholder Creation Mode - Add Field for Others */}
               {isCreatingPlaceholder ? (
                 <>
-                  {/* Who should sign */}
+                  {/* Select Team Member / Signer */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      Who should sign here?
+                      Select Signer
                     </label>
                     {loadingSigners ? (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="text-zinc-500 text-sm mt-2">Loading signers...</p>
+                        <p className="text-zinc-500 text-sm mt-2">Loading team members...</p>
                       </div>
                     ) : signerOptions.length > 0 ? (
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
                         {signerOptions.map((signer) => {
                           const colors = SIGNER_COLORS[signer.assignedTo]
                           const isSelected = selectedSigner?.id === signer.id
@@ -1088,25 +1090,27 @@ export default function InteractivePdfSigner({
                               }}
                               className={`w-full px-4 py-3 rounded-lg font-medium transition-colors border-2 text-left ${
                                 isSelected
-                                  ? `${colors.border} ${colors.bgLight} ${colors.text}`
-                                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                                  ? `${colors.border} ${colors.bgLight}`
+                                  : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
                               }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <div className={isSelected ? colors.text : 'text-white'}>{signer.name}</div>
-                                  {signer.email && (
-                                    <div className="text-xs text-zinc-500">{signer.email}</div>
-                                  )}
+                                  <div className={`font-medium ${isSelected ? colors.text : 'text-white'}`}>{signer.name}</div>
+                                  <div className="text-xs text-zinc-500">
+                                    {signer.title || signer.email || (signer.type === 'admin' ? 'Admin' : signer.type === 'client' ? 'Client' : 'Partner')}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-2 py-1 rounded ${colors.bgLight} ${colors.text}`}>
-                                    {signer.type === 'admin' ? 'Admin' : signer.type === 'client' ? 'Client' : 'Partner'}
-                                  </span>
+                                <div className="flex items-center gap-1">
                                   {signer.hasSignature && (
-                                    <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
-                                      Has Signature
-                                    </span>
+                                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  )}
+                                  {isSelected && (
+                                    <svg className={`w-5 h-5 ${colors.text}`} fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
                                   )}
                                 </div>
                               </div>
@@ -1115,44 +1119,39 @@ export default function InteractivePdfSigner({
                         })}
                       </div>
                     ) : (
-                      // Fallback to role-based selection if no signers loaded
-                      <div className="grid grid-cols-2 gap-2">
-                        {(['ADMIN', 'ADMIN_2', 'CLIENT', 'PARTNER'] as AssignedTo[]).map((role) => {
-                          const colors = SIGNER_COLORS[role]
-                          return (
-                            <button
-                              key={role}
-                              onClick={() => {
-                                setPlaceholderAssignedTo(role)
-                                setSelectedSigner(null)
-                              }}
-                              className={`px-4 py-3 rounded-lg font-medium transition-colors border-2 ${
-                                placeholderAssignedTo === role && !selectedSigner
-                                  ? `${colors.border} ${colors.bgLight} ${colors.text}`
-                                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
-                              }`}
-                            >
-                              {SIGNER_LABELS[role]}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <p className="text-zinc-500 text-sm">No team members found</p>
                     )}
                   </div>
 
-                  {/* Element Type for Placeholder */}
+                  {/* Show selected signer info */}
+                  {selectedSigner && (
+                    <div className="mb-6 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-500 mb-1">Full Legal Name</label>
+                          <p className="text-white font-medium">{selectedSigner.name}</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-500 mb-1">Title / Position</label>
+                          <p className="text-white font-medium">{selectedSigner.title || 'Not set'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Element Type Selection */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      What type of field?
+                      Field Type
                     </label>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {(['signature', 'initials', 'date'] as SignatureType[]).map((type) => (
                         <button
                           key={type}
                           onClick={() => setCreateType(type)}
-                          className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
+                          className={`px-4 py-3 rounded-lg font-medium transition-colors capitalize ${
                             createType === type
-                              ? 'bg-zinc-700 text-white'
+                              ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                           }`}
                         >
@@ -1162,48 +1161,42 @@ export default function InteractivePdfSigner({
                     </div>
                   </div>
 
-                  {/* Optional Label */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      Custom Label (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={placeholderLabel}
-                      onChange={(e) => setPlaceholderLabel(e.target.value)}
-                      placeholder={`e.g., "Client CEO Signature"`}
-                      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
                   {/* Preview */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">Preview</label>
-                    <div
-                      className={`p-4 border-2 border-dashed ${SIGNER_COLORS[placeholderAssignedTo].border} ${SIGNER_COLORS[placeholderAssignedTo].bgLight} rounded-lg text-center`}
-                    >
-                      <div className={`text-sm font-medium ${SIGNER_COLORS[placeholderAssignedTo].text}`}>
-                        {placeholderLabel || (selectedSigner ? `${selectedSigner.name} ${createType}` : `${SIGNER_LABELS[placeholderAssignedTo]} ${createType}`)}
-                      </div>
-                      <div className="text-xs text-zinc-500 mt-1">
-                        {createType === 'signature' ? 'Sign here' : createType === 'initials' ? 'Initial here' : 'Date'}
+                  {selectedSigner && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Preview</label>
+                      <div
+                        className={`p-4 border-2 border-dashed ${SIGNER_COLORS[placeholderAssignedTo].border} ${SIGNER_COLORS[placeholderAssignedTo].bgLight} rounded-lg text-center`}
+                      >
+                        <div className={`text-sm font-medium ${SIGNER_COLORS[placeholderAssignedTo].text}`}>
+                          {selectedSigner.name}
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1">
+                          {selectedSigner.title && <span>{selectedSigner.title} - </span>}
+                          {createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Actions for Placeholder */}
+                  {/* Actions */}
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setShowCreateModal(false); setClickPosition(null); setIsCreatingPlaceholder(false) }}
+                      onClick={() => { setShowCreateModal(false); setClickPosition(null); setIsCreatingPlaceholder(false); setSelectedSigner(null) }}
                       className="flex-1 px-6 py-3 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors font-medium"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleCreatePlaceholder}
-                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${SIGNER_COLORS[placeholderAssignedTo].bg} text-white hover:opacity-90`}
+                      disabled={!selectedSigner}
+                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                        selectedSigner
+                          ? `${SIGNER_COLORS[placeholderAssignedTo].bg} text-white hover:opacity-90`
+                          : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                      }`}
                     >
-                      Add Field
+                      Place {createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'} Field
                     </button>
                   </div>
                 </>
