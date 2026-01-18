@@ -107,7 +107,9 @@ export default function ClientContractSigningModal({
       assignedUserId?: string
       label?: string
     }>,
-    initialsDataUrl?: string
+    initialsDataUrl?: string,
+    signerCompany?: string,
+    signerEmail?: string
   ) => {
     // Convert signed elements to the format expected by the API
     const signedFields = signedElements
@@ -125,8 +127,8 @@ export default function ClientContractSigningModal({
       body: JSON.stringify({
         signedByName: signerName,
         signedByTitle: signerTitle,
-        signedByCompany: defaultCompany || signerName,
-        signedByEmail: defaultEmail,
+        signedByCompany: signerCompany || defaultCompany || signerName,
+        signedByEmail: signerEmail || defaultEmail,
         signatureDataUrl,
         signedFields,
       }),
@@ -150,6 +152,8 @@ export default function ClientContractSigningModal({
       onClose={onClose}
       initialSignerName={defaultName}
       initialSignerTitle=""
+      initialSignerCompany={defaultCompany}
+      initialSignerEmail={defaultEmail}
       existingSignatureFields={existingSignatureFields}
       mode="sign"
       currentUserRole="client"

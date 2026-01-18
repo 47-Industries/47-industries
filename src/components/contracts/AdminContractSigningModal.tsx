@@ -104,7 +104,9 @@ export default function AdminContractSigningModal({
       assignedUserId?: string
       label?: string
     }>,
-    initialsDataUrl?: string
+    initialsDataUrl?: string,
+    _signerCompany?: string, // Not used for admin signing
+    _signerEmail?: string // Not used for admin signing
   ) => {
     // Send JSON body with signatures and placeholders
     const res = await fetch(apiEndpoint, {

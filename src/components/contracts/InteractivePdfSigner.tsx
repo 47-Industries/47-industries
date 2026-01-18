@@ -75,13 +75,17 @@ interface InteractivePdfSignerProps {
     signatureDataUrl: string,
     adminSignedElements: PlacedElement[],
     placeholderElements: PlacedElement[],
-    initialsDataUrl?: string
+    initialsDataUrl?: string,
+    signerCompany?: string,
+    signerEmail?: string
   ) => Promise<void>
   onClose: () => void
   existingSignatures?: PlacedElement[]
   existingSignatureFields?: SignatureField[] // Load existing signature fields from database
   initialSignerName?: string
   initialSignerTitle?: string
+  initialSignerCompany?: string
+  initialSignerEmail?: string
   initialSignatureDataUrl?: string | null
   initialInitialsDataUrl?: string | null
   mode?: 'sign' | 'setup' | 'both' // 'sign' = signing only, 'setup' = create placeholders only, 'both' = can do both
@@ -122,6 +126,8 @@ export default function InteractivePdfSigner({
   existingSignatureFields = [],
   initialSignerName = '',
   initialSignerTitle = '',
+  initialSignerCompany = '',
+  initialSignerEmail = '',
   initialSignatureDataUrl = null,
   initialInitialsDataUrl = null,
   mode = 'both',
@@ -155,6 +161,12 @@ export default function InteractivePdfSigner({
   const [initialsDataUrl, setInitialsDataUrl] = useState<string | null>(initialInitialsDataUrl)
   const [signerName, setSignerName] = useState(initialSignerName)
   const [signerTitle, setSignerTitle] = useState(initialSignerTitle)
+  const [signerCompany, setSignerCompany] = useState(initialSignerCompany)
+  const [signerEmail, setSignerEmail] = useState(initialSignerEmail)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+  // Show client fields (company, email, agreement) for clients and partners
+  const showClientFields = currentUserRole === 'client' || currentUserRole === 'partner'
 
   // Convert existing signature fields from database to PlacedElement format
   const initialElements: PlacedElement[] = [
@@ -878,6 +890,9 @@ export default function InteractivePdfSigner({
     setClickPosition(null)
   }
 
+  // Email validation helper
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
   const handleSave = async () => {
     // Separate admin's signed elements from placeholders for others
     const adminSignedElements = placedElements.filter(el => !el.isPlaceholder && (el.dataUrl || el.text))
@@ -887,9 +902,25 @@ export default function InteractivePdfSigner({
     // Validation based on mode
     if (mode === 'sign' || mode === 'both') {
       // If there are any placed elements that are not placeholders, require signer info
-      if (mySignatureElements.length > 0 && (!signerName || !signerTitle)) {
+      if (mySignatureElements.length > 0 && (!signerName.trim() || !signerTitle.trim())) {
         setError('Please enter your name and title to sign')
         return
+      }
+
+      // Client/partner specific validations
+      if (showClientFields && mySignatureElements.length > 0) {
+        if (!agreedToTerms) {
+          setError('Please agree to the terms before signing')
+          return
+        }
+        if (!signerCompany.trim()) {
+          setError('Please enter your company or organization')
+          return
+        }
+        if (!signerEmail.trim() || !isValidEmail(signerEmail)) {
+          setError('Please enter a valid email address')
+          return
+        }
       }
     }
 
@@ -917,7 +948,9 @@ export default function InteractivePdfSigner({
         signatureDataUrl || '',
         adminSignedElements,
         placeholderElements,
-        initialsDataUrl || undefined
+        initialsDataUrl || undefined,
+        showClientFields ? signerCompany.trim() : undefined,
+        showClientFields ? signerEmail.trim().toLowerCase() : undefined
       )
     } catch (err) {
       console.error('Error saving signatures:', err)
@@ -1532,6 +1565,22 @@ export default function InteractivePdfSigner({
                 </>
               ) : (
                 <>
+                  {/* Agreement Checkbox - only for clients/partners */}
+                  {showClientFields && (
+                    <label className="flex items-start gap-3 mb-6 cursor-pointer p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 w-5 h-5 rounded border-zinc-600 bg-zinc-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-zinc-900"
+                      />
+                      <span className="text-zinc-300 text-sm leading-relaxed">
+                        I have read and agree to the terms of this agreement. I understand that by signing below,
+                        I am entering into a legally binding contract with 47 Industries LLC.
+                      </span>
+                    </label>
+                  )}
+
                   {/* Signer Info - only show when signing (not creating placeholder) */}
                   <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1542,7 +1591,7 @@ export default function InteractivePdfSigner({
                         type="text"
                         value={signerName}
                         onChange={(e) => setSignerName(e.target.value)}
-                        placeholder="Kyle Rivers"
+                        placeholder="John Smith"
                         className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -1554,10 +1603,39 @@ export default function InteractivePdfSigner({
                         type="text"
                         value={signerTitle}
                         onChange={(e) => setSignerTitle(e.target.value)}
-                        placeholder="President, CEO, etc."
+                        placeholder="CEO, Owner, Partner, etc."
                         className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
                       />
                     </div>
+                    {/* Company and Email - only for clients/partners */}
+                    {showClientFields && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-zinc-400 mb-2">
+                            Company / Organization <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={signerCompany}
+                            onChange={(e) => setSignerCompany(e.target.value)}
+                            placeholder="Acme Corporation"
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-zinc-400 mb-2">
+                            Email Address <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={signerEmail}
+                            onChange={(e) => setSignerEmail(e.target.value)}
+                            placeholder="john@example.com"
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Element Type Tabs */}
