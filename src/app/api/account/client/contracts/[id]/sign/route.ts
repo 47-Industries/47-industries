@@ -154,15 +154,10 @@ export async function POST(
     // NOTE: We no longer upload/embed signed PDFs
     // Signatures are stored in ContractSignatureField and composited on-demand
 
-    // Update signature fields if provided
+    // Update or create signature fields
     if (hasSignatureFields && Array.isArray(signedFields)) {
       for (const field of signedFields) {
-        if (!field.fieldId || !field.signatureDataUrl) continue
-
-        // Check if this field exists in the database
-        const existingField = await prisma.contractSignatureField.findUnique({
-          where: { id: field.fieldId },
-        })
+        if (!field.signatureDataUrl) continue
 
         // Upload field signature to R2
         let fieldSignatureUrl: string | null = null
@@ -173,6 +168,11 @@ export async function POST(
           const fieldFileKey = `contracts/signatures/${user.client.clientNumber}/fields/${fieldFileName}`
           fieldSignatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
         }
+
+        // Check if this field exists in the database
+        const existingField = field.fieldId
+          ? await prisma.contractSignatureField.findUnique({ where: { id: field.fieldId } })
+          : null
 
         if (existingField) {
           // Update existing field
@@ -189,9 +189,29 @@ export async function POST(
               signedAt: new Date(),
             },
           })
+        } else {
+          // Create new signature field - client placed their own signature
+          await prisma.contractSignatureField.create({
+            data: {
+              contractId: contractId,
+              type: field.type || 'signature',
+              pageNumber: field.pageNumber || 1,
+              xPercent: field.x || 0,
+              yPercent: field.y || 0,
+              widthPercent: field.width || 20,
+              heightPercent: field.height || 5,
+              assignedTo: 'client',
+              isSigned: true,
+              signatureUrl: fieldSignatureUrl || field.signatureDataUrl,
+              signedValue: field.value || null,
+              signedByName: signedByName.trim(),
+              signedByEmail: signedByEmail.trim().toLowerCase(),
+              signedByIp: ip,
+              signedByUserId: session.user.id,
+              signedAt: new Date(),
+            },
+          })
         }
-        // Note: If field doesn't exist, we skip it - the signature is still
-        // saved on the contract level via signatureUrl
       }
     }
 

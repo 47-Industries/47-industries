@@ -114,10 +114,17 @@ export default function ClientContractSigningModal({
     signerEmail?: string
   ) => {
     // Convert signed elements to the format expected by the API
+    // Include position data so new fields can be created
     const signedFields = signedElements
       .filter(el => el.dataUrl || el.text)
       .map(el => ({
         fieldId: el.fieldId || el.id,
+        type: el.type,
+        pageNumber: el.pageNumber,
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
         signatureDataUrl: el.dataUrl,
         value: el.text,
       }))
