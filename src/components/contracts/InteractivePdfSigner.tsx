@@ -256,6 +256,17 @@ export default function InteractivePdfSigner({
   // Upload
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // For others: signature creation state
+  const forOthersCanvasRef = useRef<HTMLCanvasElement>(null)
+  const [forOthersSignaturePad, setForOthersSignaturePad] = useState<SignaturePad | null>(null)
+  const [forOthersIsEmpty, setForOthersIsEmpty] = useState(true)
+  const [forOthersCreateMode, setForOthersCreateMode] = useState<CreateMode>('draw')
+  const [forOthersTypedText, setForOthersTypedText] = useState('')
+  const [forOthersSelectedFont, setForOthersSelectedFont] = useState(SIGNATURE_FONTS[0].name)
+  const forOthersFileInputRef = useRef<HTMLInputElement>(null)
+  const [forOthersDataUrl, setForOthersDataUrl] = useState<string | null>(null)
+  const [savingToProfile, setSavingToProfile] = useState(false)
+
   // Saving state
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -357,7 +368,7 @@ export default function InteractivePdfSigner({
 
   // Initialize signature pad when modal opens with draw mode
   useEffect(() => {
-    if (showCreateModal && createMode === 'draw' && canvasRef.current) {
+    if (showCreateModal && createMode === 'draw' && canvasRef.current && !isCreatingPlaceholder) {
       const initPad = () => {
         const canvas = canvasRef.current
         if (!canvas) return
@@ -409,7 +420,63 @@ export default function InteractivePdfSigner({
         }
       }
     }
-  }, [showCreateModal, createMode])
+  }, [showCreateModal, createMode, isCreatingPlaceholder])
+
+  // Initialize "for others" signature pad when in placeholder mode with draw
+  useEffect(() => {
+    if (showCreateModal && isCreatingPlaceholder && forOthersCreateMode === 'draw' && forOthersCanvasRef.current && createType !== 'date') {
+      const initPad = () => {
+        const canvas = forOthersCanvasRef.current
+        if (!canvas) return
+
+        const container = canvas.parentElement
+        const containerWidth = container?.clientWidth || 350
+        const canvasHeight = 150
+
+        const ratio = Math.max(window.devicePixelRatio || 1, 1)
+        canvas.width = containerWidth * ratio
+        canvas.height = canvasHeight * ratio
+        canvas.style.width = `${containerWidth}px`
+        canvas.style.height = `${canvasHeight}px`
+
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.scale(ratio, ratio)
+          ctx.fillStyle = 'rgb(255, 255, 255)'
+          ctx.fillRect(0, 0, containerWidth, canvasHeight)
+        }
+
+        if (forOthersSignaturePad) {
+          forOthersSignaturePad.off()
+        }
+
+        const pad = new SignaturePad(canvas, {
+          backgroundColor: 'rgb(255, 255, 255)',
+          penColor: 'rgb(0, 0, 0)',
+          minWidth: 1,
+          maxWidth: 3,
+        })
+
+        pad.addEventListener('endStroke', () => {
+          setForOthersIsEmpty(pad.isEmpty())
+        })
+
+        setForOthersSignaturePad(pad)
+        setForOthersIsEmpty(true)
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(initPad)
+      })
+
+      return () => {
+        if (forOthersSignaturePad) {
+          forOthersSignaturePad.off()
+          setForOthersSignaturePad(null)
+        }
+      }
+    }
+  }, [showCreateModal, isCreatingPlaceholder, forOthersCreateMode, createType])
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
@@ -436,6 +503,25 @@ export default function InteractivePdfSigner({
   const handleClearSignature = () => {
     signaturePad?.clear()
     setIsEmpty(true)
+  }
+
+  const handleClearForOthersSignature = () => {
+    forOthersSignaturePad?.clear()
+    setForOthersIsEmpty(true)
+    setForOthersDataUrl(null)
+  }
+
+  // File upload handler for "for others"
+  const handleForOthersFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      setForOthersDataUrl(dataUrl)
+    }
+    reader.readAsDataURL(file)
   }
 
   // Convert typed text to image
@@ -512,9 +598,30 @@ export default function InteractivePdfSigner({
     setTypedText('')
   }
 
-  // Create a placeholder for someone else to sign
-  const handleCreatePlaceholder = () => {
-    if (!clickPosition) return
+  // Create a placeholder for someone else to sign (with optional signature data)
+  const handleCreatePlaceholder = async () => {
+    if (!clickPosition || !selectedSigner) return
+
+    // Get the signature data URL based on creation mode
+    let dataUrl: string | null = null
+    let text: string | undefined
+
+    if (createType === 'date') {
+      // Date is always auto-generated
+      text = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+      dataUrl = textToImage(text, 'Arial', true)
+    } else if (forOthersCreateMode === 'draw' && forOthersSignaturePad && !forOthersIsEmpty) {
+      dataUrl = forOthersSignaturePad.toDataURL('image/png')
+    } else if (forOthersCreateMode === 'type' && forOthersTypedText.trim()) {
+      dataUrl = textToImage(forOthersTypedText, forOthersSelectedFont, createType === 'initials')
+      text = forOthersTypedText
+    } else if (forOthersCreateMode === 'upload' && forOthersDataUrl) {
+      dataUrl = forOthersDataUrl
+    }
 
     const defaultLabels: Record<SignatureType, Record<AssignedTo, string>> = {
       signature: {
@@ -542,6 +649,9 @@ export default function InteractivePdfSigner({
       ? `${selectedSigner.name}${selectedSigner.title ? ` (${selectedSigner.title})` : ''}`
       : defaultLabels[createType][placeholderAssignedTo]
 
+    // Determine if this is a pre-signed field (has dataUrl) or a placeholder
+    const isSigned = !!dataUrl && createType !== 'date'
+
     const newElement: PlacedElement = {
       id: generateId(),
       type: createType,
@@ -552,11 +662,37 @@ export default function InteractivePdfSigner({
       height: createType === 'initials' || createType === 'date' ? 4 : 6,
       signerName: selectedSigner?.name || '',
       signerTitle: selectedSigner?.title || '',
-      isPlaceholder: true,
+      isPlaceholder: !isSigned, // Not a placeholder if already signed
       assignedTo: placeholderAssignedTo,
       assignedUserId: selectedSigner?.id || undefined,
       label: signerLabel,
-      isSigned: false,
+      isSigned: isSigned,
+      dataUrl: dataUrl || undefined,
+      text,
+    }
+
+    // If we have signature data, save it to the signer's profile
+    if (dataUrl && selectedSigner && (createType === 'signature' || createType === 'initials')) {
+      setSavingToProfile(true)
+      try {
+        const updateData: Record<string, string> = {}
+        if (createType === 'signature') {
+          updateData.signatureDataUrl = dataUrl
+        } else if (createType === 'initials') {
+          updateData.initialsDataUrl = dataUrl
+        }
+
+        await fetch(`/api/admin/users/${selectedSigner.id}/signature`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        })
+      } catch (err) {
+        console.error('Failed to save signature to profile:', err)
+        // Don't fail the whole operation
+      } finally {
+        setSavingToProfile(false)
+      }
     }
 
     setPlacedElements(prev => [...prev, newElement])
@@ -564,6 +700,13 @@ export default function InteractivePdfSigner({
     setClickPosition(null)
     setIsCreatingPlaceholder(false)
     setSelectedSigner(null)
+    // Reset for others state
+    setForOthersTypedText('')
+    setForOthersDataUrl(null)
+    setForOthersIsEmpty(true)
+    if (forOthersSignaturePad) {
+      forOthersSignaturePad.clear()
+    }
   }
 
   const handleRemoveElement = (id: string) => {
@@ -1161,10 +1304,170 @@ export default function InteractivePdfSigner({
                     </div>
                   </div>
 
-                  {/* Preview */}
-                  {selectedSigner && (
+                  {/* Signature/Initials creation for others */}
+                  {selectedSigner && createType !== 'date' && (
+                    <>
+                      {/* Check if signer has saved signature/initials */}
+                      {((createType === 'signature' && selectedSigner.hasSignature) || (createType === 'initials' && selectedSigner.hasInitials)) && (
+                        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-green-400 text-sm font-medium">
+                              {selectedSigner.name} has a saved {createType} on file
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 text-xs mt-1">
+                            You can create a new one below or place a placeholder for them to sign.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Creation Mode Tabs */}
+                      <div className="flex gap-2 mb-4">
+                        {(['draw', 'type', 'upload'] as CreateMode[]).map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setForOthersCreateMode(mode)}
+                            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
+                              forOthersCreateMode === mode
+                                ? 'bg-zinc-700 text-white'
+                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                          >
+                            {mode}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Draw Mode */}
+                      {forOthersCreateMode === 'draw' && (
+                        <div className="mb-6">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-zinc-400">
+                              Draw {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'}
+                            </label>
+                            <button onClick={handleClearForOthersSignature} className="text-sm text-zinc-500 hover:text-zinc-300">
+                              Clear
+                            </button>
+                          </div>
+                          <div className="bg-white rounded-lg border-2 border-zinc-700 overflow-hidden" style={{ touchAction: 'none' }}>
+                            <canvas ref={forOthersCanvasRef} className="cursor-crosshair" style={{ display: 'block', touchAction: 'none' }} />
+                          </div>
+                          <p className="text-zinc-500 text-xs mt-2">
+                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Type Mode */}
+                      {forOthersCreateMode === 'type' && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-zinc-400 mb-2">
+                            Type {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'}
+                          </label>
+                          <input
+                            type="text"
+                            value={forOthersTypedText}
+                            onChange={(e) => setForOthersTypedText(e.target.value)}
+                            placeholder={createType === 'initials' ? 'Initials' : selectedSigner.name}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 mb-4"
+                          />
+
+                          <label className="block text-sm font-medium text-zinc-400 mb-2">Font Style</label>
+                          <div className="grid grid-cols-2 gap-2 mb-4">
+                            {SIGNATURE_FONTS.map((font) => (
+                              <button
+                                key={font.name}
+                                onClick={() => setForOthersSelectedFont(font.name)}
+                                className={`p-3 rounded-lg border-2 transition-colors ${
+                                  forOthersSelectedFont === font.name
+                                    ? 'border-blue-500 bg-zinc-800'
+                                    : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                                }`}
+                              >
+                                <span
+                                  style={{ fontFamily: `"${font.name}", ${font.style}`, fontSize: '20px' }}
+                                  className="text-white"
+                                >
+                                  {forOthersTypedText || (createType === 'initials' ? 'AB' : 'Preview')}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-zinc-500 text-xs">
+                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Upload Mode */}
+                      {forOthersCreateMode === 'upload' && (
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-zinc-400 mb-2">
+                            Upload {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'} Image
+                          </label>
+                          <input
+                            ref={forOthersFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleForOthersFileUpload}
+                            className="hidden"
+                          />
+                          {forOthersDataUrl ? (
+                            <div className="p-4 border-2 border-zinc-700 rounded-lg bg-zinc-800">
+                              <div className="bg-white rounded p-2 inline-block mb-3">
+                                <img src={forOthersDataUrl} alt="Uploaded" className="h-16 w-auto" />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => forOthersFileInputRef.current?.click()}
+                                  className="flex-1 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600"
+                                >
+                                  Change Image
+                                </button>
+                                <button
+                                  onClick={() => setForOthersDataUrl(null)}
+                                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => forOthersFileInputRef.current?.click()}
+                              className="w-full p-8 border-2 border-dashed border-zinc-700 rounded-lg text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors"
+                            >
+                              <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Click to upload image
+                            </button>
+                          )}
+                          <p className="text-zinc-500 text-xs mt-2">
+                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Date field info */}
+                  {selectedSigner && createType === 'date' && (
+                    <div className="mb-6 p-4 bg-zinc-800 rounded-lg text-center">
+                      <p className="text-zinc-400 text-sm mb-2">Date will be added:</p>
+                      <p className="text-white text-lg font-medium">
+                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Preview - only show for placeholder (no signature data) */}
+                  {selectedSigner && createType !== 'date' && forOthersIsEmpty && !forOthersTypedText.trim() && !forOthersDataUrl && (
                     <div className="mb-6">
-                      <label className="block text-sm font-medium text-zinc-400 mb-2">Preview</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Placeholder Preview</label>
                       <div
                         className={`p-4 border-2 border-dashed ${SIGNER_COLORS[placeholderAssignedTo].border} ${SIGNER_COLORS[placeholderAssignedTo].bgLight} rounded-lg text-center`}
                       >
@@ -1173,30 +1476,57 @@ export default function InteractivePdfSigner({
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">
                           {selectedSigner.title && <span>{selectedSigner.title} - </span>}
-                          {createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'}
+                          {createType === 'signature' ? 'Signature' : 'Initials'} placeholder
                         </div>
                       </div>
+                      <p className="text-zinc-500 text-xs mt-2">
+                        If you don&apos;t draw/type/upload, a placeholder will be created for {selectedSigner.name} to sign later.
+                      </p>
                     </div>
                   )}
 
                   {/* Actions */}
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setShowCreateModal(false); setClickPosition(null); setIsCreatingPlaceholder(false); setSelectedSigner(null) }}
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        setClickPosition(null);
+                        setIsCreatingPlaceholder(false);
+                        setSelectedSigner(null);
+                        setForOthersTypedText('');
+                        setForOthersDataUrl(null);
+                        setForOthersIsEmpty(true);
+                        if (forOthersSignaturePad) forOthersSignaturePad.clear();
+                      }}
                       className="flex-1 px-6 py-3 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors font-medium"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleCreatePlaceholder}
-                      disabled={!selectedSigner}
-                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
-                        selectedSigner
+                      disabled={!selectedSigner || savingToProfile}
+                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                        selectedSigner && !savingToProfile
                           ? `${SIGNER_COLORS[placeholderAssignedTo].bg} text-white hover:opacity-90`
                           : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                       }`}
                     >
-                      Place {createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'} Field
+                      {savingToProfile ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          {(!forOthersIsEmpty || forOthersTypedText.trim() || forOthersDataUrl) && createType !== 'date'
+                            ? `Place ${createType === 'signature' ? 'Signature' : 'Initials'} & Save`
+                            : `Place ${createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'} Field`
+                          }
+                        </>
+                      )}
                     </button>
                   </div>
                 </>
