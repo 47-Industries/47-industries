@@ -155,8 +155,10 @@ export async function POST(
     // Signatures are stored in ContractSignatureField and composited on-demand
 
     // Update or create signature fields
+    console.log('signedFields received:', JSON.stringify(signedFields, null, 2))
     if (hasSignatureFields && Array.isArray(signedFields)) {
       for (const field of signedFields) {
+        console.log('Processing field:', { fieldId: field.fieldId, type: field.type, x: field.x, y: field.y, pageNumber: field.pageNumber })
         if (!field.signatureDataUrl) continue
 
         // Upload field signature to R2
