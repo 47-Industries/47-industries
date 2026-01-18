@@ -2321,7 +2321,7 @@ model ContractSignatureField {
 
   // Signature data (filled when signed)
   isSigned        Boolean  @default(false)
-  signatureUrl    String?  // R2 URL to signature image
+  signatureUrl    String?  @db.Text // R2 URL or data URL to signature image
   signedValue     String?  // For text/date fields, the actual value
   signedByName    String?
   signedByEmail   String?
