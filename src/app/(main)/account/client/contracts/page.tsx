@@ -370,7 +370,9 @@ export default function ClientContractsPage() {
                     <div className="flex gap-3">
                       {contract.fileUrl && (
                         <a
-                          href={contract.fileUrl}
+                          href={contract.status === 'SIGNED' || contract.status === 'ACTIVE'
+                            ? `/api/account/client/contracts/${contract.id}/pdf`
+                            : contract.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:border-accent transition-colors"
