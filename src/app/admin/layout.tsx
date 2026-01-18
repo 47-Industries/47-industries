@@ -26,11 +26,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // SECURITY: Redirect to login if not authenticated or not an admin
+  // Note: On admin subdomain, usePathname() returns the browser URL (e.g., /login, /forgot-password)
+  // not the rewritten path (/admin/login, /admin/forgot-password)
+  const isAuthExemptPage = pathname === '/admin/login' ||
+    pathname === '/login' ||
+    pathname === '/admin/forgot-password' ||
+    pathname === '/forgot-password' ||
+    pathname === '/admin/reset-password' ||
+    pathname === '/reset-password' ||
+    pathname?.startsWith('/reset-password')
+
   useEffect(() => {
     // Skip check for login and password reset pages
-    if (pathname === '/admin/login' ||
-        pathname === '/admin/forgot-password' ||
-        pathname === '/admin/reset-password') return
+    if (isAuthExemptPage) return
 
     // Wait for session to load
     if (status === 'loading') return
@@ -46,7 +54,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       router.replace('/admin/login')
       return
     }
-  }, [session, status, pathname, router])
+  }, [session, status, isAuthExemptPage, router])
 
   // Detect mobile screen size and set mounted
   useEffect(() => {
@@ -64,9 +72,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [])
 
   // Login and password reset pages get NO admin layout - just render children directly
-  if (pathname === '/admin/login' ||
-      pathname === '/admin/forgot-password' ||
-      pathname === '/admin/reset-password') {
+  if (isAuthExemptPage) {
     return <>{children}</>
   }
 
