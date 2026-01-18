@@ -4,6 +4,25 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { uploadToR2, isR2Configured } from '@/lib/r2'
 
+// Interface for signed elements from the frontend
+interface SignedElement {
+  id?: string
+  type: string
+  pageNumber: number
+  x: number
+  y: number
+  width: number
+  height?: number
+  dataUrl?: string
+  text?: string
+  signerName: string
+  signerTitle: string
+  isPlaceholder?: boolean
+  assignedTo?: string
+  assignedUserId?: string
+  label?: string
+}
+
 // POST /api/admin/contracts/[id]/countersign - Admin countersigns a client contract
 export async function POST(
   req: NextRequest,
@@ -50,32 +69,25 @@ export async function POST(
       signedByName,
       signedByTitle,
       signatureDataUrl,
-      signedPdfBlob, // Base64 encoded PDF with signatures embedded
-      signatureFields, // Array of { type, pageNumber, xPercent, yPercent, widthPercent, heightPercent, assignedTo, label }
+      signedPdfBlob, // Legacy: Base64 encoded PDF with signatures embedded (ignored in new flow)
+      signatureFields, // Placeholders for client/partner to sign
+      adminSignedElements, // NEW: Admin's actual signatures to store in DB
     } = body
 
     if (!signedByName || signedByName.trim().length < 2) {
       return NextResponse.json({ error: 'Legal name is required' }, { status: 400 })
     }
 
-    // Signature is only required if no signed PDF is provided
-    const hasSignedPdf = !!signedPdfBlob
-    if (!hasSignedPdf && (!signatureDataUrl || !signatureDataUrl.startsWith('data:image/png;base64,'))) {
-      return NextResponse.json({ error: 'Valid signature is required' }, { status: 400 })
-    }
-
     // Get client IP address
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.headers.get('x-real-ip') || 'unknown'
 
-    // Upload signature image to R2 (if provided)
+    // Upload legacy signature image to R2 (if provided)
     let countersignatureUrl: string | null = null
     if (isR2Configured && signatureDataUrl && signatureDataUrl.startsWith('data:image/png;base64,')) {
-      // Convert base64 to buffer
       const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
 
-      // Generate unique filename
       const timestamp = new Date().toISOString().split('T')[0]
       const sanitizedName = signedByName.trim().replace(/[^a-zA-Z0-9]/g, '-')
       const fileName = `countersignature-${sanitizedName}-${timestamp}-${Date.now()}.png`
@@ -84,20 +96,59 @@ export async function POST(
       countersignatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
-    // Upload signed PDF if provided
-    let signedPdfUrl: string | null = null
-    if (isR2Configured && signedPdfBlob) {
-      const pdfBuffer = Buffer.from(signedPdfBlob, 'base64')
-      const timestamp = new Date().toISOString().split('T')[0]
-      const pdfFileName = `signed-${contract.contractNumber}-${timestamp}.pdf`
-      const pdfFileKey = `contracts/signed/${contract.contractNumber}/${pdfFileName}`
+    // NEW: Store admin's signatures in ContractSignatureField (not embedded in PDF)
+    if (adminSignedElements && Array.isArray(adminSignedElements) && adminSignedElements.length > 0) {
+      // Delete existing admin signature fields that were signed by this user
+      await prisma.contractSignatureField.deleteMany({
+        where: {
+          contractId,
+          signedByUserId: user.id,
+          isSigned: true,
+        },
+      })
 
-      signedPdfUrl = await uploadToR2(pdfFileKey, pdfBuffer, 'application/pdf')
+      // Create new signature field records for each admin signature
+      for (const element of adminSignedElements as SignedElement[]) {
+        if (!element.dataUrl && !element.text) continue
+
+        // Upload signature image to R2 if it's a data URL
+        let signatureUrl: string | null = null
+        if (isR2Configured && element.dataUrl && element.dataUrl.startsWith('data:image/')) {
+          const base64Data = element.dataUrl.replace(/^data:image\/\w+;base64,/, '')
+          const buffer = Buffer.from(base64Data, 'base64')
+          const fieldFileName = `admin-sig-${element.type}-${Date.now()}.png`
+          const fieldFileKey = `contracts/signatures/${contract.contractNumber}/admin/${fieldFileName}`
+          signatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
+        }
+
+        await prisma.contractSignatureField.create({
+          data: {
+            contractId,
+            type: element.type?.toUpperCase() || 'SIGNATURE',
+            pageNumber: element.pageNumber || 1,
+            xPercent: element.x || 50,
+            yPercent: element.y || 50,
+            widthPercent: element.width || 20,
+            heightPercent: element.height || 6,
+            assignedTo: element.assignedTo || 'ADMIN',
+            assignedUserId: element.assignedUserId || user.id,
+            label: element.label || null,
+            isSigned: true,
+            signatureUrl: signatureUrl || element.dataUrl,
+            signedValue: element.text || null,
+            signedByName: signedByName.trim(),
+            signedByEmail: user.email,
+            signedByIp: ip,
+            signedByUserId: user.id,
+            signedAt: new Date(),
+          },
+        })
+      }
     }
 
-    // Save signature fields if provided (these are placeholders for client/partner)
+    // Save placeholder fields for client/partner (these are unsigned)
     if (signatureFields && Array.isArray(signatureFields) && signatureFields.length > 0) {
-      // Delete existing unsigned fields and create new ones
+      // Delete existing unsigned placeholder fields
       await prisma.contractSignatureField.deleteMany({
         where: {
           contractId,
@@ -105,7 +156,7 @@ export async function POST(
         },
       })
 
-      // Create new signature fields
+      // Create new placeholder signature fields
       for (const field of signatureFields) {
         await prisma.contractSignatureField.create({
           data: {
@@ -117,6 +168,7 @@ export async function POST(
             widthPercent: field.width || field.widthPercent || 20,
             heightPercent: field.height || field.heightPercent || 6,
             assignedTo: field.assignedTo || 'CLIENT',
+            assignedUserId: field.assignedUserId || null,
             label: field.label || null,
             isSigned: false,
           },
@@ -127,11 +179,12 @@ export async function POST(
     // Determine new status - ACTIVE if client already signed, keep current if admin signs first
     const newStatus = contract.signedAt ? 'ACTIVE' : contract.status
 
-    // Preserve original file URL if this is the first time signing
-    // This allows re-editing signatures later by loading the original unsigned PDF
+    // Preserve original file URL - always keep the clean PDF
+    // The fileUrl should always point to the original unsigned PDF
     const originalFileUrl = contract.originalFileUrl || contract.fileUrl
 
     // Update contract with countersignature info
+    // NOTE: We do NOT update fileUrl anymore - signatures are composited on demand
     const updatedContract = await prisma.contract.update({
       where: { id: contractId },
       data: {
@@ -143,9 +196,8 @@ export async function POST(
         countersignedByIp: ip,
         countersignedByUserId: user.id,
         countersignedAt: new Date(),
-        // Preserve original URL and update fileUrl to signed PDF
+        // Preserve original URL - don't update fileUrl
         originalFileUrl: originalFileUrl,
-        fileUrl: signedPdfUrl || undefined,
       },
     })
 

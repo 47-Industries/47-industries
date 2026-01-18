@@ -108,7 +108,6 @@ export async function POST(
       signedByCompany,
       signedByEmail,
       signatureDataUrl,
-      signedPdfBlob, // Base64 encoded PDF with signatures embedded
       signedFields, // Array of { fieldId, signatureDataUrl, value? }
     } = body
 
@@ -152,16 +151,8 @@ export async function POST(
       signatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
-    // Upload signed PDF if provided
-    let signedPdfUrl: string | null = null
-    if (isR2Configured && signedPdfBlob) {
-      const pdfBuffer = Buffer.from(signedPdfBlob, 'base64')
-      const timestamp = new Date().toISOString().split('T')[0]
-      const pdfFileName = `signed-${contract.contractNumber}-${timestamp}.pdf`
-      const pdfFileKey = `contracts/signed/${contract.contractNumber}/${pdfFileName}`
-
-      signedPdfUrl = await uploadToR2(pdfFileKey, pdfBuffer, 'application/pdf')
-    }
+    // NOTE: We no longer upload/embed signed PDFs
+    // Signatures are stored in ContractSignatureField and composited on-demand
 
     // Update signature fields if provided
     if (hasSignatureFields && Array.isArray(signedFields)) {
@@ -198,15 +189,19 @@ export async function POST(
     // Determine status - ACTIVE if admin already countersigned, otherwise SIGNED
     const newStatus = contract.countersignedAt ? 'ACTIVE' : 'SIGNED'
 
+    // Preserve original file URL - we don't embed signatures anymore
+    // Signatures are stored in ContractSignatureField and composited on-demand
+    const originalFileUrl = contract.originalFileUrl || contract.fileUrl
+
     // Update contract with signature info
+    // NOTE: fileUrl is NOT updated - signatures are composited on demand
     const updatedContract = await prisma.contract.update({
       where: { id: contractId },
       data: {
         status: newStatus,
         signedAt: new Date(),
         signatureUrl: signatureUrl || undefined,
-        // Update fileUrl to signed PDF if provided
-        fileUrl: signedPdfUrl || undefined,
+        originalFileUrl: originalFileUrl, // Preserve original PDF
         signedByName: signedByName.trim(),
         signedByTitle: signedByTitle.trim(),
         signedByCompany: signedByCompany.trim(),

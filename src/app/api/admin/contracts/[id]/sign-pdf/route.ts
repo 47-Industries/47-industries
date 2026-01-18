@@ -4,7 +4,26 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { uploadToR2, isR2Configured } from '@/lib/r2'
 
-// POST /api/admin/contracts/[id]/sign-pdf - Upload signed PDF and record signature
+// Interface for signed elements from the frontend
+interface SignedElement {
+  id?: string
+  type: string
+  pageNumber: number
+  x: number
+  y: number
+  width: number
+  height?: number
+  dataUrl?: string
+  text?: string
+  signerName: string
+  signerTitle: string
+  isPlaceholder?: boolean
+  assignedTo?: string
+  assignedUserId?: string
+  label?: string
+}
+
+// POST /api/admin/contracts/[id]/sign-pdf - Store signatures in DB (no PDF embedding)
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -38,15 +57,44 @@ export async function POST(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    // Parse form data
-    const formData = await req.formData()
-    const signedPdf = formData.get('signedPdf') as File | null
-    const signerName = formData.get('signerName') as string | null
-    const signerTitle = formData.get('signerTitle') as string | null
-    const signatureDataUrl = formData.get('signatureDataUrl') as string | null
-    const signatureType = formData.get('signatureType') as string || 'admin' // 'admin' or 'client'
+    // Parse form data OR JSON
+    let signerName: string | null = null
+    let signerTitle: string | null = null
+    let signatureDataUrl: string | null = null
+    let signatureType = 'admin'
+    let adminSignedElements: SignedElement[] = []
+    let placeholderElements: SignedElement[] = []
 
-    if (!signedPdf || !signerName || !signerTitle) {
+    const contentType = req.headers.get('content-type') || ''
+    if (contentType.includes('multipart/form-data')) {
+      // Legacy FormData handling
+      const formData = await req.formData()
+      signerName = formData.get('signerName') as string | null
+      signerTitle = formData.get('signerTitle') as string | null
+      signatureDataUrl = formData.get('signatureDataUrl') as string | null
+      signatureType = formData.get('signatureType') as string || 'admin'
+
+      // Parse JSON fields if present
+      const adminElementsStr = formData.get('adminSignedElements') as string | null
+      const placeholderStr = formData.get('placeholderElements') as string | null
+      if (adminElementsStr) {
+        try { adminSignedElements = JSON.parse(adminElementsStr) } catch { /* ignore */ }
+      }
+      if (placeholderStr) {
+        try { placeholderElements = JSON.parse(placeholderStr) } catch { /* ignore */ }
+      }
+    } else {
+      // JSON body
+      const body = await req.json()
+      signerName = body.signerName
+      signerTitle = body.signerTitle
+      signatureDataUrl = body.signatureDataUrl
+      signatureType = body.signatureType || 'admin'
+      adminSignedElements = body.adminSignedElements || []
+      placeholderElements = body.placeholderElements || []
+    }
+
+    if (!signerName || !signerTitle) {
       return NextResponse.json({ error: 'Missing required fields (name and title required)' }, { status: 400 })
     }
 
@@ -54,33 +102,105 @@ export async function POST(
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.headers.get('x-real-ip') || 'unknown'
 
-    // Upload signed PDF to R2
-    let signedFileUrl = contract.fileUrl
-    if (isR2Configured) {
-      const buffer = Buffer.from(await signedPdf.arrayBuffer())
-      const timestamp = new Date().toISOString().split('T')[0]
-      const fileName = `${contract.contractNumber}-signed-${timestamp}.pdf`
-      const fileKey = `contracts/signed/${contract.contractNumber}/${fileName}`
-
-      signedFileUrl = await uploadToR2(fileKey, buffer, 'application/pdf')
-    }
-
-    // Upload signature image to R2 if provided
+    // Upload legacy signature image to R2 if provided
     let signatureUrl: string | null = null
-    if (signatureDataUrl && isR2Configured) {
-      const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
+    if (signatureDataUrl && isR2Configured && signatureDataUrl.startsWith('data:image/')) {
+      const base64Data = signatureDataUrl.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       const timestamp = Date.now()
       const sanitizedName = signerName.trim().replace(/[^a-zA-Z0-9]/g, '-')
       const fileName = `signature-${sanitizedName}-${timestamp}.png`
       const fileKey = `contracts/signatures/${contract.contractNumber}/${fileName}`
-
       signatureUrl = await uploadToR2(fileKey, buffer, 'image/png')
     }
 
+    // Store admin's signatures in ContractSignatureField (NEW flow - no PDF embedding)
+    if (adminSignedElements && adminSignedElements.length > 0) {
+      // Delete existing admin signature fields signed by this user
+      await prisma.contractSignatureField.deleteMany({
+        where: {
+          contractId,
+          signedByUserId: user.id,
+          isSigned: true,
+        },
+      })
+
+      // Create new signature field records
+      for (const element of adminSignedElements) {
+        if (!element.dataUrl && !element.text) continue
+
+        // Upload signature image to R2
+        let fieldSignatureUrl: string | null = null
+        if (isR2Configured && element.dataUrl && element.dataUrl.startsWith('data:image/')) {
+          const base64Data = element.dataUrl.replace(/^data:image\/\w+;base64,/, '')
+          const buffer = Buffer.from(base64Data, 'base64')
+          const fieldFileName = `admin-sig-${element.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.png`
+          const fieldFileKey = `contracts/signatures/${contract.contractNumber}/admin/${fieldFileName}`
+          fieldSignatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
+        }
+
+        await prisma.contractSignatureField.create({
+          data: {
+            contractId,
+            type: element.type?.toUpperCase() || 'SIGNATURE',
+            pageNumber: element.pageNumber || 1,
+            xPercent: element.x || 50,
+            yPercent: element.y || 50,
+            widthPercent: element.width || 20,
+            heightPercent: element.height || 6,
+            assignedTo: element.assignedTo || 'ADMIN',
+            assignedUserId: element.assignedUserId || user.id,
+            label: element.label || null,
+            isSigned: true,
+            signatureUrl: fieldSignatureUrl || element.dataUrl,
+            signedValue: element.text || null,
+            signedByName: signerName.trim(),
+            signedByEmail: user.email,
+            signedByIp: ip,
+            signedByUserId: user.id,
+            signedAt: new Date(),
+          },
+        })
+      }
+    }
+
+    // Save placeholder fields for others
+    if (placeholderElements && placeholderElements.length > 0) {
+      // Delete existing unsigned placeholder fields
+      await prisma.contractSignatureField.deleteMany({
+        where: {
+          contractId,
+          isSigned: false,
+        },
+      })
+
+      // Create new placeholder fields
+      for (const field of placeholderElements) {
+        await prisma.contractSignatureField.create({
+          data: {
+            contractId,
+            type: field.type?.toUpperCase() || 'SIGNATURE',
+            pageNumber: field.pageNumber || 1,
+            xPercent: field.x || 50,
+            yPercent: field.y || 50,
+            widthPercent: field.width || 20,
+            heightPercent: field.height || 6,
+            assignedTo: field.assignedTo || 'CLIENT',
+            assignedUserId: field.assignedUserId || null,
+            label: field.label || null,
+            isSigned: false,
+          },
+        })
+      }
+    }
+
+    // Preserve original file URL
+    const originalFileUrl = contract.originalFileUrl || contract.fileUrl
+
     // Determine what to update based on signature type
+    // NOTE: We no longer update fileUrl - signatures are composited on demand
     const updateData: Record<string, unknown> = {
-      fileUrl: signedFileUrl, // Always update to the signed version
+      originalFileUrl: originalFileUrl,
     }
 
     if (signatureType === 'admin') {
@@ -102,7 +222,7 @@ export async function POST(
       updateData.signatureUrl = signatureUrl
       updateData.signedByName = signerName.trim()
       updateData.signedByTitle = signerTitle.trim()
-      updateData.signedByEmail = user.email // Admin's email since they're doing it
+      updateData.signedByEmail = user.email
       updateData.signedByIp = ip
       updateData.signedByUserId = user.id
       updateData.signedAt = new Date()

@@ -25,6 +25,7 @@ interface AdminContractSigningModalProps {
   contractFileUrl: string
   signatureType: 'admin' | 'client' | 'partner' // admin = countersign, client/partner = primary signature
   apiEndpoint: string // e.g., '/api/admin/contracts/[id]/sign-pdf' or '/api/admin/partners/[id]/contract/sign-pdf'
+  clientId?: string // Client ID for fetching signers
   onSuccess: () => void
   onClose: () => void
 }
@@ -35,6 +36,7 @@ export default function AdminContractSigningModal({
   contractFileUrl,
   signatureType,
   apiEndpoint,
+  clientId,
   onSuccess,
   onClose,
 }: AdminContractSigningModalProps) {
@@ -139,17 +141,50 @@ export default function AdminContractSigningModal({
     setShowPdfSigner(true)
   }
 
-  const handleSave = async (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string, initialsDataUrl?: string) => {
-    const formData = new FormData()
-    formData.append('signedPdf', signedPdfBlob, 'signed-contract.pdf')
-    formData.append('signerName', signerName)
-    formData.append('signerTitle', signerTitle)
-    formData.append('signatureDataUrl', signatureDataUrl)
-    formData.append('signatureType', signatureType === 'partner' ? 'partner' : signatureType)
-
+  const handleSave = async (
+    signerName: string,
+    signerTitle: string,
+    signatureDataUrl: string,
+    adminSignedElements: Array<{
+      id: string
+      type: string
+      pageNumber: number
+      x: number
+      y: number
+      width: number
+      height?: number
+      dataUrl?: string
+      text?: string
+      assignedTo?: string
+      assignedUserId?: string
+      label?: string
+    }>,
+    placeholderElements: Array<{
+      id: string
+      type: string
+      pageNumber: number
+      x: number
+      y: number
+      width: number
+      height?: number
+      assignedTo?: string
+      assignedUserId?: string
+      label?: string
+    }>,
+    initialsDataUrl?: string
+  ) => {
+    // Send JSON body with signatures and placeholders
     const res = await fetch(apiEndpoint, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signerName,
+        signerTitle,
+        signatureDataUrl,
+        signatureType: signatureType === 'partner' ? 'partner' : signatureType,
+        adminSignedElements,
+        placeholderElements,
+      }),
     })
 
     if (!res.ok) {
@@ -191,6 +226,8 @@ export default function AdminContractSigningModal({
       <InteractivePdfSigner
         pdfUrl={contractFileUrl}
         contractTitle={`${contractTitle} - Signing as ${selectedAdmin?.name || selectedAdmin?.email}`}
+        contractId={contractId}
+        clientId={clientId}
         onSave={handleSave}
         onClose={() => setShowPdfSigner(false)}
         initialSignerName={selectedAdmin?.name || ''}

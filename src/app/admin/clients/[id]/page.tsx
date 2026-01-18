@@ -2515,6 +2515,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             contractFileUrl={pdfUrl}
             signatureType="admin"
             apiEndpoint={`/api/admin/contracts/${countersigningContractId}/sign-pdf`}
+            clientId={client.id}
             onSuccess={() => {
               showToast('Contract signed!', 'success')
               setCountersigningContractId(null)

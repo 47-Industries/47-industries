@@ -29,6 +29,7 @@ export interface PlacedElement {
   // New fields for placeholder support
   isPlaceholder?: boolean // True if this is a placeholder for someone else to sign
   assignedTo?: AssignedTo // Who should sign this field
+  assignedUserId?: string // User ID of the person assigned to sign
   label?: string // Label shown on placeholder
   isSigned?: boolean // Whether the placeholder has been signed
   fieldId?: string // Database ID if saved to ContractSignatureField
@@ -51,10 +52,29 @@ export interface SignatureField {
   signedAt?: string | null
 }
 
+// Signer option for the dropdown
+export interface SignerOption {
+  id: string
+  type: 'admin' | 'client' | 'partner'
+  name: string
+  email?: string
+  hasSignature?: boolean
+  assignedTo: AssignedTo
+}
+
 interface InteractivePdfSignerProps {
   pdfUrl: string
   contractTitle: string
-  onSave: (signedPdfBlob: Blob, signerName: string, signerTitle: string, signatureDataUrl: string, initialsDataUrl?: string, signatureFields?: PlacedElement[]) => Promise<void>
+  contractId?: string // Contract ID for fetching signers
+  clientId?: string // Client ID for the contract
+  onSave: (
+    signerName: string,
+    signerTitle: string,
+    signatureDataUrl: string,
+    adminSignedElements: PlacedElement[],
+    placeholderElements: PlacedElement[],
+    initialsDataUrl?: string
+  ) => Promise<void>
   onClose: () => void
   existingSignatures?: PlacedElement[]
   existingSignatureFields?: SignatureField[] // Load existing signature fields from database
@@ -64,6 +84,7 @@ interface InteractivePdfSignerProps {
   initialInitialsDataUrl?: string | null
   mode?: 'sign' | 'setup' | 'both' // 'sign' = signing only, 'setup' = create placeholders only, 'both' = can do both
   currentUserRole?: 'admin' | 'client' | 'partner' // Who is currently using the signer
+  availableSigners?: SignerOption[] // Optional pre-loaded signer options
 }
 
 const SIGNATURE_FONTS = [
@@ -91,6 +112,8 @@ const SIGNER_LABELS: Record<AssignedTo, string> = {
 export default function InteractivePdfSigner({
   pdfUrl,
   contractTitle,
+  contractId,
+  clientId,
   onSave,
   onClose,
   existingSignatures = [],
@@ -101,10 +124,15 @@ export default function InteractivePdfSigner({
   initialInitialsDataUrl = null,
   mode = 'both',
   currentUserRole = 'admin',
+  availableSigners: propSigners,
 }: InteractivePdfSignerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [pageWidth, setPageWidth] = useState(700)
+
+  // Signer options for "Add Field for Others" dropdown
+  const [signerOptions, setSignerOptions] = useState<SignerOption[]>(propSigners || [])
+  const [loadingSigners, setLoadingSigners] = useState(false)
 
   // Use proxy URL for display
   const proxyUrl = `/api/proxy/pdf?url=${encodeURIComponent(pdfUrl)}`
@@ -117,6 +145,7 @@ export default function InteractivePdfSigner({
 
   // Placeholder creation state
   const [isCreatingPlaceholder, setIsCreatingPlaceholder] = useState(false)
+  const [selectedSigner, setSelectedSigner] = useState<SignerOption | null>(null)
   const [placeholderAssignedTo, setPlaceholderAssignedTo] = useState<AssignedTo>('CLIENT')
   const [placeholderLabel, setPlaceholderLabel] = useState('')
 
@@ -183,6 +212,79 @@ export default function InteractivePdfSigner({
     document.head.appendChild(link)
     return () => { document.head.removeChild(link) }
   }, [])
+
+  // Fetch available signers for "Add Field for Others" dropdown
+  useEffect(() => {
+    if (propSigners) {
+      setSignerOptions(propSigners)
+      return
+    }
+
+    const fetchSigners = async () => {
+      setLoadingSigners(true)
+      try {
+        const options: SignerOption[] = []
+
+        // Fetch admins
+        const adminsRes = await fetch('/api/admin/users/admins')
+        if (adminsRes.ok) {
+          const adminsData = await adminsRes.json()
+          adminsData.admins?.forEach((admin: { id: string; name: string; email: string; signatureUrl?: string }, index: number) => {
+            options.push({
+              id: admin.id,
+              type: 'admin',
+              name: admin.name || admin.email,
+              email: admin.email,
+              hasSignature: !!admin.signatureUrl,
+              assignedTo: index === 0 ? 'ADMIN' : 'ADMIN_2' as AssignedTo,
+            })
+          })
+        }
+
+        // Fetch client info if clientId is provided
+        if (clientId) {
+          const clientRes = await fetch(`/api/admin/clients/${clientId}`)
+          if (clientRes.ok) {
+            const clientData = await clientRes.json()
+            if (clientData.client) {
+              options.push({
+                id: clientData.client.id,
+                type: 'client',
+                name: clientData.client.name,
+                email: clientData.client.email,
+                assignedTo: 'CLIENT' as AssignedTo,
+              })
+            }
+          }
+        }
+
+        // Fetch partners if available
+        const partnersRes = await fetch('/api/admin/partners')
+        if (partnersRes.ok) {
+          const partnersData = await partnersRes.json()
+          partnersData.partners?.forEach((partner: { id: string; name: string; email: string }) => {
+            options.push({
+              id: partner.id,
+              type: 'partner',
+              name: partner.name,
+              email: partner.email,
+              assignedTo: 'PARTNER' as AssignedTo,
+            })
+          })
+        }
+
+        setSignerOptions(options)
+      } catch (err) {
+        console.error('Error fetching signers:', err)
+      } finally {
+        setLoadingSigners(false)
+      }
+    }
+
+    if (currentUserRole === 'admin') {
+      fetchSigners()
+    }
+  }, [propSigners, clientId, currentUserRole])
 
   // Calculate responsive page width
   useEffect(() => {
@@ -377,6 +479,11 @@ export default function InteractivePdfSigner({
       },
     }
 
+    // Use selected signer's name for label if available
+    const signerLabel = selectedSigner
+      ? `${selectedSigner.name} ${createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'}`
+      : defaultLabels[createType][placeholderAssignedTo]
+
     const newElement: PlacedElement = {
       id: generateId(),
       type: createType,
@@ -389,7 +496,8 @@ export default function InteractivePdfSigner({
       signerTitle: '',
       isPlaceholder: true,
       assignedTo: placeholderAssignedTo,
-      label: placeholderLabel.trim() || defaultLabels[createType][placeholderAssignedTo],
+      assignedUserId: selectedSigner?.id || undefined,
+      label: placeholderLabel.trim() || signerLabel,
       isSigned: false,
     }
 
@@ -398,6 +506,7 @@ export default function InteractivePdfSigner({
     setClickPosition(null)
     setIsCreatingPlaceholder(false)
     setPlaceholderLabel('')
+    setSelectedSigner(null) // Reset selected signer
   }
 
   const handleRemoveElement = (id: string) => {
@@ -570,10 +679,10 @@ export default function InteractivePdfSigner({
   }
 
   const handleSave = async () => {
-    // Separate signed elements from placeholders
-    const signedElements = placedElements.filter(el => !el.isPlaceholder || el.isSigned)
-    const placeholderElements = placedElements.filter(el => el.isPlaceholder)
-    const mySignatureElements = signedElements.filter(el => el.type === 'signature' && !el.isPlaceholder)
+    // Separate admin's signed elements from placeholders for others
+    const adminSignedElements = placedElements.filter(el => !el.isPlaceholder && (el.dataUrl || el.text))
+    const placeholderElements = placedElements.filter(el => el.isPlaceholder && !el.isSigned)
+    const mySignatureElements = adminSignedElements.filter(el => el.type === 'signature')
 
     // Validation based on mode
     if (mode === 'sign' || mode === 'both') {
@@ -600,83 +709,19 @@ export default function InteractivePdfSigner({
       setSaving(true)
       setError('')
 
-      const response = await fetch(proxyUrl)
-      if (!response.ok) throw new Error('Failed to fetch PDF for signing')
-      const pdfBytes = await response.arrayBuffer()
-
-      const pdfDoc = await PDFDocument.load(pdfBytes)
-      const pages = pdfDoc.getPages()
-
-      // Only embed elements that are actually signed (not unsigned placeholders)
-      for (const elem of signedElements) {
-        const page = pages[elem.pageNumber - 1]
-        if (!page || !elem.dataUrl) continue
-
-        const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize()
-
-        if (elem.type === 'date' && elem.text) {
-          // Draw date as text
-          const fontSize = 12
-          const x = (elem.x / 100) * pdfPageWidth
-          const y = pdfPageHeight - (elem.y / 100) * pdfPageHeight
-
-          page.drawText(elem.text, {
-            x: x - 50,
-            y: y,
-            size: fontSize,
-            color: rgb(0, 0, 0),
-          })
-        } else {
-          // Embed image - check for PNG or JPEG format
-          const isPng = elem.dataUrl.toLowerCase().includes('image/png')
-          const isJpg = elem.dataUrl.toLowerCase().includes('image/jpeg') || elem.dataUrl.toLowerCase().includes('image/jpg')
-
-          let image
-          if (isPng) {
-            image = await pdfDoc.embedPng(elem.dataUrl)
-          } else if (isJpg) {
-            image = await pdfDoc.embedJpg(elem.dataUrl)
-          } else {
-            // Default to PNG for unknown formats (most signatures are PNG)
-            try {
-              image = await pdfDoc.embedPng(elem.dataUrl)
-            } catch {
-              // If PNG fails, try JPEG
-              image = await pdfDoc.embedJpg(elem.dataUrl)
-            }
-          }
-
-          const aspectRatio = image.width / image.height
-          const imgWidth = (elem.width / 100) * pdfPageWidth
-          const imgHeight = imgWidth / aspectRatio
-
-          const x = (elem.x / 100) * pdfPageWidth - imgWidth / 2
-          const y = pdfPageHeight - (elem.y / 100) * pdfPageHeight - imgHeight / 2
-
-          page.drawImage(image, {
-            x: Math.max(0, x),
-            y: Math.max(0, y),
-            width: imgWidth,
-            height: imgHeight,
-          })
-        }
-      }
-
-      const modifiedPdfBytes = await pdfDoc.save()
-      const blob = new Blob([modifiedPdfBytes as BlobPart], { type: 'application/pdf' })
-
-      // Pass signature fields (placeholders) to onSave
+      // NEW FLOW: Don't embed signatures in PDF - pass them separately to be stored in DB
+      // The PDF compositing happens on-demand when viewing/downloading the final PDF
       await onSave(
-        blob,
         signerName.trim(),
         signerTitle.trim(),
         signatureDataUrl || '',
-        initialsDataUrl || undefined,
-        placeholderElements
+        adminSignedElements,
+        placeholderElements,
+        initialsDataUrl || undefined
       )
     } catch (err) {
-      console.error('Error saving signed PDF:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save signed PDF')
+      console.error('Error saving signatures:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save signatures')
       setSaving(false)
     }
   }
@@ -969,24 +1014,75 @@ export default function InteractivePdfSigner({
                     <label className="block text-sm font-medium text-zinc-400 mb-2">
                       Who should sign here?
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['ADMIN', 'ADMIN_2', 'CLIENT', 'PARTNER'] as AssignedTo[]).map((role) => {
-                        const colors = SIGNER_COLORS[role]
-                        return (
-                          <button
-                            key={role}
-                            onClick={() => setPlaceholderAssignedTo(role)}
-                            className={`px-4 py-3 rounded-lg font-medium transition-colors border-2 ${
-                              placeholderAssignedTo === role
-                                ? `${colors.border} ${colors.bgLight} ${colors.text}`
-                                : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
-                            }`}
-                          >
-                            {SIGNER_LABELS[role]}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {loadingSigners ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                        <p className="text-zinc-500 text-sm mt-2">Loading signers...</p>
+                      </div>
+                    ) : signerOptions.length > 0 ? (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {signerOptions.map((signer) => {
+                          const colors = SIGNER_COLORS[signer.assignedTo]
+                          const isSelected = selectedSigner?.id === signer.id
+                          return (
+                            <button
+                              key={signer.id}
+                              onClick={() => {
+                                setSelectedSigner(signer)
+                                setPlaceholderAssignedTo(signer.assignedTo)
+                              }}
+                              className={`w-full px-4 py-3 rounded-lg font-medium transition-colors border-2 text-left ${
+                                isSelected
+                                  ? `${colors.border} ${colors.bgLight} ${colors.text}`
+                                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className={isSelected ? colors.text : 'text-white'}>{signer.name}</div>
+                                  {signer.email && (
+                                    <div className="text-xs text-zinc-500">{signer.email}</div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded ${colors.bgLight} ${colors.text}`}>
+                                    {signer.type === 'admin' ? 'Admin' : signer.type === 'client' ? 'Client' : 'Partner'}
+                                  </span>
+                                  {signer.hasSignature && (
+                                    <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">
+                                      Has Signature
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      // Fallback to role-based selection if no signers loaded
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['ADMIN', 'ADMIN_2', 'CLIENT', 'PARTNER'] as AssignedTo[]).map((role) => {
+                          const colors = SIGNER_COLORS[role]
+                          return (
+                            <button
+                              key={role}
+                              onClick={() => {
+                                setPlaceholderAssignedTo(role)
+                                setSelectedSigner(null)
+                              }}
+                              className={`px-4 py-3 rounded-lg font-medium transition-colors border-2 ${
+                                placeholderAssignedTo === role && !selectedSigner
+                                  ? `${colors.border} ${colors.bgLight} ${colors.text}`
+                                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                              }`}
+                            >
+                              {SIGNER_LABELS[role]}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Element Type for Placeholder */}
@@ -1032,7 +1128,7 @@ export default function InteractivePdfSigner({
                       className={`p-4 border-2 border-dashed ${SIGNER_COLORS[placeholderAssignedTo].border} ${SIGNER_COLORS[placeholderAssignedTo].bgLight} rounded-lg text-center`}
                     >
                       <div className={`text-sm font-medium ${SIGNER_COLORS[placeholderAssignedTo].text}`}>
-                        {placeholderLabel || `${SIGNER_LABELS[placeholderAssignedTo]} ${createType}`}
+                        {placeholderLabel || (selectedSigner ? `${selectedSigner.name} ${createType}` : `${SIGNER_LABELS[placeholderAssignedTo]} ${createType}`)}
                       </div>
                       <div className="text-xs text-zinc-500 mt-1">
                         {createType === 'signature' ? 'Sign here' : createType === 'initials' ? 'Initial here' : 'Date'}
