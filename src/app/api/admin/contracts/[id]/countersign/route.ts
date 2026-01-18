@@ -127,6 +127,10 @@ export async function POST(
     // Determine new status - ACTIVE if client already signed, keep current if admin signs first
     const newStatus = contract.signedAt ? 'ACTIVE' : contract.status
 
+    // Preserve original file URL if this is the first time signing
+    // This allows re-editing signatures later by loading the original unsigned PDF
+    const originalFileUrl = contract.originalFileUrl || contract.fileUrl
+
     // Update contract with countersignature info
     const updatedContract = await prisma.contract.update({
       where: { id: contractId },
@@ -139,7 +143,8 @@ export async function POST(
         countersignedByIp: ip,
         countersignedByUserId: user.id,
         countersignedAt: new Date(),
-        // Update fileUrl to signed PDF if provided
+        // Preserve original URL and update fileUrl to signed PDF
+        originalFileUrl: originalFileUrl,
         fileUrl: signedPdfUrl || undefined,
       },
     })

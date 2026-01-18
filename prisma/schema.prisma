@@ -2245,7 +2245,8 @@ model Contract {
   description     String?  @db.Text
 
   // File storage (R2 upload or external link)
-  fileUrl         String?             // R2 URL or external link
+  fileUrl         String?             // R2 URL or external link (becomes signed PDF after signing)
+  originalFileUrl String?             // Original unsigned PDF URL (preserved for editing signatures)
   fileName        String?
   isExternalLink  Boolean  @default(false)
 

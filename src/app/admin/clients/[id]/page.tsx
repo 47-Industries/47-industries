@@ -121,6 +121,7 @@ interface Contract {
   signedAt?: string
   signedByName?: string
   fileUrl?: string
+  originalFileUrl?: string
   countersignedAt?: string
   countersignedByName?: string
   amendments?: Amendment[]
@@ -2503,21 +2504,26 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* Contract Signing Modal */}
-      {countersigningContractId && (
-        <AdminContractSigningModal
-          contractId={countersigningContractId}
-          contractTitle={client.contracts.find(c => c.id === countersigningContractId)?.title || ''}
-          contractFileUrl={client.contracts.find(c => c.id === countersigningContractId)?.fileUrl || ''}
-          signatureType="admin"
-          apiEndpoint={`/api/admin/contracts/${countersigningContractId}/sign-pdf`}
-          onSuccess={() => {
-            showToast('Contract signed!', 'success')
-            setCountersigningContractId(null)
-            fetchClient()
-          }}
-          onClose={() => setCountersigningContractId(null)}
-        />
-      )}
+      {countersigningContractId && (() => {
+        const contract = client.contracts.find(c => c.id === countersigningContractId)
+        // Use originalFileUrl when editing (if it exists), otherwise use fileUrl
+        const pdfUrl = contract?.originalFileUrl || contract?.fileUrl || ''
+        return (
+          <AdminContractSigningModal
+            contractId={countersigningContractId}
+            contractTitle={contract?.title || ''}
+            contractFileUrl={pdfUrl}
+            signatureType="admin"
+            apiEndpoint={`/api/admin/contracts/${countersigningContractId}/sign-pdf`}
+            onSuccess={() => {
+              showToast('Contract signed!', 'success')
+              setCountersigningContractId(null)
+              fetchClient()
+            }}
+            onClose={() => setCountersigningContractId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
