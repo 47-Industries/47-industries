@@ -180,6 +180,61 @@ export default function InteractivePdfSigner({
 
   // Placed elements
   const [placedElements, setPlacedElements] = useState<PlacedElement[]>(initialElements)
+  const [hasLoadedExisting, setHasLoadedExisting] = useState(false)
+
+  // Update placed elements when existingSignatureFields are loaded
+  useEffect(() => {
+    if (!hasLoadedExisting && existingSignatureFields.length > 0) {
+      // Load signature images via proxy if they're R2 URLs
+      const loadSignatureImages = async () => {
+        const loadedElements: PlacedElement[] = await Promise.all(
+          existingSignatureFields.map(async (field) => {
+            let dataUrl = field.signatureUrl || undefined
+
+            // If it's an R2 URL (not a data URL), proxy it to get a data URL
+            if (dataUrl && !dataUrl.startsWith('data:') && field.isSigned) {
+              try {
+                const proxyRes = await fetch(`/api/proxy/pdf?url=${encodeURIComponent(dataUrl)}`)
+                if (proxyRes.ok) {
+                  const blob = await proxyRes.blob()
+                  dataUrl = await new Promise<string>((resolve) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => resolve(reader.result as string)
+                    reader.readAsDataURL(blob)
+                  })
+                }
+              } catch (err) {
+                console.error('Error loading signature image:', err)
+              }
+            }
+
+            return {
+              id: field.id,
+              fieldId: field.id,
+              type: field.type.toLowerCase() as SignatureType,
+              pageNumber: field.pageNumber,
+              x: field.xPercent,
+              y: field.yPercent,
+              width: field.widthPercent,
+              height: field.heightPercent,
+              signerName: field.signedByName || '',
+              signerTitle: '',
+              isPlaceholder: !field.isSigned, // Only placeholders for unsigned fields
+              assignedTo: field.assignedTo as AssignedTo,
+              label: field.label || undefined,
+              isSigned: field.isSigned,
+              dataUrl,
+              text: field.signedValue || undefined,
+            }
+          })
+        )
+        setPlacedElements(prev => [...prev.filter(el => !existingSignatureFields.find(f => f.id === el.id)), ...loadedElements])
+        setHasLoadedExisting(true)
+      }
+
+      loadSignatureImages()
+    }
+  }, [existingSignatureFields, hasLoadedExisting])
 
   // Dragging state
   const [draggingId, setDraggingId] = useState<string | null>(null)

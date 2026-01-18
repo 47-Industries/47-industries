@@ -19,6 +19,24 @@ interface Admin {
   initialsUrl?: string | null
 }
 
+interface SignatureField {
+  id: string
+  type: string
+  pageNumber: number
+  xPercent: number
+  yPercent: number
+  widthPercent: number
+  heightPercent: number
+  assignedTo: string
+  assignedUserId?: string | null
+  label?: string | null
+  isSigned: boolean
+  signatureUrl?: string | null
+  signedValue?: string | null
+  signedByName?: string | null
+  signedAt?: string | null
+}
+
 interface AdminContractSigningModalProps {
   contractId: string
   contractTitle: string
@@ -49,10 +67,25 @@ export default function AdminContractSigningModal({
   const [savedTitle, setSavedTitle] = useState<string | null>(null)
   const [loadingSignature, setLoadingSignature] = useState(false)
   const [error, setError] = useState('')
+  const [existingSignatureFields, setExistingSignatureFields] = useState<SignatureField[]>([])
 
   useEffect(() => {
     fetchAdmins()
+    fetchExistingSignatureFields()
   }, [])
+
+  // Fetch existing signature fields from the contract
+  const fetchExistingSignatureFields = async () => {
+    try {
+      const res = await fetch(`/api/admin/contracts/${contractId}/signature-fields`)
+      if (res.ok) {
+        const data = await res.json()
+        setExistingSignatureFields(data.signatureFields || [])
+      }
+    } catch (err) {
+      console.error('Error fetching signature fields:', err)
+    }
+  }
 
   // Load saved signature, initials, and title when admin is selected
   useEffect(() => {
@@ -234,6 +267,7 @@ export default function AdminContractSigningModal({
         initialSignerTitle={savedTitle || selectedAdmin?.title || ''}
         initialSignatureDataUrl={savedSignatureDataUrl}
         initialInitialsDataUrl={savedInitialsDataUrl}
+        existingSignatureFields={existingSignatureFields}
       />
     )
   }
