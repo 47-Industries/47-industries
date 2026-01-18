@@ -22,42 +22,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Find client linked to this user
-    const client = await prisma.client.findUnique({
-      where: { userId: user.id },
-      include: {
-        projects: {
-          where: { status: { in: ['ACTIVE', 'PROPOSAL'] } },
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            monthlyRecurring: true,
+    // Find user with full details including client link
+    const userWithClient = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        title: true,
+        client: {
+          include: {
+            projects: {
+              where: { status: { in: ['ACTIVE', 'PROPOSAL'] } },
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                monthlyRecurring: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
+            invoices: {
+              select: {
+                id: true,
+                invoiceNumber: true,
+                total: true,
+                status: true,
+                dueDate: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+            },
+            contracts: {
+              select: {
+                id: true,
+                contractNumber: true,
+                title: true,
+                status: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
           },
-          orderBy: { createdAt: 'desc' },
-        },
-        invoices: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            total: true,
-            status: true,
-            dueDate: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
-        contracts: {
-          select: {
-            id: true,
-            contractNumber: true,
-            title: true,
-            status: true,
-          },
-          orderBy: { createdAt: 'desc' },
         },
       },
     })
+
+    const client = userWithClient?.client
 
     if (!client) {
       return NextResponse.json({ error: 'No client account linked' }, { status: 404 })
@@ -68,6 +78,7 @@ export async function GET(req: NextRequest) {
         id: client.id,
         clientNumber: client.clientNumber,
         name: client.name,
+        email: client.email,
         type: client.type,
         totalRevenue: client.totalRevenue,
         totalOutstanding: client.totalOutstanding,
@@ -75,6 +86,11 @@ export async function GET(req: NextRequest) {
         projects: client.projects,
         invoices: client.invoices,
         contracts: client.contracts,
+      },
+      user: {
+        name: userWithClient?.name || null,
+        email: userWithClient?.email || null,
+        title: userWithClient?.title || null,
       },
     })
   } catch (error) {

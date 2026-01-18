@@ -54,6 +54,7 @@ interface CommissionRates {
 interface PartnerInfo {
   name: string
   email: string
+  title?: string
   company?: string
 }
 
@@ -89,9 +90,11 @@ export default function PartnerContractPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.partner) {
+          // Use user's name/email/title if available, fall back to partner fields
           setPartnerInfo({
-            name: data.partner.name,
-            email: data.partner.email,
+            name: data.partner.user?.name || data.partner.name,
+            email: data.partner.user?.email || data.partner.email,
+            title: data.partner.user?.title || '',
             company: data.partner.company || data.partner.name,
           })
         }
@@ -533,6 +536,7 @@ export default function PartnerContractPage() {
           }}
           onClose={() => setShowSigningModal(false)}
           defaultName={partnerInfo?.name}
+          defaultTitle={partnerInfo?.title}
           defaultEmail={partnerInfo?.email}
           defaultCompany={partnerInfo?.company}
         />
@@ -551,6 +555,7 @@ export default function PartnerContractPage() {
           }}
           onClose={() => setSigningAmendment(null)}
           defaultName={partnerInfo?.name}
+          defaultTitle={partnerInfo?.title}
           defaultEmail={partnerInfo?.email}
           defaultCompany={partnerInfo?.company}
         />

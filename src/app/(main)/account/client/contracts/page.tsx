@@ -56,8 +56,14 @@ interface Contract {
 }
 
 interface ClientInfo {
-  name: string
-  email: string
+  companyName: string   // Client.name - the company/business name
+  email: string         // Client.email
+}
+
+interface UserInfo {
+  name: string | null    // User.name - the person's name
+  email: string | null   // User.email
+  title: string | null   // User.title - the person's title/position
 }
 
 export default function ClientContractsPage() {
@@ -69,6 +75,7 @@ export default function ClientContractsPage() {
   const [signingContract, setSigningContract] = useState<Contract | null>(null)
   const [signingAmendment, setSigningAmendment] = useState<Amendment | null>(null)
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -90,7 +97,14 @@ export default function ClientContractsPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.client) {
-          setClientInfo({ name: data.client.name, email: data.client.email })
+          setClientInfo({ companyName: data.client.name, email: data.client.email })
+        }
+        if (data.user) {
+          setUserInfo({
+            name: data.user.name,
+            email: data.user.email,
+            title: data.user.title,
+          })
         }
       }
     } catch (err) {
@@ -477,9 +491,10 @@ export default function ClientContractsPage() {
             setSigningContract(null)
           }}
           onClose={() => setSigningContract(null)}
-          defaultName={clientInfo?.name}
-          defaultEmail={clientInfo?.email}
-          defaultCompany={clientInfo?.name}
+          defaultName={userInfo?.name || ''}
+          defaultTitle={userInfo?.title || ''}
+          defaultEmail={userInfo?.email || ''}
+          defaultCompany={clientInfo?.companyName || ''}
         />
       )}
 
@@ -495,9 +510,10 @@ export default function ClientContractsPage() {
             setSigningAmendment(null)
           }}
           onClose={() => setSigningAmendment(null)}
-          defaultName={clientInfo?.name}
-          defaultEmail={clientInfo?.email}
-          defaultCompany={clientInfo?.name}
+          defaultName={userInfo?.name || ''}
+          defaultTitle={userInfo?.title || ''}
+          defaultEmail={userInfo?.email || ''}
+          defaultCompany={clientInfo?.companyName || ''}
         />
       )}
     </div>

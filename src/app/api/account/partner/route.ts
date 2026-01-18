@@ -14,6 +14,13 @@ export async function GET(req: NextRequest) {
     const partner = await prisma.partner.findUnique({
       where: { userId: session.user.id },
       include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            title: true,
+          },
+        },
         contract: true,
         leads: {
           orderBy: { createdAt: 'desc' },

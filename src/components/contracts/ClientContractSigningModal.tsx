@@ -42,6 +42,7 @@ interface ClientContractSigningModalProps {
   onSuccess: () => void
   onClose: () => void
   defaultName?: string
+  defaultTitle?: string
   defaultEmail?: string
   defaultCompany?: string
 }
@@ -54,6 +55,7 @@ export default function ClientContractSigningModal({
   onSuccess,
   onClose,
   defaultName = '',
+  defaultTitle = '',
   defaultEmail = '',
   defaultCompany = '',
 }: ClientContractSigningModalProps) {
@@ -151,7 +153,7 @@ export default function ClientContractSigningModal({
       onSave={handleSave}
       onClose={onClose}
       initialSignerName={defaultName}
-      initialSignerTitle=""
+      initialSignerTitle={defaultTitle}
       initialSignerCompany={defaultCompany}
       initialSignerEmail={defaultEmail}
       existingSignatureFields={existingSignatureFields}

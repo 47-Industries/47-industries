@@ -9,6 +9,7 @@ interface UserProfile {
   id: string
   name: string | null
   email: string
+  title: string | null
   createdAt: string
 }
 
@@ -35,6 +36,7 @@ export default function AccountSettingsPage() {
 
   // Form states
   const [name, setName] = useState('')
+  const [title, setTitle] = useState('')
 
   // Password change
   const [showPasswordChange, setShowPasswordChange] = useState(false)
@@ -61,6 +63,7 @@ export default function AccountSettingsPage() {
         const data = await res.json()
         setProfile(data.user)
         setName(data.user.name || '')
+        setTitle(data.user.title || '')
         setAddresses(data.addresses || [])
       }
     } catch (error) {
@@ -79,7 +82,7 @@ export default function AccountSettingsPage() {
       const res = await fetch('/api/account/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, title }),
       })
 
       if (res.ok) {
@@ -202,6 +205,18 @@ export default function AccountSettingsPage() {
                 placeholder="Enter your full name"
                 className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-accent"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">Title / Position</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., President, CEO, Manager"
+                className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-accent"
+              />
+              <p className="text-xs text-text-secondary mt-1">Your title will be used when signing contracts</p>
             </div>
 
             <div className="pt-2">
