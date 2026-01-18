@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
+const ClientContractSigningModal = dynamic(
+  () => import('@/components/contracts/ClientContractSigningModal'),
+  { ssr: false }
+)
+
 const ContractSigningModal = dynamic(
   () => import('@/components/contracts/ContractSigningModal'),
   { ssr: false }
@@ -460,12 +465,16 @@ export default function ClientContractsPage() {
         )}
       </div>
 
-      {/* Contract Signing Modal */}
+      {/* Contract Signing Modal - Interactive PDF Signer */}
       {signingContract && signingContract.fileUrl && (
-        <ContractSigningModal
+        <ClientContractSigningModal
+          contractId={signingContract.id}
           contractTitle={signingContract.title}
           contractFileUrl={signingContract.fileUrl}
-          onSign={handleSignContract}
+          onSuccess={() => {
+            fetchContracts()
+            setSigningContract(null)
+          }}
           onClose={() => setSigningContract(null)}
           defaultName={clientInfo?.name}
           defaultEmail={clientInfo?.email}
