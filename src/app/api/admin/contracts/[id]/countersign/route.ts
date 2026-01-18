@@ -43,9 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'Contract must be sent before signing' }, { status: 400 })
     }
 
-    if (contract.countersignedAt) {
-      return NextResponse.json({ error: 'Contract already countersigned' }, { status: 400 })
-    }
+    // Allow re-countersigning (editing signatures) - removed the check that prevented this
 
     const body = await req.json()
     const {

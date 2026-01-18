@@ -1657,6 +1657,47 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 )}
 
+                {/* Edit Signatures Card - Show when contract has been countersigned */}
+                {contract.fileUrl && contract.countersignedAt && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '16px',
+                    background: '#71717a10',
+                    border: '1px solid #71717a30',
+                    borderRadius: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, color: '#a1a1aa' }}>Edit Signatures</p>
+                        <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                          Re-open the signing interface to adjust or re-place signatures
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setCountersigningContractId(contract.id)}
+                        style={{
+                          padding: '10px 20px',
+                          background: '#27272a',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit Signatures
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Amendments Section */}
                 {contract.amendments && contract.amendments.length > 0 && (
                   <div style={{
