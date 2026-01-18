@@ -471,6 +471,7 @@ export default function ClientContractsPage() {
           contractId={signingContract.id}
           contractTitle={signingContract.title}
           contractFileUrl={signingContract.fileUrl}
+          apiEndpoint={`/api/account/client/contracts/${signingContract.id}/sign`}
           onSuccess={() => {
             fetchContracts()
             setSigningContract(null)
@@ -482,12 +483,17 @@ export default function ClientContractsPage() {
         />
       )}
 
-      {/* Amendment Signing Modal */}
+      {/* Amendment Signing Modal - Interactive PDF Signer */}
       {signingAmendment && signingAmendment.fileUrl && (
-        <ContractSigningModal
+        <ClientContractSigningModal
+          contractId={signingAmendment.id}
           contractTitle={`Amendment: ${signingAmendment.title}`}
           contractFileUrl={signingAmendment.fileUrl}
-          onSign={handleSignAmendment}
+          apiEndpoint={`/api/account/client/amendments/${signingAmendment.id}/sign`}
+          onSuccess={() => {
+            fetchAmendments()
+            setSigningAmendment(null)
+          }}
           onClose={() => setSigningAmendment(null)}
           defaultName={clientInfo?.name}
           defaultEmail={clientInfo?.email}

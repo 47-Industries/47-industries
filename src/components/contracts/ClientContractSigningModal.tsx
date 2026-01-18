@@ -38,6 +38,7 @@ interface ClientContractSigningModalProps {
   contractId: string
   contractTitle: string
   contractFileUrl: string
+  apiEndpoint: string // e.g., '/api/account/client/contracts/[id]/sign' or '/api/account/client/amendments/[id]/sign'
   onSuccess: () => void
   onClose: () => void
   defaultName?: string
@@ -49,6 +50,7 @@ export default function ClientContractSigningModal({
   contractId,
   contractTitle,
   contractFileUrl,
+  apiEndpoint,
   onSuccess,
   onClose,
   defaultName = '',
@@ -59,12 +61,12 @@ export default function ClientContractSigningModal({
 
   useEffect(() => {
     fetchExistingSignatureFields()
-  }, [contractId])
+  }, [apiEndpoint])
 
   // Fetch existing signature fields from the contract (e.g., placeholders set by admin)
   const fetchExistingSignatureFields = async () => {
     try {
-      const res = await fetch(`/api/account/client/contracts/${contractId}/sign`)
+      const res = await fetch(apiEndpoint)
       if (res.ok) {
         const data = await res.json()
         setExistingSignatureFields(data.signatureFields || [])
@@ -117,7 +119,7 @@ export default function ClientContractSigningModal({
       }))
 
     // Send to client signing API
-    const res = await fetch(`/api/account/client/contracts/${contractId}/sign`, {
+    const res = await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
-// Dynamically import the signing modal to avoid SSR issues with signature_pad
-const ContractSigningModal = dynamic(
-  () => import('@/components/contracts/ContractSigningModal'),
+// Dynamically import the signing modal to avoid SSR issues
+const ClientContractSigningModal = dynamic(
+  () => import('@/components/contracts/ClientContractSigningModal'),
   { ssr: false }
 )
 
@@ -520,12 +520,17 @@ export default function PartnerContractPage() {
         )}
       </div>
 
-      {/* Signing Modal */}
+      {/* Signing Modal - Interactive PDF Signer */}
       {showSigningModal && contract && contract.fileUrl && (
-        <ContractSigningModal
+        <ClientContractSigningModal
+          contractId={contract.id}
           contractTitle={contract.title}
           contractFileUrl={contract.fileUrl}
-          onSign={handleSign}
+          apiEndpoint="/api/account/partner/contract/sign"
+          onSuccess={() => {
+            fetchContract()
+            setShowSigningModal(false)
+          }}
           onClose={() => setShowSigningModal(false)}
           defaultName={partnerInfo?.name}
           defaultEmail={partnerInfo?.email}
@@ -533,12 +538,17 @@ export default function PartnerContractPage() {
         />
       )}
 
-      {/* Amendment Signing Modal */}
+      {/* Amendment Signing Modal - Interactive PDF Signer */}
       {signingAmendment && signingAmendment.fileUrl && (
-        <ContractSigningModal
+        <ClientContractSigningModal
+          contractId={signingAmendment.id}
           contractTitle={`Amendment: ${signingAmendment.title}`}
           contractFileUrl={signingAmendment.fileUrl}
-          onSign={handleSignAmendment}
+          apiEndpoint={`/api/account/partner/amendments/${signingAmendment.id}/sign`}
+          onSuccess={() => {
+            fetchAmendments()
+            setSigningAmendment(null)
+          }}
           onClose={() => setSigningAmendment(null)}
           defaultName={partnerInfo?.name}
           defaultEmail={partnerInfo?.email}
