@@ -1107,12 +1107,35 @@ export default function InteractivePdfSigner({
                   </div>
 
                   {createType === 'date' ? (
-                <div className="mb-6 p-4 bg-zinc-800 rounded-lg text-center">
-                  <p className="text-zinc-400 text-sm mb-2">Date will be added:</p>
-                  <p className="text-white text-lg font-medium">
-                    {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </p>
-                </div>
+                <>
+                  <div className="mb-6 p-4 bg-zinc-800 rounded-lg text-center">
+                    <p className="text-zinc-400 text-sm mb-2">Date will be added:</p>
+                    <p className="text-white text-lg font-medium">
+                      {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+
+                  {/* Actions for Date */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setShowCreateModal(false); setClickPosition(null) }}
+                      className="flex-1 px-6 py-3 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCreateElement}
+                      disabled={!signerName.trim() || !signerTitle.trim()}
+                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
+                        signerName.trim() && signerTitle.trim()
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Place Date
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Quick place saved signature/initials */}
