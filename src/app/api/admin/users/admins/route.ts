@@ -22,6 +22,12 @@ export async function GET(req: NextRequest) {
         role: true,
         signatureUrl: true,
         initialsUrl: true,
+        // Include TeamMember for the employment title
+        teamMember: {
+          select: {
+            title: true,
+          },
+        },
       },
       orderBy: [
         { role: 'desc' }, // SUPER_ADMIN first
@@ -29,7 +35,18 @@ export async function GET(req: NextRequest) {
       ],
     })
 
-    return NextResponse.json({ admins })
+    // Flatten the response - use TeamMember title if User title is not set
+    const formattedAdmins = admins.map(admin => ({
+      id: admin.id,
+      email: admin.email,
+      name: admin.name,
+      title: admin.title || admin.teamMember?.title || null,
+      role: admin.role,
+      signatureUrl: admin.signatureUrl,
+      initialsUrl: admin.initialsUrl,
+    }))
+
+    return NextResponse.json({ admins: formattedAdmins })
   } catch (error) {
     console.error('Error fetching admins:', error)
     return NextResponse.json({ error: 'Failed to fetch admins' }, { status: 500 })
