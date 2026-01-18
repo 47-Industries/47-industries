@@ -4,7 +4,7 @@ import { verifyAdminAuth } from '@/lib/auth-helper'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/customers/segments - List all segments
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const isAuthorized = await verifyAdminAuth(req)
 
