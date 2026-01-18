@@ -145,6 +145,11 @@ export async function POST(req: NextRequest) {
       for (const field of signedFields) {
         if (!field.fieldId || !field.signatureDataUrl) continue
 
+        // Check if this field exists in the database
+        const existingField = await prisma.contractSignatureField.findUnique({
+          where: { id: field.fieldId },
+        })
+
         // Upload field signature to R2
         let fieldSignatureUrl: string | null = null
         if (isR2Configured) {
@@ -155,20 +160,24 @@ export async function POST(req: NextRequest) {
           fieldSignatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
         }
 
-        // Update the signature field
-        await prisma.contractSignatureField.update({
-          where: { id: field.fieldId },
-          data: {
-            isSigned: true,
-            signatureUrl: fieldSignatureUrl || field.signatureDataUrl,
-            signedValue: field.value || null,
-            signedByName: signedByName.trim(),
-            signedByEmail: signedByEmail.trim().toLowerCase(),
-            signedByIp: ip,
-            signedByUserId: session.user.id,
-            signedAt: new Date(),
-          },
-        })
+        if (existingField) {
+          // Update existing field
+          await prisma.contractSignatureField.update({
+            where: { id: field.fieldId },
+            data: {
+              isSigned: true,
+              signatureUrl: fieldSignatureUrl || field.signatureDataUrl,
+              signedValue: field.value || null,
+              signedByName: signedByName.trim(),
+              signedByEmail: signedByEmail.trim().toLowerCase(),
+              signedByIp: ip,
+              signedByUserId: session.user.id,
+              signedAt: new Date(),
+            },
+          })
+        }
+        // Note: If field doesn't exist, we skip it - the signature is still
+        // saved on the contract level via signatureUrl
       }
     }
 
