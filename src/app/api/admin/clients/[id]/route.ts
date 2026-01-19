@@ -39,6 +39,9 @@ export async function GET(
             amendments: {
               orderBy: { createdAt: 'desc' },
             },
+            signatureFields: {
+              orderBy: [{ pageNumber: 'asc' }, { yPercent: 'asc' }],
+            },
           },
         },
         notes: {

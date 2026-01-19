@@ -111,6 +111,18 @@ interface Amendment {
   createdAt: string
 }
 
+interface SignatureField {
+  id: string
+  type: string
+  pageNumber: number
+  assignedTo: string
+  assignedUserId?: string
+  label?: string
+  isSigned: boolean
+  signedByName?: string
+  signedAt?: string
+}
+
 interface Contract {
   id: string
   contractNumber: string
@@ -125,6 +137,7 @@ interface Contract {
   countersignedAt?: string
   countersignedByName?: string
   amendments?: Amendment[]
+  signatureFields?: SignatureField[]
 }
 
 interface Note {
@@ -1533,17 +1546,42 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </p>
                     {/* Signature Status */}
                     <div style={{ marginTop: '4px', fontSize: '12px' }}>
+                      {/* Client signature status */}
                       {contract.signedAt && (
                         <span style={{ color: '#10b981' }}>
                           Client signed by {contract.signedByName || 'N/A'} on {formatDate(contract.signedAt)}
                         </span>
                       )}
-                      {contract.countersignedAt && (
+                      {/* Admin signature fields status */}
+                      {contract.signatureFields && contract.signatureFields.length > 0 && (() => {
+                        const adminFields = contract.signatureFields.filter(f => f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2')
+                        const signedAdminFields = adminFields.filter(f => f.isSigned)
+                        if (adminFields.length > 0) {
+                          const allSigned = signedAdminFields.length === adminFields.length
+                          return (
+                            <span style={{
+                              color: allSigned ? '#10b981' : '#f59e0b',
+                              marginLeft: contract.signedAt ? '8px' : 0
+                            }}>
+                              {contract.signedAt ? ' | ' : ''}
+                              {signedAdminFields.length} of {adminFields.length} admin signature{adminFields.length > 1 ? 's' : ''} complete
+                              {signedAdminFields.map((f, i) => (
+                                <span key={f.id} style={{ color: '#71717a', marginLeft: i === 0 ? '4px' : 0 }}>
+                                  {i === 0 ? '(' : ', '}{f.signedByName}{i === signedAdminFields.length - 1 ? ')' : ''}
+                                </span>
+                              ))}
+                            </span>
+                          )
+                        }
+                        return null
+                      })()}
+                      {/* Fallback: Old countersignature status (for contracts without signature fields) */}
+                      {(!contract.signatureFields || contract.signatureFields.length === 0) && contract.countersignedAt && (
                         <span style={{ color: '#10b981', marginLeft: contract.signedAt ? '8px' : 0 }}>
                           {contract.signedAt ? ' | ' : ''} Admin signed by {contract.countersignedByName} on {formatDate(contract.countersignedAt)}
                         </span>
                       )}
-                      {contract.signedAt && !contract.countersignedAt && (
+                      {(!contract.signatureFields || contract.signatureFields.length === 0) && contract.signedAt && !contract.countersignedAt && (
                         <span style={{ color: '#f59e0b', marginLeft: '8px' }}>
                           | Admin countersignature required
                         </span>
@@ -1615,50 +1653,62 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                {/* Sign as 47 Industries Card - Show when contract has PDF and not yet countersigned */}
-                {contract.fileUrl && !contract.countersignedAt && contract.status !== 'ACTIVE' && (
-                  <div style={{
-                    marginTop: '8px',
-                    padding: '16px',
-                    background: '#3b82f610',
-                    border: '1px solid #3b82f630',
-                    borderRadius: '8px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
-                        <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
-                          {contract.signedAt
-                            ? 'Client has signed. Add your signature to fully execute the contract.'
-                            : contract.status === 'DRAFT'
-                            ? 'Sign this contract before or after sending it to the client.'
-                            : 'You can sign now or wait for the client to sign first.'}
-                        </p>
+                {/* Sign as 47 Industries Card - Show when contract has PDF and has unsigned admin fields or not yet countersigned */}
+                {contract.fileUrl && contract.status !== 'ACTIVE' && (() => {
+                  const adminFields = contract.signatureFields?.filter(f => f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') || []
+                  const unsignedAdminFields = adminFields.filter(f => !f.isSigned)
+                  const hasUnsignedAdminFields = unsignedAdminFields.length > 0
+                  // Show if: has signature fields with unsigned admin fields, OR no signature fields and not countersigned
+                  const shouldShow = adminFields.length > 0 ? hasUnsignedAdminFields : !contract.countersignedAt
+
+                  if (!shouldShow) return null
+
+                  return (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '16px',
+                      background: '#3b82f610',
+                      border: '1px solid #3b82f630',
+                      borderRadius: '8px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
+                          <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                            {hasUnsignedAdminFields
+                              ? `${unsignedAdminFields.length} admin signature${unsignedAdminFields.length > 1 ? 's' : ''} remaining`
+                              : contract.signedAt
+                              ? 'Client has signed. Add your signature to fully execute the contract.'
+                              : contract.status === 'DRAFT'
+                              ? 'Sign this contract before or after sending it to the client.'
+                              : 'You can sign now or wait for the client to sign first.'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setCountersigningContractId(contract.id)}
+                          style={{
+                            padding: '10px 20px',
+                            background: '#3b82f6',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                          Sign Contract
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setCountersigningContractId(contract.id)}
-                        style={{
-                          padding: '10px 20px',
-                          background: '#3b82f6',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: 'white',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        Sign Contract
-                      </button>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Edit Signatures Card - Show when contract has been countersigned */}
                 {contract.fileUrl && contract.countersignedAt && (

@@ -26,11 +26,29 @@ interface ActivityItem {
   createdAt: string
 }
 
+interface PendingSignature {
+  contractId: string
+  contractNumber: string
+  title: string
+  status: string
+  type: 'client' | 'partner'
+  clientId?: string
+  clientName?: string
+  clientNumber?: string
+  partnerId?: string
+  partnerName?: string
+  partnerNumber?: string
+  unsignedCount: number
+  totalAdminFields: number
+  signedAdminFields: number
+}
+
 export default function AdminDashboard() {
   const [isMobile, setIsMobile] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null)
   const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null)
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
+  const [pendingSignatures, setPendingSignatures] = useState<PendingSignature[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -78,6 +96,22 @@ export default function AdminDashboard() {
     fetchAnalytics()
     const interval = setInterval(fetchAnalytics, 30000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Fetch pending signatures
+  useEffect(() => {
+    async function fetchPendingSignatures() {
+      try {
+        const res = await fetch('/api/admin/pending-signatures')
+        if (res.ok) {
+          const data = await res.json()
+          setPendingSignatures(data.pendingContracts || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch pending signatures:', error)
+      }
+    }
+    fetchPendingSignatures()
   }, [])
 
   const statsDisplay = [
@@ -278,6 +312,140 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Pending Signatures - Only show if there are pending signatures */}
+      {pendingSignatures.length > 0 && (
+        <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: isMobile ? '16px' : '24px' }}>
+            <h2 style={{
+              fontSize: isMobile ? '20px' : '24px',
+              fontWeight: 700,
+              margin: 0
+            }}>Pending Signatures</h2>
+            <span style={{
+              background: '#f59e0b',
+              color: '#000',
+              fontSize: '12px',
+              fontWeight: 600,
+              padding: '4px 10px',
+              borderRadius: '12px'
+            }}>
+              {pendingSignatures.length}
+            </span>
+          </div>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            overflow: 'hidden'
+          }}>
+            {pendingSignatures.map((sig, index) => (
+              <Link
+                key={sig.contractId}
+                href={sig.type === 'client' ? `/admin/clients/${sig.clientId}` : `/admin/partners/${sig.partnerId}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  padding: isMobile ? '16px' : '20px 24px',
+                  borderBottom: index < pendingSignatures.length - 1 ? '1px solid #27272a' : 'none',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#27272a'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                {/* Icon */}
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  color: '#f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                  </svg>
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '4px'
+                  }}>
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: sig.type === 'client' ? '#3b82f6' : '#8b5cf6',
+                      background: sig.type === 'client' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(139, 92, 246, 0.2)',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>
+                      {sig.type === 'client' ? 'Client' : 'Partner'}
+                    </span>
+                    {sig.contractNumber && (
+                      <span style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#ffffff'
+                      }}>
+                        {sig.contractNumber}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#a1a1aa',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {sig.type === 'client' ? sig.clientName : sig.partnerName} - {sig.title}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: '4px',
+                  flexShrink: 0
+                }}>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#f59e0b'
+                  }}>
+                    {sig.signedAdminFields} of {sig.totalAdminFields} signed
+                  </span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    color: '#71717a'
+                  }}>
+                    {sig.unsignedCount} field{sig.unsignedCount !== 1 ? 's' : ''} need signature
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
