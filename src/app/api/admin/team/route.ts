@@ -105,31 +105,63 @@ export async function POST(req: NextRequest) {
     const count = await prisma.teamMember.count()
     const employeeNumber = `EMP-${(count + 1).toString().padStart(3, '0')}`
 
-    // Check if a user with this email exists; if so, link them
+    // Check if linking to an existing user (for promotion from customer)
     let userId: string | undefined
-    const existingUser = await prisma.user.findUnique({
-      where: { email: body.email },
-      select: { id: true, teamMember: true },
-    })
 
-    if (existingUser) {
+    if (body.existingUserId) {
+      // Promoting an existing user - verify they exist and aren't already a team member
+      const existingUser = await prisma.user.findUnique({
+        where: { id: body.existingUserId },
+        select: { id: true, teamMember: true },
+      })
+
+      if (!existingUser) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        )
+      }
+
       if (existingUser.teamMember) {
         return NextResponse.json(
           { error: 'This user is already a team member' },
           { status: 400 }
         )
       }
-      userId = existingUser.id
-    } else {
-      // Create a user account for this team member
-      const newUser = await prisma.user.create({
-        data: {
-          email: body.email,
-          name: body.name,
-          role: 'ADMIN', // Team members get admin access
-        },
+
+      // Promote user to ADMIN
+      await prisma.user.update({
+        where: { id: body.existingUserId },
+        data: { role: 'ADMIN' },
       })
-      userId = newUser.id
+
+      userId = body.existingUserId
+    } else {
+      // Check if a user with this email exists; if so, link them
+      const existingUser = await prisma.user.findUnique({
+        where: { email: body.email },
+        select: { id: true, teamMember: true },
+      })
+
+      if (existingUser) {
+        if (existingUser.teamMember) {
+          return NextResponse.json(
+            { error: 'This user is already a team member' },
+            { status: 400 }
+          )
+        }
+        userId = existingUser.id
+      } else {
+        // Create a user account for this team member
+        const newUser = await prisma.user.create({
+          data: {
+            email: body.email,
+            name: body.name,
+            role: 'ADMIN', // Team members get admin access
+          },
+        })
+        userId = newUser.id
+      }
     }
 
     const teamMember = await prisma.teamMember.create({

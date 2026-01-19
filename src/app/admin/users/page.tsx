@@ -42,6 +42,13 @@ function CustomersTab() {
   const [resetPasswordError, setResetPasswordError] = useState('')
   const [resettingPassword, setResettingPassword] = useState(false)
 
+  // Promote to team modal state
+  const [promoteUser, setPromoteUser] = useState<Customer | null>(null)
+  const [promoteTitle, setPromoteTitle] = useState('')
+  const [promoteDepartment, setPromoteDepartment] = useState('')
+  const [promoting, setPromoting] = useState(false)
+  const [promoteError, setPromoteError] = useState('')
+
   useEffect(() => {
     fetchCustomers()
     fetchSegments()
@@ -142,6 +149,85 @@ function CustomersTab() {
       setResetPasswordError(err.message)
     } finally {
       setResettingPassword(false)
+    }
+  }
+
+  const openPromoteModal = (customer: Customer) => {
+    setPromoteUser(customer)
+    setPromoteTitle('')
+    setPromoteDepartment('')
+    setPromoteError('')
+  }
+
+  const handlePromoteToTeam = async () => {
+    if (!promoteUser) return
+
+    if (!promoteTitle.trim()) {
+      setPromoteError('Job title is required')
+      return
+    }
+
+    setPromoting(true)
+    setPromoteError('')
+
+    try {
+      // First check if there's an existing unlinked TeamMember for this email
+      const checkRes = await fetch(`/api/admin/team/check-existing?email=${encodeURIComponent(promoteUser.email || '')}`)
+      const checkData = await checkRes.json()
+
+      if (checkData.existingTeamMember) {
+        // Re-link existing team member
+        const linkRes = await fetch(`/api/admin/team/${checkData.existingTeamMember.id}/account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'link',
+            userId: promoteUser.id,
+          }),
+        })
+
+        if (!linkRes.ok) {
+          const err = await linkRes.json()
+          throw new Error(err.error || 'Failed to re-link team member')
+        }
+
+        // Update user role to ADMIN
+        await fetch(`/api/admin/team/${checkData.existingTeamMember.id}/account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update',
+            role: 'ADMIN',
+          }),
+        })
+      } else {
+        // Create new team member
+        const res = await fetch('/api/admin/team', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: promoteUser.name || promoteUser.email?.split('@')[0] || 'Unknown',
+            email: promoteUser.email,
+            title: promoteTitle,
+            department: promoteDepartment || null,
+            startDate: new Date().toISOString(),
+            existingUserId: promoteUser.id, // Link to existing user
+          }),
+        })
+
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || 'Failed to create team member')
+        }
+      }
+
+      setPromoteUser(null)
+      fetchCustomers() // Refresh list - they should disappear from customers
+      alert('Customer promoted to team member successfully!')
+    } catch (err: any) {
+      setPromoteError(err.message)
+    } finally {
+      setPromoting(false)
     }
   }
 
@@ -382,9 +468,24 @@ function CustomersTab() {
                           fontSize: '13px',
                           color: '#f59e0b',
                           cursor: 'pointer',
+                          marginRight: '8px',
                         }}
                       >
                         Reset Password
+                      </button>
+                      <button
+                        onClick={() => openPromoteModal(customer)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#3b82f620',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          color: '#3b82f6',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Promote to Team
                       </button>
                     </td>
                   </tr>
@@ -616,6 +717,153 @@ function CustomersTab() {
                 }}
               >
                 {resettingPassword ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promote to Team Modal */}
+      {promoteUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            border: '1px solid #27272a',
+            width: '100%',
+            maxWidth: '450px',
+          }}>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Promote to Team</h2>
+              <button
+                onClick={() => setPromoteUser(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#a1a1aa',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                }}
+              >
+                x
+              </button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              <p style={{ color: '#a1a1aa', marginBottom: '20px', fontSize: '14px' }}>
+                Promote <strong style={{ color: '#fff' }}>{promoteUser.name || promoteUser.email}</strong> to a team member.
+                They will get admin access.
+              </p>
+
+              {promoteError && (
+                <div style={{
+                  background: '#7f1d1d',
+                  border: '1px solid #991b1b',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  color: '#fca5a5',
+                  fontSize: '14px'
+                }}>
+                  {promoteError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  Job Title *
+                </label>
+                <input
+                  type="text"
+                  value={promoteTitle}
+                  onChange={(e) => setPromoteTitle(e.target.value)}
+                  placeholder="e.g., Software Engineer, Designer"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px', color: '#a1a1aa' }}>
+                  Department
+                </label>
+                <input
+                  type="text"
+                  value={promoteDepartment}
+                  onChange={(e) => setPromoteDepartment(e.target.value)}
+                  placeholder="e.g., Engineering, Marketing (optional)"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{
+              padding: '20px',
+              borderTop: '1px solid #27272a',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+            }}>
+              <button
+                onClick={() => setPromoteUser(null)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromoteToTeam}
+                disabled={promoting || !promoteTitle.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: promoting || !promoteTitle.trim() ? '#52525b' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  cursor: promoting || !promoteTitle.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {promoting ? 'Promoting...' : 'Promote to Team'}
               </button>
             </div>
           </div>

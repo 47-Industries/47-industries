@@ -147,12 +147,23 @@ export async function POST(
       return NextResponse.json({ success: true })
     }
 
-    // Action: unlink - Remove user account link from team member
+    // Action: unlink - Demote user to CUSTOMER and remove from team member
     if (action === 'unlink') {
       if (!teamMember.userId) {
         return NextResponse.json({ error: 'Team member does not have a user account' }, { status: 400 })
       }
 
+      // Demote user to CUSTOMER role and clear admin permissions
+      await prisma.user.update({
+        where: { id: teamMember.userId },
+        data: {
+          role: 'CUSTOMER',
+          permissions: [],
+          emailAccess: [],
+        },
+      })
+
+      // Disconnect user from team member
       await prisma.teamMember.update({
         where: { id },
         data: { userId: null },
