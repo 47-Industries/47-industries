@@ -47,6 +47,9 @@ export default function CustomerDetailPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [showPromoteModal, setShowPromoteModal] = useState(false)
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const [promoting, setPromoting] = useState(false)
   const [promoteData, setPromoteData] = useState({
     title: '',
@@ -63,7 +66,20 @@ export default function CustomerDetailPage() {
 
   useEffect(() => {
     fetchCustomer()
+    fetchCurrentUserRole()
   }, [params.id])
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const res = await fetch('/api/admin/session')
+      if (res.ok) {
+        const data = await res.json()
+        setCurrentUserRole(data.role)
+      }
+    } catch (error) {
+      console.error('Error fetching current user role:', error)
+    }
+  }
 
   useEffect(() => {
     if (customer) {
@@ -157,6 +173,25 @@ export default function CustomerDetailPage() {
       alert(err.message)
     } finally {
       setPromoting(false)
+    }
+  }
+
+  const handleDeleteCustomer = async () => {
+    if (!customer) return
+    setDeleting(true)
+
+    try {
+      const res = await fetch(`/api/admin/customers/${customer.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete customer')
+
+      router.push('/admin/users')
+    } catch (err: any) {
+      alert(err.message)
+      setDeleting(false)
     }
   }
 
@@ -643,6 +678,22 @@ export default function CustomerDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Delete Customer - Super Admin Only */}
+              {currentUserRole === 'SUPER_ADMIN' && !customer.teamMember && !customer.client && !customer.partner && (
+                <div className="p-4 bg-red-950/30 rounded-lg border border-red-900/50">
+                  <h3 className="text-red-400 font-medium mb-1">Danger Zone</h3>
+                  <p className="text-sm text-zinc-500 mb-3">
+                    Permanently delete this customer account. This action cannot be undone.
+                  </p>
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
+                  >
+                    Delete Customer
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -715,6 +766,46 @@ export default function CustomerDetailPage() {
           onClose={() => setShowResetPasswordModal(false)}
           onSaved={() => setShowResetPasswordModal(false)}
         />
+      )}
+
+      {/* Delete Customer Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-md">
+            <div className="p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-red-400">Delete Customer</h2>
+              <p className="text-sm text-zinc-400 mt-1">
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="p-6">
+              <p className="text-zinc-300 mb-4">
+                Are you sure you want to permanently delete the customer account for{' '}
+                <span className="font-semibold text-white">{customer.name || customer.email}</span>?
+              </p>
+              {customer._count?.orders > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-3 rounded-lg text-sm mb-4">
+                  This customer has {customer._count.orders} order{customer._count.orders !== 1 ? 's' : ''} that will also be deleted.
+                </div>
+              )}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteCustomer}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Customer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

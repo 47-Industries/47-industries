@@ -180,3 +180,72 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }
+
+// DELETE /api/admin/customers/[id] - Delete a customer (SUPER_ADMIN only)
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    })
+
+    // Only SUPER_ADMIN can delete customers
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Only super admins can delete customers' }, { status: 403 })
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        teamMember: { select: { id: true } },
+        client: { select: { id: true } },
+        partner: { select: { id: true } },
+        _count: {
+          select: { orders: true },
+        },
+      },
+    })
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Only allow deleting CUSTOMER role users
+    if (targetUser.role !== 'CUSTOMER') {
+      return NextResponse.json({ error: 'Cannot delete admin users from this endpoint' }, { status: 403 })
+    }
+
+    // Prevent deleting if linked to team member, client, or partner
+    if (targetUser.teamMember) {
+      return NextResponse.json({ error: 'Cannot delete user linked to a team member. Unlink them first.' }, { status: 400 })
+    }
+    if (targetUser.client) {
+      return NextResponse.json({ error: 'Cannot delete user linked to a client. Unlink them first.' }, { status: 400 })
+    }
+    if (targetUser.partner) {
+      return NextResponse.json({ error: 'Cannot delete user linked to a partner. Unlink them first.' }, { status: 400 })
+    }
+
+    // Delete the user (cascading will handle sessions, accounts, etc.)
+    await prisma.user.delete({
+      where: { id },
+    })
+
+    return NextResponse.json({ success: true, message: 'Customer deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+  }
+}
