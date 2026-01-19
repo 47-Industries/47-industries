@@ -60,11 +60,17 @@ export async function POST(req: NextRequest) {
     })
 
     // Send password reset email
-    await sendPasswordResetEmail({
+    const emailResult = await sendPasswordResetEmail({
       to: user.email!,
       name: user.name || 'User',
       resetToken: token,
     })
+
+    if (!emailResult.success) {
+      console.error('Failed to send password reset email to:', email, emailResult.error)
+    } else {
+      console.log('Password reset email sent successfully to:', email)
+    }
 
     return NextResponse.json(successResponse)
   } catch (error) {
