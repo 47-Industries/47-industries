@@ -1561,7 +1561,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                     {contract.fileUrl && (
                       <a
-                        href={contract.fileUrl}
+                        href={contract.status === 'SIGNED' || contract.status === 'ACTIVE'
+                          ? `/api/admin/contracts/${contract.id}/composed-pdf`
+                          : contract.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

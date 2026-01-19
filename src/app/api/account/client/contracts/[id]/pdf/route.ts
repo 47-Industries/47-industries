@@ -93,6 +93,13 @@ export async function GET(
     const pdfDoc = await PDFDocument.load(pdfBytes)
     const pages = pdfDoc.getPages()
 
+    // Helper to check if signedByName indicates an admin
+    const isAdminSigner = (name: string | null) => {
+      if (!name) return false
+      const lowerName = name.toLowerCase()
+      return lowerName.includes('kyle') || lowerName.includes('rivers') || lowerName.includes('admin')
+    }
+
     // If no signature fields but we have legacy signatureUrl/countersignatureUrl, use those
     // This is a fallback for contracts signed before the new system
     if (contract.signatureFields.length === 0) {
@@ -105,6 +112,16 @@ export async function GET(
     for (const field of contract.signatureFields) {
       const page = pages[field.pageNumber - 1]
       if (!page) continue
+
+      // For ADMIN-assigned fields, check if we should use legacy countersignatureUrl instead
+      // This handles cases where admin signed via legacy flow but field was signed by wrong person
+      if (field.assignedTo?.toUpperCase() === 'ADMIN' && contractLegacy?.countersignatureUrl) {
+        // If the field was NOT signed by an actual admin, skip it - we'll use legacy below
+        if (!isAdminSigner(field.signedByName)) {
+          console.log(`[PDF Compose] Field ${field.id}: ADMIN field signed by non-admin (${field.signedByName}), will use legacy countersignatureUrl`)
+          continue
+        }
+      }
 
       const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize()
 
@@ -192,12 +209,13 @@ export async function GET(
 
     // Check if we need to draw legacy signatures (fallback for contracts signed before new system)
     // The admin's countersignature might only be in the legacy field
-    const hasAdminSignature = contract.signatureFields.some(f =>
-      f.assignedTo?.toUpperCase() === 'ADMIN' || f.signedByName?.toLowerCase().includes('kyle')
+    const adminField = contract.signatureFields.find(f => f.assignedTo?.toUpperCase() === 'ADMIN')
+    const hasRealAdminSignature = contract.signatureFields.some(f =>
+      f.assignedTo?.toUpperCase() === 'ADMIN' && isAdminSigner(f.signedByName)
     )
 
-    if (!hasAdminSignature && contractLegacy?.countersignatureUrl) {
-      console.log('[PDF Compose] No admin signature field found, using legacy countersignatureUrl')
+    if (!hasRealAdminSignature && contractLegacy?.countersignatureUrl) {
+      console.log('[PDF Compose] No real admin signature in fields, using legacy countersignatureUrl')
       try {
         // Fetch the legacy countersignature
         let sigData: ArrayBuffer
@@ -225,21 +243,24 @@ export async function GET(
           image = isPng ? await pdfDoc.embedJpg(sigData) : await pdfDoc.embedPng(sigData)
         }
 
-        // Draw at LEFT side of signature area (under "47 INDUSTRIES LLC")
-        // Use last page if contract doesn't have 4 pages
-        const lastPage = pages[Math.min(3, pages.length - 1)]
-        const { width: pw, height: ph } = lastPage.getSize()
+        // Use admin field position if it exists, otherwise use default position
+        const pageNum = adminField?.pageNumber ?? Math.min(4, pages.length)
+        const targetPage = pages[pageNum - 1]
+        const { width: pw, height: ph } = targetPage.getSize()
 
         const aspectRatio = image.width / image.height
-        const imgWidth = pw * 0.2 // 20% of page width
+        const widthPercent = adminField?.widthPercent ?? 20
+        const imgWidth = pw * (widthPercent / 100)
         const imgHeight = imgWidth / aspectRatio
 
-        // Position: LEFT side (around 20.5%), about 23% from top - under "47 INDUSTRIES LLC"
-        const x = (pw * 0.205) - (imgWidth / 2)
-        const y = ph - (ph * 0.227) - (imgHeight / 2)
+        // Use admin field position or default to LEFT side (20.5%), about 22.7% from top
+        const xPercent = adminField?.xPercent ?? 20.5
+        const yPercent = adminField?.yPercent ?? 22.7
+        const x = (pw * (xPercent / 100)) - (imgWidth / 2)
+        const y = ph - (ph * (yPercent / 100)) - (imgHeight / 2)
 
-        console.log(`[PDF Compose] Drawing legacy countersig at (${x.toFixed(1)}, ${y.toFixed(1)})`)
-        lastPage.drawImage(image, {
+        console.log(`[PDF Compose] Drawing legacy countersig at (${x.toFixed(1)}, ${y.toFixed(1)}) on page ${pageNum}`)
+        targetPage.drawImage(image, {
           x: Math.max(0, x),
           y: Math.max(0, y),
           width: imgWidth,
