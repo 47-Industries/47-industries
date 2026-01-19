@@ -1039,14 +1039,11 @@ export default function InteractivePdfSigner({
                   renderAnnotationLayer={false}
                 />
 
-                {/* Render placed elements */}
+                {/* Render placed elements - only show actual signatures, not placeholder boxes */}
                 {placedElements
                   .filter(elem => elem.pageNumber === index + 1)
+                  .filter(elem => elem.dataUrl || elem.text) // Only show elements with actual content
                   .map((elem) => {
-                    const colors = elem.isPlaceholder && elem.assignedTo && SIGNER_COLORS[elem.assignedTo]
-                      ? SIGNER_COLORS[elem.assignedTo]
-                      : SIGNER_COLORS.ADMIN
-
                     return (
                       <div
                         key={elem.id}
@@ -1057,7 +1054,6 @@ export default function InteractivePdfSigner({
                           top: `${elem.y}%`,
                           transform: 'translate(-50%, -50%)',
                           width: `${elem.width}%`,
-                          minHeight: elem.isPlaceholder && !elem.isSigned ? `${elem.height || 6}%` : undefined,
                         }}
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => {
@@ -1068,24 +1064,8 @@ export default function InteractivePdfSigner({
                           }
                         }}
                       >
-                        {/* Placeholder (unsigned) */}
-                        {elem.isPlaceholder && !elem.isSigned && (
-                          <div
-                            className={`w-full h-full min-h-[40px] border-2 border-dashed ${colors.border} ${colors.bgLight} rounded flex items-center justify-center`}
-                          >
-                            <div className="text-center px-2">
-                              <div className={`text-xs font-medium ${colors.text}`}>
-                                {elem.label || `${SIGNER_LABELS[elem.assignedTo as AssignedTo] || 'Signer'} ${elem.type}`}
-                              </div>
-                              <div className="text-[10px] text-zinc-500 mt-0.5">
-                                {elem.type === 'signature' ? 'Sign here' : elem.type === 'initials' ? 'Initial here' : 'Date'}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Signed element or regular signature */}
-                        {elem.dataUrl && (!elem.isPlaceholder || elem.isSigned) && (
+                        {/* Signature/initials/date image */}
+                        {elem.dataUrl && (
                           <img
                             src={elem.dataUrl}
                             alt={`${elem.type} by ${elem.signerName}`}
@@ -1095,7 +1075,7 @@ export default function InteractivePdfSigner({
                         )}
 
                         {/* Border on hover */}
-                        <div className={`absolute inset-0 border-2 border-transparent group-hover:${colors.border} rounded pointer-events-none`} />
+                        <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-500 rounded pointer-events-none" />
 
                         {/* Remove button */}
                         <button
@@ -1110,16 +1090,13 @@ export default function InteractivePdfSigner({
 
                         {/* Resize handle */}
                         <div
-                          className={`absolute -bottom-2 -right-2 w-4 h-4 ${colors.bg} rounded-full opacity-0 group-hover:opacity-100 cursor-se-resize shadow-lg`}
+                          className="absolute -bottom-2 -right-2 w-4 h-4 bg-blue-500 rounded-full opacity-0 group-hover:opacity-100 cursor-se-resize shadow-lg"
                           onMouseDown={(e) => handleResizeStart(elem.id, e)}
                         />
 
-                        {/* Type/Signer label */}
+                        {/* Type label */}
                         <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs text-zinc-500 opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                          {elem.isPlaceholder
-                            ? `${SIGNER_LABELS[elem.assignedTo as AssignedTo] || 'Signer'} - ${elem.type}`
-                            : elem.type === 'signature' ? 'Signature' : elem.type === 'initials' ? 'Initials' : 'Date'
-                          }
+                          {elem.type === 'signature' ? 'Signature' : elem.type === 'initials' ? 'Initials' : 'Date'}
                         </div>
                       </div>
                     )
@@ -1139,18 +1116,16 @@ export default function InteractivePdfSigner({
       <div className="bg-zinc-900 border-t border-zinc-800 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="text-sm text-zinc-400">
           {(() => {
-            const signatures = placedElements.filter(e => e.type === 'signature' && !e.isPlaceholder)
-            const initials = placedElements.filter(e => e.type === 'initials' && !e.isPlaceholder)
-            const dates = placedElements.filter(e => e.type === 'date' && !e.isPlaceholder)
-            const placeholders = placedElements.filter(e => e.isPlaceholder)
+            const signatures = placedElements.filter(e => e.type === 'signature' && e.dataUrl)
+            const initials = placedElements.filter(e => e.type === 'initials' && e.dataUrl)
+            const dates = placedElements.filter(e => e.type === 'date' && e.dataUrl)
 
             const parts = []
             if (signatures.length > 0) parts.push(`${signatures.length} signature(s)`)
             if (initials.length > 0) parts.push(`${initials.length} initials`)
             if (dates.length > 0) parts.push(`${dates.length} date(s)`)
-            if (placeholders.length > 0) parts.push(`${placeholders.length} field(s) for others`)
 
-            return parts.length > 0 ? parts.join(', ') : 'Click on document to add elements'
+            return parts.length > 0 ? parts.join(', ') : 'Click on document to add your signature'
           })()}
         </div>
         <div className="flex gap-3">
@@ -1164,18 +1139,13 @@ export default function InteractivePdfSigner({
           <button
             onClick={handleSave}
             disabled={(() => {
-              const hasSignatures = placedElements.filter(e => e.type === 'signature' && !e.isPlaceholder).length > 0
-              const hasPlaceholders = placedElements.filter(e => e.isPlaceholder).length > 0
-              if (mode === 'setup') return !hasPlaceholders || saving
-              if (mode === 'sign') return !hasSignatures || saving
-              return (!hasSignatures && !hasPlaceholders) || saving
+              const hasSignatures = placedElements.filter(e => e.type === 'signature' && e.dataUrl).length > 0
+              return !hasSignatures || saving
             })()}
             className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
               (() => {
-                const hasSignatures = placedElements.filter(e => e.type === 'signature' && !e.isPlaceholder).length > 0
-                const hasPlaceholders = placedElements.filter(e => e.isPlaceholder).length > 0
-                const canSave = mode === 'setup' ? hasPlaceholders : mode === 'sign' ? hasSignatures : (hasSignatures || hasPlaceholders)
-                return canSave && !saving
+                const hasSignatures = placedElements.filter(e => e.type === 'signature' && e.dataUrl).length > 0
+                return hasSignatures && !saving
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
               })()
@@ -1211,361 +1181,7 @@ export default function InteractivePdfSigner({
             </div>
 
             <div className="p-6">
-              {/* Mode Toggle: Sign Now vs Add Placeholder */}
-              {(mode === 'both' || mode === 'setup') && currentUserRole === 'admin' && (
-                <div className="mb-6">
-                  <div className="flex rounded-lg overflow-hidden border border-zinc-700">
-                    <button
-                      onClick={() => setIsCreatingPlaceholder(false)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                        !isCreatingPlaceholder
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      Sign Now (Me)
-                    </button>
-                    <button
-                      onClick={() => setIsCreatingPlaceholder(true)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                        isCreatingPlaceholder
-                          ? 'bg-green-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      Add Field for Others
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Placeholder Creation Mode - Add Field for Others */}
-              {isCreatingPlaceholder ? (
-                <>
-                  {/* Select Team Member / Signer */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      Select Signer
-                    </label>
-                    {loadingSigners ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-                        <p className="text-zinc-500 text-sm mt-2">Loading team members...</p>
-                      </div>
-                    ) : signerOptions.length > 0 ? (
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {signerOptions.map((signer) => {
-                          const colors = SIGNER_COLORS[signer.assignedTo] || SIGNER_COLORS.ADMIN
-                          const isSelected = selectedSigner?.id === signer.id
-                          return (
-                            <button
-                              key={signer.id}
-                              onClick={() => {
-                                setSelectedSigner(signer)
-                                setPlaceholderAssignedTo(signer.assignedTo)
-                              }}
-                              className={`w-full px-4 py-3 rounded-lg font-medium transition-colors border-2 text-left ${
-                                isSelected
-                                  ? `${colors.border} ${colors.bgLight}`
-                                  : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <div className={`font-medium ${isSelected ? colors.text : 'text-white'}`}>{signer.name}</div>
-                                  <div className="text-xs text-zinc-500">
-                                    {signer.title || signer.email || (signer.type === 'admin' ? 'Admin' : signer.type === 'client' ? 'Client' : 'Partner')}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {signer.hasSignature && (
-                                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                  )}
-                                  {isSelected && (
-                                    <svg className={`w-5 h-5 ${colors.text}`} fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-zinc-500 text-sm">No team members found</p>
-                    )}
-                  </div>
-
-                  {/* Show selected signer info */}
-                  {selectedSigner && (
-                    <div className="mb-6 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-500 mb-1">Full Legal Name</label>
-                          <p className="text-white font-medium">{selectedSigner.name}</p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-500 mb-1">Title / Position</label>
-                          <p className="text-white font-medium">{selectedSigner.title || 'Not set'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Element Type Selection */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-zinc-400 mb-2">
-                      Field Type
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['signature', 'initials', 'date'] as SignatureType[]).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setCreateType(type)}
-                          className={`px-4 py-3 rounded-lg font-medium transition-colors capitalize ${
-                            createType === type
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Signature/Initials creation for others */}
-                  {selectedSigner && createType !== 'date' && (
-                    <>
-                      {/* Check if signer has saved signature/initials */}
-                      {((createType === 'signature' && selectedSigner.hasSignature) || (createType === 'initials' && selectedSigner.hasInitials)) && (
-                        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-green-400 text-sm font-medium">
-                              {selectedSigner.name} has a saved {createType} on file
-                            </span>
-                          </div>
-                          <p className="text-zinc-400 text-xs mt-1">
-                            You can create a new one below or place a placeholder for them to sign.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Creation Mode Tabs */}
-                      <div className="flex gap-2 mb-4">
-                        {(['draw', 'type', 'upload'] as CreateMode[]).map((mode) => (
-                          <button
-                            key={mode}
-                            onClick={() => setForOthersCreateMode(mode)}
-                            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
-                              forOthersCreateMode === mode
-                                ? 'bg-zinc-700 text-white'
-                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                            }`}
-                          >
-                            {mode}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Draw Mode */}
-                      {forOthersCreateMode === 'draw' && (
-                        <div className="mb-6">
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-medium text-zinc-400">
-                              Draw {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'}
-                            </label>
-                            <button onClick={handleClearForOthersSignature} className="text-sm text-zinc-500 hover:text-zinc-300">
-                              Clear
-                            </button>
-                          </div>
-                          <div className="bg-white rounded-lg border-2 border-zinc-700 overflow-hidden" style={{ touchAction: 'none' }}>
-                            <canvas ref={forOthersCanvasRef} className="cursor-crosshair" style={{ display: 'block', touchAction: 'none' }} />
-                          </div>
-                          <p className="text-zinc-500 text-xs mt-2">
-                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Type Mode */}
-                      {forOthersCreateMode === 'type' && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-zinc-400 mb-2">
-                            Type {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'}
-                          </label>
-                          <input
-                            type="text"
-                            value={forOthersTypedText}
-                            onChange={(e) => setForOthersTypedText(e.target.value)}
-                            placeholder={createType === 'initials' ? 'Initials' : selectedSigner.name}
-                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 mb-4"
-                          />
-
-                          <label className="block text-sm font-medium text-zinc-400 mb-2">Font Style</label>
-                          <div className="grid grid-cols-2 gap-2 mb-4">
-                            {SIGNATURE_FONTS.map((font) => (
-                              <button
-                                key={font.name}
-                                onClick={() => setForOthersSelectedFont(font.name)}
-                                className={`p-3 rounded-lg border-2 transition-colors ${
-                                  forOthersSelectedFont === font.name
-                                    ? 'border-blue-500 bg-zinc-800'
-                                    : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
-                                }`}
-                              >
-                                <span
-                                  style={{ fontFamily: `"${font.name}", ${font.style}`, fontSize: '20px' }}
-                                  className="text-white"
-                                >
-                                  {forOthersTypedText || (createType === 'initials' ? 'AB' : 'Preview')}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-zinc-500 text-xs">
-                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Upload Mode */}
-                      {forOthersCreateMode === 'upload' && (
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-zinc-400 mb-2">
-                            Upload {selectedSigner.name}&apos;s {createType === 'signature' ? 'Signature' : 'Initials'} Image
-                          </label>
-                          <input
-                            ref={forOthersFileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleForOthersFileUpload}
-                            className="hidden"
-                          />
-                          {forOthersDataUrl ? (
-                            <div className="p-4 border-2 border-zinc-700 rounded-lg bg-zinc-800">
-                              <div className="bg-white rounded p-2 inline-block mb-3">
-                                <img src={forOthersDataUrl} alt="Uploaded" className="h-16 w-auto" />
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => forOthersFileInputRef.current?.click()}
-                                  className="flex-1 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600"
-                                >
-                                  Change Image
-                                </button>
-                                <button
-                                  onClick={() => setForOthersDataUrl(null)}
-                                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => forOthersFileInputRef.current?.click()}
-                              className="w-full p-8 border-2 border-dashed border-zinc-700 rounded-lg text-zinc-400 hover:border-zinc-500 hover:text-zinc-300 transition-colors"
-                            >
-                              <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              Click to upload image
-                            </button>
-                          )}
-                          <p className="text-zinc-500 text-xs mt-2">
-                            This {createType} will be saved to {selectedSigner.name}&apos;s profile.
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Date field info */}
-                  {selectedSigner && createType === 'date' && (
-                    <div className="mb-6 p-4 bg-zinc-800 rounded-lg text-center">
-                      <p className="text-zinc-400 text-sm mb-2">Date will be added:</p>
-                      <p className="text-white text-lg font-medium">
-                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Preview - only show for placeholder (no signature data) */}
-                  {selectedSigner && createType !== 'date' && forOthersIsEmpty && !forOthersTypedText.trim() && !forOthersDataUrl && (
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium text-zinc-400 mb-2">Placeholder Preview</label>
-                      <div
-                        className={`p-4 border-2 border-dashed ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).border} ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).bgLight} rounded-lg text-center`}
-                      >
-                        <div className={`text-sm font-medium ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).text}`}>
-                          {selectedSigner.name}
-                        </div>
-                        <div className="text-xs text-zinc-500 mt-1">
-                          {selectedSigner.title && <span>{selectedSigner.title} - </span>}
-                          {createType === 'signature' ? 'Signature' : 'Initials'} placeholder
-                        </div>
-                      </div>
-                      <p className="text-zinc-500 text-xs mt-2">
-                        If you don&apos;t draw/type/upload, a placeholder will be created for {selectedSigner.name} to sign later.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setShowCreateModal(false);
-                        setClickPosition(null);
-                        setIsCreatingPlaceholder(false);
-                        setSelectedSigner(null);
-                        setForOthersTypedText('');
-                        setForOthersDataUrl(null);
-                        setForOthersIsEmpty(true);
-                        if (forOthersSignaturePad) forOthersSignaturePad.clear();
-                      }}
-                      className="flex-1 px-6 py-3 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleCreatePlaceholder}
-                      disabled={!selectedSigner || savingToProfile}
-                      className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                        selectedSigner && !savingToProfile
-                          ? `${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).bg} text-white hover:opacity-90`
-                          : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {savingToProfile ? (
-                        <>
-                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          {(!forOthersIsEmpty || forOthersTypedText.trim() || forOthersDataUrl) && createType !== 'date'
-                            ? `Place ${createType === 'signature' ? 'Signature' : 'Initials'} & Save`
-                            : `Place ${createType === 'signature' ? 'Signature' : createType === 'initials' ? 'Initials' : 'Date'} Field`
-                          }
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Agreement Checkbox - only for clients/partners */}
+              {/* Agreement Checkbox - only for clients/partners */}
                   {showClientFields && (
                     <label className="flex items-start gap-3 mb-6 cursor-pointer p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
                       <input
@@ -1841,8 +1457,6 @@ export default function InteractivePdfSigner({
                       Place {createType === 'signature' ? 'Signature' : 'Initials'}
                     </button>
                   </div>
-                </>
-              )}
                 </>
               )}
             </div>
