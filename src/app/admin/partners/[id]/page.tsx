@@ -69,6 +69,15 @@ interface Partner {
     countersignedByIp?: string
     countersignatureUrl?: string
     createdAt?: string
+    // Signature requirements
+    requiredAdminSignatures: number
+    partnerSignatureRequired: boolean
+    signatureFields?: Array<{
+      id: string
+      assignedTo: string
+      isSigned: boolean
+      signedByName?: string
+    }>
   }
   leads: Lead[]
   commissions: Commission[]
@@ -158,6 +167,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
     description: '',
     fileUrl: '',
     status: 'DRAFT',
+    requiredAdminSignatures: 1,
+    partnerSignatureRequired: true,
   })
   const [paymentMethodsForm, setPaymentMethodsForm] = useState({
     zelleEmail: '',
@@ -821,6 +832,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                       description: partner?.contract?.description || '',
                       fileUrl: partner?.contract?.fileUrl || '',
                       status: partner?.contract?.status || 'DRAFT',
+                      requiredAdminSignatures: partner?.contract?.requiredAdminSignatures ?? 1,
+                      partnerSignatureRequired: partner?.contract?.partnerSignatureRequired ?? true,
                     })
                     setShowContractModal(true)
                   }}
@@ -1116,8 +1129,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            {/* Signatures Section - Show when contract has any signatures */}
-            {partner.contract && (partner.contract.signatureUrl || partner.contract.countersignatureUrl) && (
+            {/* Signatures Section - Show when contract has any signatures or signature fields */}
+            {partner.contract && (partner.contract.signatureUrl || partner.contract.countersignatureUrl || (partner.contract.signatureFields && partner.contract.signatureFields.some(f => f.isSigned))) && (
               <div style={{
                 marginTop: '16px',
                 background: partner.contract.status === 'ACTIVE' ? '#10b98110' : '#3b82f610',
@@ -1132,6 +1145,57 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   <span style={{ color: partner.contract.status === 'ACTIVE' ? '#10b981' : '#3b82f6', fontWeight: 600 }}>
                     {partner.contract.status === 'ACTIVE' ? 'Contract Fully Executed' : 'Contract Signatures'}
                   </span>
+                </div>
+
+                {/* Signature Status Summary */}
+                <div style={{ marginBottom: '12px', fontSize: '13px' }}>
+                  {(() => {
+                    const adminSignatures = partner.contract?.signatureFields?.filter(f =>
+                      (f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') && f.isSigned
+                    ) || []
+                    const adminSignedCount = partner.contract?.countersignedAt
+                      ? Math.max(adminSignatures.length, 1)
+                      : adminSignatures.length
+
+                    const partnerSigned = !!partner.contract?.signedAt
+                    const requiredAdmin = partner.contract?.requiredAdminSignatures ?? 1
+                    const partnerRequired = partner.contract?.partnerSignatureRequired ?? true
+
+                    const parts: React.ReactNode[] = []
+
+                    // Admin signatures status
+                    if (requiredAdmin > 0) {
+                      const adminComplete = adminSignedCount >= requiredAdmin
+                      parts.push(
+                        <span key="admin" style={{ color: adminComplete ? '#10b981' : '#f59e0b' }}>
+                          {adminSignedCount} of {requiredAdmin} admin signature{requiredAdmin > 1 ? 's' : ''}
+                          {adminSignatures.length > 0 && (
+                            <span style={{ color: '#71717a' }}>
+                              {' ('}
+                              {adminSignatures.map((f, i) => (
+                                <span key={f.id}>
+                                  {i > 0 ? ', ' : ''}{f.signedByName}
+                                </span>
+                              ))}
+                              {')'}
+                            </span>
+                          )}
+                        </span>
+                      )
+                    }
+
+                    // Partner signature status
+                    if (partnerRequired) {
+                      if (parts.length > 0) parts.push(<span key="sep"> | </span>)
+                      parts.push(
+                        <span key="partner" style={{ color: partnerSigned ? '#10b981' : '#f59e0b' }}>
+                          Partner: {partnerSigned ? 'Signed' : 'Pending'}
+                        </span>
+                      )
+                    }
+
+                    return parts
+                  })()}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1196,53 +1260,69 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               </div>
             )}
 
-            {/* Countersign Button - Show when contract has PDF and not yet countersigned */}
-            {partner.contract &&
-             partner.contract.fileUrl &&
-             !partner.contract.countersignedAt &&
-             partner.contract.status !== 'ACTIVE' && (
-              <div style={{
-                marginTop: '16px',
-                padding: '16px',
-                background: '#3b82f610',
-                border: '1px solid #3b82f630',
-                borderRadius: '8px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
-                    <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
-                      {partner.contract.signedAt
-                        ? 'Partner has signed. Add your signature to fully execute the contract.'
-                        : partner.contract.status === 'DRAFT'
-                        ? 'Sign this contract before or after sending it to the partner.'
-                        : 'You can sign now or wait for the partner to sign first.'}
-                    </p>
+            {/* Sign as 47 Industries Card - Show when more admin signatures needed */}
+            {partner.contract && partner.contract.fileUrl && partner.contract.status !== 'ACTIVE' && (() => {
+              const requiredAdmin = partner.contract?.requiredAdminSignatures ?? 1
+              // Count admin signatures from signatureFields + legacy countersignature
+              const adminSignatures = partner.contract?.signatureFields?.filter(f =>
+                (f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') && f.isSigned
+              ) || []
+              const adminSignedCount = partner.contract?.countersignedAt
+                ? Math.max(adminSignatures.length, 1)
+                : adminSignatures.length
+              const remainingAdmin = Math.max(0, requiredAdmin - adminSignedCount)
+
+              // Show if more admin signatures are needed
+              if (remainingAdmin <= 0) return null
+
+              return (
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: '#3b82f610',
+                  border: '1px solid #3b82f630',
+                  borderRadius: '8px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
+                      <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
+                        {remainingAdmin > 1
+                          ? `${remainingAdmin} admin signatures remaining`
+                          : remainingAdmin === 1 && adminSignedCount > 0
+                          ? '1 more admin signature needed'
+                          : partner.contract?.signedAt
+                          ? 'Partner has signed. Add your signature to fully execute the contract.'
+                          : partner.contract?.status === 'DRAFT'
+                          ? 'Sign this contract before or after sending it to the partner.'
+                          : 'You can sign now or wait for the partner to sign first.'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowCountersignModal(true)}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#3b82f6',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Sign Contract
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setShowCountersignModal(true)}
-                    style={{
-                      padding: '10px 20px',
-                      background: '#3b82f6',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Sign Contract
-                  </button>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Contract Details (shown below file if exists but no file URL) */}
             {partner.contract && !partner.contract.fileUrl && (
@@ -3109,8 +3189,10 @@ function ContractModal({
     description: string
     fileUrl: string
     status: string
+    requiredAdminSignatures: number
+    partnerSignatureRequired: boolean
   }
-  setFormData: (data: { title: string; description: string; fileUrl: string; status: string }) => void
+  setFormData: (data: { title: string; description: string; fileUrl: string; status: string; requiredAdminSignatures: number; partnerSignatureRequired: boolean }) => void
   saving: boolean
   setSaving: (saving: boolean) => void
   onClose: () => void
@@ -3135,6 +3217,8 @@ function ContractModal({
           description: formData.description || null,
           fileUrl: formData.fileUrl || null,
           status: formData.status,
+          requiredAdminSignatures: formData.requiredAdminSignatures,
+          partnerSignatureRequired: formData.partnerSignatureRequired,
         }),
       })
 
@@ -3242,7 +3326,7 @@ function ContractModal({
             </p>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
               Status
             </label>
@@ -3264,6 +3348,58 @@ function ContractModal({
               <option value="SIGNED">Signed</option>
               <option value="ACTIVE">Active</option>
             </select>
+          </div>
+
+          {/* Signature Requirements Section */}
+          <div style={{
+            padding: '16px',
+            background: '#0a0a0a',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            marginBottom: '20px',
+          }}>
+            <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 500, color: '#a1a1aa' }}>
+              Signature Requirements
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#a1a1aa', minWidth: '160px' }}>
+                  Admin Signatures Required
+                </label>
+                <select
+                  value={formData.requiredAdminSignatures}
+                  onChange={(e) => setFormData({ ...formData, requiredAdminSignatures: parseInt(e.target.value) })}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#18181b',
+                    border: '1px solid #27272a',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value={0}>0 - No admin signature</option>
+                  <option value={1}>1 - One admin</option>
+                  <option value={2}>2 - Two admins</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label style={{ fontSize: '14px', color: '#a1a1aa', minWidth: '160px' }}>
+                  Partner Signature Required
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.partnerSignatureRequired}
+                    onChange={(e) => setFormData({ ...formData, partnerSignatureRequired: e.target.checked })}
+                    style={{ width: '18px', height: '18px', accentColor: '#3b82f6' }}
+                  />
+                  <span style={{ fontSize: '14px', color: 'white' }}>
+                    {formData.partnerSignatureRequired ? 'Yes' : 'No'}
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>

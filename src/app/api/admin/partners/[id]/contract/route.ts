@@ -59,6 +59,8 @@ export async function POST(
         fileUrl: body.fileUrl,
         status: body.status || 'DRAFT',
         signedAt: body.status === 'SIGNED' ? new Date() : null,
+        requiredAdminSignatures: body.requiredAdminSignatures ?? 1,
+        partnerSignatureRequired: body.partnerSignatureRequired ?? true,
       },
       update: {
         title: body.title,
@@ -68,6 +70,8 @@ export async function POST(
         signedAt: body.status === 'SIGNED' && body.signedAt === undefined
           ? new Date()
           : body.signedAt || undefined,
+        requiredAdminSignatures: body.requiredAdminSignatures,
+        partnerSignatureRequired: body.partnerSignatureRequired,
       },
     })
 

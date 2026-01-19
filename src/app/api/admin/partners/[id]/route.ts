@@ -21,7 +21,18 @@ export async function GET(
         user: {
           select: { id: true, email: true, name: true },
         },
-        contract: true,
+        contract: {
+          include: {
+            signatureFields: {
+              select: {
+                id: true,
+                assignedTo: true,
+                isSigned: true,
+                signedByName: true,
+              },
+            },
+          },
+        },
         leads: {
           orderBy: { createdAt: 'desc' },
         },
@@ -114,7 +125,18 @@ export async function PUT(
         user: {
           select: { id: true, email: true, name: true },
         },
-        contract: true,
+        contract: {
+          include: {
+            signatureFields: {
+              select: {
+                id: true,
+                assignedTo: true,
+                isSigned: true,
+                signedByName: true,
+              },
+            },
+          },
+        },
       },
     })
 
