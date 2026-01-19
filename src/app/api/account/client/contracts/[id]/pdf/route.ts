@@ -225,7 +225,7 @@ export async function GET(
           image = isPng ? await pdfDoc.embedJpg(sigData) : await pdfDoc.embedPng(sigData)
         }
 
-        // Draw at right side of signature area (page 4, similar position to Field 2)
+        // Draw at LEFT side of signature area (under "47 INDUSTRIES LLC")
         // Use last page if contract doesn't have 4 pages
         const lastPage = pages[Math.min(3, pages.length - 1)]
         const { width: pw, height: ph } = lastPage.getSize()
@@ -234,8 +234,8 @@ export async function GET(
         const imgWidth = pw * 0.2 // 20% of page width
         const imgHeight = imgWidth / aspectRatio
 
-        // Position: right side (around 64%), about 23% from top
-        const x = (pw * 0.6425) - (imgWidth / 2)
+        // Position: LEFT side (around 20.5%), about 23% from top - under "47 INDUSTRIES LLC"
+        const x = (pw * 0.205) - (imgWidth / 2)
         const y = ph - (ph * 0.227) - (imgHeight / 2)
 
         console.log(`[PDF Compose] Drawing legacy countersig at (${x.toFixed(1)}, ${y.toFixed(1)})`)
