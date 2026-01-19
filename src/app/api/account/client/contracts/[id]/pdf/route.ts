@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'No client account linked' }, { status: 403 })
     }
 
-    // Get contract with signature fields
+    // Get contract with signature fields and legacy signature URLs
     const contract = await prisma.contract.findUnique({
       where: { id: contractId },
       include: {
@@ -39,19 +39,31 @@ export async function GET(
       },
     })
 
+    // Also fetch legacy signature URLs from the contract
+    const contractLegacy = await prisma.contract.findUnique({
+      where: { id: contractId },
+      select: {
+        signatureUrl: true,
+        countersignatureUrl: true,
+      },
+    })
+
     console.log('[PDF Compose] Contract ID:', contractId)
-    console.log('[PDF Compose] Signature fields found:', contract?.signatureFields?.length || 0)
+    console.log('[PDF Compose] Signature fields (isSigned=true) found:', contract?.signatureFields?.length || 0)
+    console.log('[PDF Compose] Legacy signatureUrl:', contractLegacy?.signatureUrl ? 'present (' + contractLegacy.signatureUrl.length + ' chars)' : 'missing')
+    console.log('[PDF Compose] Legacy countersignatureUrl:', contractLegacy?.countersignatureUrl ? 'present (' + contractLegacy.countersignatureUrl.length + ' chars)' : 'missing')
     contract?.signatureFields?.forEach((f, i) => {
       console.log(`[PDF Compose] Field ${i + 1}:`, {
         id: f.id,
         type: f.type,
+        signedBy: f.signedByName,
         page: f.pageNumber,
         x: f.xPercent,
         y: f.yPercent,
         width: f.widthPercent,
         hasUrl: !!f.signatureUrl,
         urlLength: f.signatureUrl?.length || 0,
-        urlPrefix: f.signatureUrl?.substring(0, 50),
+        urlPrefix: f.signatureUrl?.substring(0, 80),
       })
     })
 
@@ -80,6 +92,14 @@ export async function GET(
     const pdfBytes = await pdfResponse.arrayBuffer()
     const pdfDoc = await PDFDocument.load(pdfBytes)
     const pages = pdfDoc.getPages()
+
+    // If no signature fields but we have legacy signatureUrl/countersignatureUrl, use those
+    // This is a fallback for contracts signed before the new system
+    if (contract.signatureFields.length === 0) {
+      console.log('[PDF Compose] No signature fields, checking legacy fields...')
+      console.log('[PDF Compose] Legacy signatureUrl:', contract.signatureUrl ? 'present' : 'missing')
+      console.log('[PDF Compose] Legacy countersignatureUrl:', contract.countersignatureUrl ? 'present' : 'missing')
+    }
 
     // Embed all signed signatures onto the PDF
     for (const field of contract.signatureFields) {
