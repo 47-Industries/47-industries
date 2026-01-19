@@ -2279,6 +2279,10 @@ model Contract {
   countersignedByUserId  String?       // Admin user who countersigned
   countersignedAt        DateTime?     // When admin countersigned
 
+  // Signature requirements (role-based tracking)
+  requiredAdminSignatures  Int      @default(1)  // How many admin signatures needed (0, 1, or 2)
+  clientSignatureRequired  Boolean  @default(true)  // Whether client needs to sign
+
   createdBy       String              // User ID who created
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

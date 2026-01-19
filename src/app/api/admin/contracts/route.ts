@@ -81,6 +81,9 @@ export async function POST(req: NextRequest) {
         startDate: body.startDate ? new Date(body.startDate) : null,
         endDate: body.endDate ? new Date(body.endDate) : null,
         status: body.status || 'DRAFT',
+        requiredAdminSignatures: body.requiredAdminSignatures ?? 1,
+        clientSignatureRequired: body.clientSignatureRequired ?? true,
+        createdBy: auth.userId,
       },
       include: {
         client: true,

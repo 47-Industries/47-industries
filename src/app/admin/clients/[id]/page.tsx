@@ -138,6 +138,8 @@ interface Contract {
   countersignedByName?: string
   amendments?: Amendment[]
   signatureFields?: SignatureField[]
+  requiredAdminSignatures: number
+  clientSignatureRequired: boolean
 }
 
 interface Note {
@@ -211,6 +213,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     monthlyValue: '',
     monthlyStartDate: '',
     paymentTerms: '100_UPFRONT', // '100_UPFRONT', '50_50', 'CUSTOM'
+    requiredAdminSignatures: 1, // 0, 1, or 2
+    clientSignatureRequired: true,
   })
   const [savingContract, setSavingContract] = useState(false)
 
@@ -535,6 +539,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           monthlyValue: contractForm.monthlyValue ? Number(contractForm.monthlyValue) : null,
           startDate: contractForm.monthlyStartDate || null,
           status: 'DRAFT',
+          requiredAdminSignatures: contractForm.requiredAdminSignatures,
+          clientSignatureRequired: contractForm.clientSignatureRequired,
         }),
       })
 
@@ -548,6 +554,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           monthlyValue: '',
           monthlyStartDate: '',
           paymentTerms: '100_UPFRONT',
+          requiredAdminSignatures: 1,
+          clientSignatureRequired: true,
         })
         fetchClient()
       } else {
@@ -1546,46 +1554,57 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </p>
                     {/* Signature Status */}
                     <div style={{ marginTop: '4px', fontSize: '12px' }}>
-                      {/* Client signature status */}
-                      {contract.signedAt && (
-                        <span style={{ color: '#10b981' }}>
-                          Client signed by {contract.signedByName || 'N/A'} on {formatDate(contract.signedAt)}
-                        </span>
-                      )}
-                      {/* Admin signature fields status */}
-                      {contract.signatureFields && contract.signatureFields.length > 0 && (() => {
-                        const adminFields = contract.signatureFields.filter(f => f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2')
-                        const signedAdminFields = adminFields.filter(f => f.isSigned)
-                        if (adminFields.length > 0) {
-                          const allSigned = signedAdminFields.length === adminFields.length
-                          return (
-                            <span style={{
-                              color: allSigned ? '#10b981' : '#f59e0b',
-                              marginLeft: contract.signedAt ? '8px' : 0
-                            }}>
-                              {contract.signedAt ? ' | ' : ''}
-                              {signedAdminFields.length} of {adminFields.length} admin signature{adminFields.length > 1 ? 's' : ''} complete
-                              {signedAdminFields.map((f, i) => (
-                                <span key={f.id} style={{ color: '#71717a', marginLeft: i === 0 ? '4px' : 0 }}>
-                                  {i === 0 ? '(' : ', '}{f.signedByName}{i === signedAdminFields.length - 1 ? ')' : ''}
+                      {(() => {
+                        // Count admin signatures from signatureFields
+                        const adminSignatures = contract.signatureFields?.filter(f =>
+                          (f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') && f.isSigned
+                        ) || []
+                        // Also count legacy countersignature as 1 admin signature
+                        const adminSignedCount = contract.countersignedAt
+                          ? Math.max(adminSignatures.length, 1)
+                          : adminSignatures.length
+
+                        const clientSigned = !!contract.signedAt
+                        const requiredAdmin = contract.requiredAdminSignatures ?? 1
+                        const clientRequired = contract.clientSignatureRequired ?? true
+
+                        const parts: React.ReactNode[] = []
+
+                        // Admin signatures status
+                        if (requiredAdmin > 0) {
+                          const adminComplete = adminSignedCount >= requiredAdmin
+                          parts.push(
+                            <span key="admin" style={{ color: adminComplete ? '#10b981' : '#f59e0b' }}>
+                              {adminSignedCount} of {requiredAdmin} admin signature{requiredAdmin > 1 ? 's' : ''}
+                              {adminSignatures.length > 0 && (
+                                <span style={{ color: '#71717a' }}>
+                                  {' ('}
+                                  {adminSignatures.map((f, i) => (
+                                    <span key={f.id}>
+                                      {i > 0 ? ', ' : ''}{f.signedByName}
+                                    </span>
+                                  ))}
+                                  {')'}
                                 </span>
-                              ))}
+                              )}
                             </span>
                           )
                         }
-                        return null
+
+                        // Client signature status
+                        if (clientRequired) {
+                          parts.push(
+                            <span key="client" style={{ color: clientSigned ? '#10b981' : '#f59e0b', marginLeft: parts.length > 0 ? '8px' : 0 }}>
+                              {parts.length > 0 ? ' | ' : ''}
+                              {clientSigned
+                                ? `Client signed by ${contract.signedByName || 'N/A'}`
+                                : 'Client signature pending'}
+                            </span>
+                          )
+                        }
+
+                        return parts.length > 0 ? parts : <span style={{ color: '#71717a' }}>No signatures required</span>
                       })()}
-                      {/* Fallback: Old countersignature status (for contracts without signature fields) */}
-                      {(!contract.signatureFields || contract.signatureFields.length === 0) && contract.countersignedAt && (
-                        <span style={{ color: '#10b981', marginLeft: contract.signedAt ? '8px' : 0 }}>
-                          {contract.signedAt ? ' | ' : ''} Admin signed by {contract.countersignedByName} on {formatDate(contract.countersignedAt)}
-                        </span>
-                      )}
-                      {(!contract.signatureFields || contract.signatureFields.length === 0) && contract.signedAt && !contract.countersignedAt && (
-                        <span style={{ color: '#f59e0b', marginLeft: '8px' }}>
-                          | Admin countersignature required
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1653,15 +1672,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                {/* Sign as 47 Industries Card - Show when contract has PDF and has unsigned admin fields or not yet countersigned */}
+                {/* Sign as 47 Industries Card - Show when more admin signatures needed */}
                 {contract.fileUrl && contract.status !== 'ACTIVE' && (() => {
-                  const adminFields = contract.signatureFields?.filter(f => f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') || []
-                  const unsignedAdminFields = adminFields.filter(f => !f.isSigned)
-                  const hasUnsignedAdminFields = unsignedAdminFields.length > 0
-                  // Show if: has signature fields with unsigned admin fields, OR no signature fields and not countersigned
-                  const shouldShow = adminFields.length > 0 ? hasUnsignedAdminFields : !contract.countersignedAt
+                  const requiredAdmin = contract.requiredAdminSignatures ?? 1
+                  // Count admin signatures from signatureFields + legacy countersignature
+                  const adminSignatures = contract.signatureFields?.filter(f =>
+                    (f.assignedTo === 'ADMIN' || f.assignedTo === 'ADMIN_2') && f.isSigned
+                  ) || []
+                  const adminSignedCount = contract.countersignedAt
+                    ? Math.max(adminSignatures.length, 1)
+                    : adminSignatures.length
+                  const remainingAdmin = Math.max(0, requiredAdmin - adminSignedCount)
 
-                  if (!shouldShow) return null
+                  // Show if more admin signatures are needed
+                  if (remainingAdmin <= 0) return null
 
                   return (
                     <div style={{
@@ -1675,8 +1699,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         <div>
                           <p style={{ margin: 0, fontWeight: 600, color: '#3b82f6' }}>Sign as 47 Industries</p>
                           <p style={{ margin: '4px 0 0 0', color: '#a1a1aa', fontSize: '13px' }}>
-                            {hasUnsignedAdminFields
-                              ? `${unsignedAdminFields.length} admin signature${unsignedAdminFields.length > 1 ? 's' : ''} remaining`
+                            {remainingAdmin > 1
+                              ? `${remainingAdmin} admin signatures remaining`
+                              : remainingAdmin === 1 && adminSignedCount > 0
+                              ? '1 more admin signature needed'
                               : contract.signedAt
                               ? 'Client has signed. Add your signature to fully execute the contract.'
                               : contract.status === 'DRAFT'
@@ -2469,6 +2495,69 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 )}
               </div>
 
+              {/* Signature Requirements */}
+              <div style={{
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                padding: '14px',
+              }}>
+                <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#a1a1aa', fontWeight: 500 }}>
+                  Signature Requirements
+                </p>
+
+                {/* Admin Signatures Required */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#71717a', marginBottom: '6px' }}>
+                    Admin Signatures Required
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[0, 1, 2].map((num) => (
+                      <button
+                        key={num}
+                        onClick={() => setContractForm({ ...contractForm, requiredAdminSignatures: num })}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: contractForm.requiredAdminSignatures === num ? '#3b82f6' : '#27272a',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Client Signature Required */}
+                <div>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: 'pointer',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={contractForm.clientSignatureRequired}
+                      onChange={(e) => setContractForm({ ...contractForm, clientSignatureRequired: e.target.checked })}
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        accentColor: '#3b82f6',
+                      }}
+                    />
+                    <span style={{ fontSize: '13px', color: '#a1a1aa' }}>
+                      Client signature required
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               {/* Summary */}
               {contractForm.totalValue && (
                 <div style={{
@@ -2504,6 +2593,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     monthlyValue: '',
                     monthlyStartDate: '',
                     paymentTerms: '100_UPFRONT',
+                    requiredAdminSignatures: 1,
+                    clientSignatureRequired: true,
                   })
                 }}
                 style={{
