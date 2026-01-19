@@ -116,16 +116,15 @@ export async function POST(
 
     // Store admin's signatures in ContractSignatureField (NEW flow - no PDF embedding)
     if (adminSignedElements && adminSignedElements.length > 0) {
-      // Delete existing admin signature fields signed by this user
-      await prisma.contractSignatureField.deleteMany({
+      // Get existing unsigned placeholder fields for this contract
+      const existingPlaceholders = await prisma.contractSignatureField.findMany({
         where: {
           contractId,
-          signedByUserId: user.id,
-          isSigned: true,
+          isSigned: false,
         },
       })
 
-      // Create new signature field records
+      // Create or update signature field records
       for (const element of adminSignedElements) {
         if (!element.dataUrl && !element.text) continue
 
@@ -139,38 +138,75 @@ export async function POST(
           fieldSignatureUrl = await uploadToR2(fieldFileKey, buffer, 'image/png')
         }
 
-        await prisma.contractSignatureField.create({
-          data: {
-            contractId,
-            type: element.type?.toUpperCase() || 'SIGNATURE',
-            pageNumber: element.pageNumber || 1,
-            xPercent: element.x || 50,
-            yPercent: element.y || 50,
-            widthPercent: element.width || 20,
-            heightPercent: element.height || 6,
-            assignedTo: element.assignedTo || 'ADMIN',
-            assignedUserId: element.assignedUserId || user.id,
-            label: element.label || null,
-            isSigned: true,
-            signatureUrl: fieldSignatureUrl || element.dataUrl,
-            signedValue: element.text || null,
-            signedByName: signerName.trim(),
-            signedByEmail: user.email,
-            signedByIp: ip,
-            signedByUserId: user.id,
-            signedAt: new Date(),
-          },
-        })
+        // Check if there's an existing placeholder this signature should update
+        // (matches by fieldId if provided, or by assignedTo + type)
+        const existingField = existingPlaceholders.find(p =>
+          (element.id && p.id === element.id) || // Match by fieldId
+          (element.assignedTo && p.assignedTo === element.assignedTo && p.type === element.type?.toUpperCase())
+        )
+
+        if (existingField) {
+          // Update existing placeholder to mark it as signed
+          await prisma.contractSignatureField.update({
+            where: { id: existingField.id },
+            data: {
+              isSigned: true,
+              signatureUrl: fieldSignatureUrl || element.dataUrl,
+              signedValue: element.text || null,
+              signedByName: signerName.trim(),
+              signedByEmail: user.email,
+              signedByIp: ip,
+              signedByUserId: user.id,
+              signedAt: new Date(),
+              // Optionally update position if admin moved it
+              xPercent: element.x || existingField.xPercent,
+              yPercent: element.y || existingField.yPercent,
+              widthPercent: element.width || existingField.widthPercent,
+            },
+          })
+        } else {
+          // Create new signature field record (no existing placeholder)
+          await prisma.contractSignatureField.create({
+            data: {
+              contractId,
+              type: element.type?.toUpperCase() || 'SIGNATURE',
+              pageNumber: element.pageNumber || 1,
+              xPercent: element.x || 50,
+              yPercent: element.y || 50,
+              widthPercent: element.width || 20,
+              heightPercent: element.height || 6,
+              assignedTo: element.assignedTo || 'ADMIN',
+              assignedUserId: element.assignedUserId || user.id,
+              label: element.label || null,
+              isSigned: true,
+              signatureUrl: fieldSignatureUrl || element.dataUrl,
+              signedValue: element.text || null,
+              signedByName: signerName.trim(),
+              signedByEmail: user.email,
+              signedByIp: ip,
+              signedByUserId: user.id,
+              signedAt: new Date(),
+            },
+          })
+        }
       }
     }
 
-    // Save placeholder fields for others
+    // Save placeholder fields for others (only if new placeholders are being added)
     if (placeholderElements && placeholderElements.length > 0) {
-      // Delete existing unsigned placeholder fields
+      // Only delete unsigned fields that are being replaced by new placeholders
+      // Get IDs of fields we're creating (to avoid deleting them)
+      const newFieldIds = placeholderElements.map(f => f.id).filter(Boolean)
+
+      // Delete existing unsigned placeholder fields, but preserve fields for other signers
+      // that weren't included in the save (i.e., Admin 2's field when Admin 1 is signing)
       await prisma.contractSignatureField.deleteMany({
         where: {
           contractId,
           isSigned: false,
+          // Only delete if we're explicitly replacing with new placeholders
+          // If the field ID is in the newFieldIds, it will be recreated
+          id: { in: newFieldIds.length > 0 ? newFieldIds : ['none'] }, // Only delete explicitly replaced ones
         },
       })
 
@@ -193,6 +229,8 @@ export async function POST(
         })
       }
     }
+    // Note: When no new placeholders are being added, existing unsigned fields are preserved
+    // This allows Admin 1 to sign without deleting Admin 2's placeholder
 
     // Preserve original file URL
     const originalFileUrl = contract.originalFileUrl || contract.fileUrl
