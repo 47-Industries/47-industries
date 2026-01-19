@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     const count = await prisma.partnerPayout.count()
     const payoutNumber = `PAY-${timestamp}-${(count + 1).toString().padStart(4, '0')}`
 
-    // Create payout
+    // Create payout (optionally mark as paid immediately for manual payouts)
     const payout = await prisma.partnerPayout.create({
       data: {
         payoutNumber,
@@ -125,7 +125,8 @@ export async function POST(req: NextRequest) {
         amount: totalAmount,
         method: body.method || null,
         reference: body.reference || null,
-        status: 'PENDING',
+        status: body.markAsPaid ? 'PAID' : 'PENDING',
+        paidAt: body.markAsPaid ? new Date() : null,
         notes: body.notes || null,
       },
       include: {
@@ -135,10 +136,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Link commissions to payout
+    // Link commissions to payout and update status if marked as paid
     await prisma.partnerCommission.updateMany({
       where: { id: { in: commissionIds } },
-      data: { payoutId: payout.id },
+      data: {
+        payoutId: payout.id,
+        status: body.markAsPaid ? 'PAID' : undefined,
+      },
     })
 
     // Fetch updated payout with commissions

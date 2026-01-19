@@ -153,6 +153,13 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const [showCountersignModal, setShowCountersignModal] = useState(false)
   const [countersigning, setCountersigning] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [stripeConnectLoading, setStripeConnectLoading] = useState(false)
+  const [stripeConnectStatus, setStripeConnectStatus] = useState<{
+    connected: boolean
+    status: string | null
+    detailsSubmitted?: boolean
+    payoutsEnabled?: boolean
+  } | null>(null)
   const [contractForm, setContractForm] = useState({
     title: '',
     description: '',
@@ -207,6 +214,56 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       console.error('Error fetching amendments:', error)
     }
   }
+
+  // Check Stripe Connect status
+  const checkStripeConnectStatus = async () => {
+    if (!partner?.stripeConnectId) {
+      setStripeConnectStatus({ connected: false, status: null })
+      return
+    }
+    try {
+      const res = await fetch(`/api/admin/partners/${id}/stripe-connect`)
+      if (res.ok) {
+        const data = await res.json()
+        setStripeConnectStatus(data)
+      }
+    } catch (error) {
+      console.error('Error checking Stripe Connect status:', error)
+    }
+  }
+
+  // Setup Stripe Connect (create account and get onboarding URL)
+  const setupStripeConnect = async () => {
+    setStripeConnectLoading(true)
+    try {
+      const res = await fetch(`/api/admin/partners/${id}/stripe-connect`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast('Stripe Connect setup initiated', 'success')
+        // Refresh partner data
+        fetchPartner()
+        // Open onboarding URL in new tab
+        if (data.onboardingUrl) {
+          window.open(data.onboardingUrl, '_blank')
+        }
+      } else {
+        showToast(data.error || 'Failed to setup Stripe Connect', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to setup Stripe Connect', 'error')
+    } finally {
+      setStripeConnectLoading(false)
+    }
+  }
+
+  // Check Stripe Connect status when partner changes
+  useEffect(() => {
+    if (partner) {
+      checkStripeConnectStatus()
+    }
+  }, [partner?.stripeConnectId])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1278,6 +1335,191 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
+          {/* Stripe Connect for Payouts */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '12px',
+            padding: '20px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Stripe Connect for Payouts</h2>
+                <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                  Connect a bank account to receive automated payouts
+                </p>
+              </div>
+              {partner.stripeConnectId && stripeConnectStatus && (
+                <button
+                  onClick={checkStripeConnectStatus}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#27272a',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Refresh Status
+                </button>
+              )}
+            </div>
+
+            {!partner.stripeConnectId ? (
+              // Not connected - show setup button
+              <div style={{
+                background: '#0a0a0a',
+                border: '1px dashed #27272a',
+                borderRadius: '8px',
+                padding: '24px',
+                textAlign: 'center',
+              }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#635bff" style={{ margin: '0 auto 16px' }}>
+                  <rect x="3" y="4" width="18" height="14" rx="2" strokeWidth="1.5" />
+                  <path d="M3 10h18" strokeWidth="1.5" />
+                  <path d="M7 15h4" strokeWidth="1.5" />
+                </svg>
+                <p style={{ margin: '0 0 8px 0', fontWeight: 500 }}>Connect Bank Account</p>
+                <p style={{ margin: '0 0 16px 0', color: '#71717a', fontSize: '13px' }}>
+                  Set up Stripe Connect to enable direct payouts to this partner's bank account
+                </p>
+                <button
+                  onClick={setupStripeConnect}
+                  disabled={stripeConnectLoading}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#635bff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: stripeConnectLoading ? 'wait' : 'pointer',
+                    opacity: stripeConnectLoading ? 0.7 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {stripeConnectLoading ? (
+                    'Setting up...'
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Setup Stripe Connect
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : stripeConnectStatus?.connected ? (
+              // Fully connected
+              <div style={{
+                background: '#10b98110',
+                border: '1px solid #10b98130',
+                borderRadius: '8px',
+                padding: '16px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, color: '#10b981' }}>Stripe Connect Active</p>
+                    <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                      This partner can receive automated payouts via Stripe
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                  <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Account Status</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#10b981' }}>Connected</p>
+                  </div>
+                  <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Payouts</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: stripeConnectStatus.payoutsEnabled ? '#10b981' : '#f59e0b' }}>
+                      {stripeConnectStatus.payoutsEnabled ? 'Enabled' : 'Pending'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Pending - onboarding not complete
+              <div style={{
+                background: '#f59e0b10',
+                border: '1px solid #f59e0b30',
+                borderRadius: '8px',
+                padding: '16px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: '#f59e0b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: 600, color: '#f59e0b' }}>Onboarding Incomplete</p>
+                    <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+                      The partner needs to complete their Stripe Connect setup
+                    </p>
+                  </div>
+                  <button
+                    onClick={setupStripeConnect}
+                    disabled={stripeConnectLoading}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#f59e0b',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'black',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: stripeConnectLoading ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {stripeConnectLoading ? 'Loading...' : 'Resend Onboarding Link'}
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                  <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Details Submitted</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: stripeConnectStatus?.detailsSubmitted ? '#10b981' : '#f59e0b' }}>
+                      {stripeConnectStatus?.detailsSubmitted ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                  <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Payouts Enabled</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: stripeConnectStatus?.payoutsEnabled ? '#10b981' : '#f59e0b' }}>
+                      {stripeConnectStatus?.payoutsEnabled ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Payment Methods */}
           <div style={{
             background: '#18181b',
@@ -1286,7 +1528,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             padding: '20px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Payment Methods</h2>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Other Payment Methods</h2>
               <button
                 onClick={() => setShowEditModal(true)}
                 style={{
@@ -1303,14 +1545,6 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-              {partner.stripeConnectId && (
-                <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a' }}>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Stripe Connect</p>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: partner.stripeConnectStatus === 'CONNECTED' ? '#10b981' : '#f59e0b' }}>
-                    {partner.stripeConnectStatus || 'Pending'}
-                  </p>
-                </div>
-              )}
               {partner.zelleEmail && (
                 <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a' }}>
                   <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Zelle</p>
@@ -1329,8 +1563,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>${partner.cashAppTag}</p>
                 </div>
               )}
-              {!partner.stripeConnectId && !partner.zelleEmail && !partner.venmoUsername && !partner.cashAppTag && (
-                <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No payment methods configured</p>
+              {!partner.zelleEmail && !partner.venmoUsername && !partner.cashAppTag && (
+                <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No other payment methods configured</p>
               )}
             </div>
           </div>
@@ -2069,7 +2303,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   )
 }
 
-// Create Payout Modal
+// Create Payout Modal with Stripe Connect & SMS Verification
 function CreatePayoutModal({
   partner,
   payableCommissions,
@@ -2084,12 +2318,57 @@ function CreatePayoutModal({
   const [saving, setSaving] = useState(false)
   const [method, setMethod] = useState('')
   const [reference, setReference] = useState('')
+  const [step, setStep] = useState<'method' | 'verify' | 'processing'>('method')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [sendingCode, setSendingCode] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
+  const [payoutId, setPayoutId] = useState<string | null>(null)
+  const [error, setError] = useState('')
   const { showToast } = useToast()
 
   const totalAmount = payableCommissions.reduce((sum, c) => sum + Number(c.amount), 0)
+  const hasStripeConnect = partner.stripeConnectStatus === 'CONNECTED'
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCreatePayout = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    // For Stripe Connect, we need SMS verification
+    if (method === 'STRIPE_CONNECT') {
+      if (!hasStripeConnect) {
+        setError('Partner has not connected their Stripe account')
+        return
+      }
+      // First create the payout record, then move to verification
+      try {
+        setSaving(true)
+        const res = await fetch('/api/admin/partners/payouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            partnerId: partner.id,
+            commissionIds: payableCommissions.map(c => c.id),
+            method: 'STRIPE_CONNECT',
+            notes: reference || undefined,
+          }),
+        })
+
+        const data = await res.json()
+        if (res.ok) {
+          setPayoutId(data.payout?.id || data.id)
+          setStep('verify')
+        } else {
+          setError(data.error || 'Failed to create payout')
+        }
+      } catch (err) {
+        setError('Failed to create payout')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    // For other methods, just create and mark as paid
     try {
       setSaving(true)
       const res = await fetch('/api/admin/partners/payouts', {
@@ -2100,6 +2379,7 @@ function CreatePayoutModal({
           commissionIds: payableCommissions.map(c => c.id),
           method: method || undefined,
           notes: reference || undefined,
+          markAsPaid: true,
         }),
       })
 
@@ -2107,12 +2387,61 @@ function CreatePayoutModal({
         onSuccess()
       } else {
         const data = await res.json()
-        showToast(data.error || 'Failed to create payout', 'error')
+        setError(data.error || 'Failed to create payout')
       }
-    } catch (error) {
-      showToast('Failed to create payout', 'error')
+    } catch (err) {
+      setError('Failed to create payout')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendCode = async () => {
+    setSendingCode(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/verify-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCodeSent(true)
+        showToast('Verification code sent to your phone', 'success')
+      } else {
+        setError(data.error || 'Failed to send code')
+      }
+    } catch (err) {
+      setError('Failed to send verification code')
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  const handleExecutePayout = async () => {
+    if (!payoutId || !verificationCode) return
+    setError('')
+    setStep('processing')
+
+    try {
+      const res = await fetch(`/api/admin/partners/payouts/${payoutId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationCode }),
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        showToast(`Payout of ${formatCurrency(totalAmount)} sent successfully!`, 'success')
+        onSuccess()
+      } else {
+        setError(data.error || 'Failed to execute payout')
+        setStep('verify')
+      }
+    } catch (err) {
+      setError('Failed to execute payout')
+      setStep('verify')
     }
   }
 
@@ -2143,7 +2472,11 @@ function CreatePayoutModal({
         width: '100%',
         maxWidth: '500px',
       }}>
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>Create Payout</h3>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>
+          {step === 'method' && 'Create Payout'}
+          {step === 'verify' && 'Verify Payment'}
+          {step === 'processing' && 'Processing Payment'}
+        </h3>
 
         <div style={{
           background: '#10b98120',
@@ -2163,91 +2496,240 @@ function CreatePayoutModal({
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-              Payment Method
-            </label>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                background: '#0a0a0a',
-                border: '1px solid #27272a',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-              }}
-            >
-              <option value="">Select method...</option>
-              <option value="CASH">Cash</option>
-              <option value="CHECK">Check</option>
-              <option value="ZELLE">Zelle</option>
-              <option value="VENMO">Venmo</option>
-              <option value="STRIPE_CONNECT">Stripe Connect</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
-            </select>
+        {error && (
+          <div style={{
+            background: '#ef444420',
+            border: '1px solid #ef444440',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px',
+            color: '#ef4444',
+            fontSize: '14px',
+          }}>
+            {error}
           </div>
+        )}
 
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-              Reference / Notes
-            </label>
-            <input
-              type="text"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Check number, transaction ID, etc."
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                background: '#0a0a0a',
-                border: '1px solid #27272a',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-              }}
-            />
-          </div>
+        {step === 'method' && (
+          <form onSubmit={handleCreatePayout}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Payment Method
+              </label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              >
+                <option value="">Select method...</option>
+                {hasStripeConnect && (
+                  <option value="STRIPE_CONNECT">Stripe (Direct Deposit) - Requires SMS Verification</option>
+                )}
+                <option value="CASH">Cash</option>
+                <option value="CHECK">Check</option>
+                <option value="ZELLE">Zelle</option>
+                <option value="VENMO">Venmo</option>
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+              </select>
+              {!hasStripeConnect && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#71717a' }}>
+                  Partner has not connected Stripe. Set up Stripe Connect in their Overview tab for direct deposits.
+                </p>
+              )}
+            </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '12px',
-                background: '#27272a',
-                border: 'none',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                flex: 1,
-                padding: '12px',
-                background: '#10b981',
-                border: 'none',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              {saving ? 'Creating...' : 'Create Payout'}
-            </button>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Reference / Notes
+              </label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Check number, transaction ID, etc."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !method}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: method === 'STRIPE_CONNECT' ? '#3b82f6' : '#10b981',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: saving || !method ? 0.5 : 1,
+                }}
+              >
+                {saving ? 'Processing...' : method === 'STRIPE_CONNECT' ? 'Continue to Verify' : 'Record Payout'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === 'verify' && (
+          <div>
+            <p style={{ color: '#a1a1aa', fontSize: '14px', marginBottom: '16px' }}>
+              For security, enter the verification code sent to your phone to authorize this payment.
+            </p>
+
+            {!codeSent ? (
+              <button
+                onClick={handleSendCode}
+                disabled={sendingCode}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: '#3b82f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  marginBottom: '16px',
+                  opacity: sendingCode ? 0.5 : 1,
+                }}
+              >
+                {sendingCode ? 'Sending...' : 'Send Verification Code'}
+              </button>
+            ) : (
+              <>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Enter 6-digit code"
+                    maxLength={6}
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      background: '#0a0a0a',
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '24px',
+                      textAlign: 'center',
+                      letterSpacing: '8px',
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleSendCode}
+                  disabled={sendingCode}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    marginBottom: '16px',
+                  }}
+                >
+                  {sendingCode ? 'Sending...' : 'Resend Code'}
+                </button>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExecutePayout}
+                disabled={verificationCode.length !== 6}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#10b981',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  opacity: verificationCode.length !== 6 ? 0.5 : 1,
+                }}
+              >
+                Pay {formatCurrency(totalAmount)}
+              </button>
+            </div>
           </div>
-        </form>
+        )}
+
+        {step === 'processing' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              border: '3px solid #27272a',
+              borderTopColor: '#10b981',
+              borderRadius: '50%',
+              margin: '0 auto 16px',
+              animation: 'spin 1s linear infinite',
+            }} />
+            <p style={{ color: '#a1a1aa', margin: 0 }}>Processing payment via Stripe...</p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
       </div>
     </div>
   )
