@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    title: '', // Optional - job title/position
     password: '',
     confirmPassword: '',
     website: '', // Honeypot field - should remain empty
@@ -50,6 +51,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          title: formData.title || undefined, // Optional
           password: formData.password,
           website: formData.website, // Honeypot
           formLoadTime: formLoadTime.toString(),
@@ -129,6 +131,20 @@ export default function RegisterPage() {
               onChange={handleChange}
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
               placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Job Title <span className="text-text-secondary font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+              placeholder="CEO, Developer, etc."
             />
           </div>
 

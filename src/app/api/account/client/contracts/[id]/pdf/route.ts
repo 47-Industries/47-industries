@@ -39,6 +39,22 @@ export async function GET(
       },
     })
 
+    console.log('[PDF Compose] Contract ID:', contractId)
+    console.log('[PDF Compose] Signature fields found:', contract?.signatureFields?.length || 0)
+    contract?.signatureFields?.forEach((f, i) => {
+      console.log(`[PDF Compose] Field ${i + 1}:`, {
+        id: f.id,
+        type: f.type,
+        page: f.pageNumber,
+        x: f.xPercent,
+        y: f.yPercent,
+        width: f.widthPercent,
+        hasUrl: !!f.signatureUrl,
+        urlLength: f.signatureUrl?.length || 0,
+        urlPrefix: f.signatureUrl?.substring(0, 50),
+      })
+    })
+
     if (!contract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
@@ -87,20 +103,25 @@ export async function GET(
         })
       } else if (field.signatureUrl) {
         try {
+          console.log(`[PDF Compose] Processing signature for field ${field.id}`)
           // Fetch signature image
           let signatureData: ArrayBuffer
           if (field.signatureUrl.startsWith('data:image/')) {
             // It's a data URL
+            console.log(`[PDF Compose] Field ${field.id}: Using data URL`)
             const base64Data = field.signatureUrl.replace(/^data:image\/\w+;base64,/, '')
             signatureData = Buffer.from(base64Data, 'base64')
+            console.log(`[PDF Compose] Field ${field.id}: Data URL decoded, size: ${signatureData.byteLength}`)
           } else {
             // It's a URL - fetch it
+            console.log(`[PDF Compose] Field ${field.id}: Fetching URL: ${field.signatureUrl.substring(0, 80)}`)
             const sigResponse = await fetch(field.signatureUrl)
             if (!sigResponse.ok) {
-              console.error(`Failed to fetch signature: ${field.signatureUrl}`)
+              console.error(`[PDF Compose] Field ${field.id}: Failed to fetch signature: ${sigResponse.status} ${sigResponse.statusText}`)
               continue
             }
             signatureData = await sigResponse.arrayBuffer()
+            console.log(`[PDF Compose] Field ${field.id}: Fetched, size: ${signatureData.byteLength}`)
           }
 
           // Determine image type and embed
@@ -130,14 +151,16 @@ export async function GET(
           const imgX = x - imgWidth / 2
           const imgY = y - imgHeight / 2
 
+          console.log(`[PDF Compose] Field ${field.id}: Drawing at (${Math.max(0, imgX).toFixed(1)}, ${Math.max(0, imgY).toFixed(1)}) size: ${imgWidth.toFixed(1)}x${imgHeight.toFixed(1)}`)
           page.drawImage(image, {
             x: Math.max(0, imgX),
             y: Math.max(0, imgY),
             width: imgWidth,
             height: imgHeight,
           })
+          console.log(`[PDF Compose] Field ${field.id}: Successfully embedded`)
         } catch (err) {
-          console.error(`Failed to embed signature for field ${field.id}:`, err)
+          console.error(`[PDF Compose] Failed to embed signature for field ${field.id}:`, err)
         }
       }
     }

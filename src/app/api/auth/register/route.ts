@@ -53,7 +53,7 @@ function isSuspiciousEmail(email: string): boolean {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { name, email, password, website, formLoadTime } = body
+    const { name, email, password, title, website, formLoadTime } = body
 
     // Honeypot check - if website field is filled, it's a bot
     if (website) {
@@ -125,12 +125,14 @@ export async function POST(req: NextRequest) {
         name,
         email,
         password: hashedPassword,
+        title: title || null,
         role: 'CUSTOMER',
       },
       select: {
         id: true,
         name: true,
         email: true,
+        title: true,
         role: true,
       },
     })
