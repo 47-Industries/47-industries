@@ -144,21 +144,26 @@ export async function GET(
             console.log(`[PDF Compose] Field ${field.id}: Fetched, size: ${signatureData.byteLength}`)
           }
 
-          // Determine image type and embed
-          const isPng = field.signatureUrl.toLowerCase().includes('png')
+          // Detect image format from actual bytes (PNG starts with 0x89504E47)
+          const bytes = new Uint8Array(signatureData)
+          const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47
+          console.log(`[PDF Compose] Field ${field.id}: Detected format: ${isPng ? 'PNG' : 'JPEG'} (first bytes: ${bytes[0]?.toString(16)}, ${bytes[1]?.toString(16)})`)
+
           let image
           try {
-            if (isPng || field.signatureUrl.startsWith('data:image/png')) {
+            if (isPng) {
               image = await pdfDoc.embedPng(signatureData)
             } else {
               image = await pdfDoc.embedJpg(signatureData)
             }
-          } catch {
+          } catch (formatError) {
+            console.log(`[PDF Compose] Field ${field.id}: Primary format failed, trying alternate...`)
             // If specific format fails, try the other
             try {
-              image = await pdfDoc.embedPng(signatureData)
+              image = isPng ? await pdfDoc.embedJpg(signatureData) : await pdfDoc.embedPng(signatureData)
             } catch {
-              image = await pdfDoc.embedJpg(signatureData)
+              console.error(`[PDF Compose] Field ${field.id}: Both formats failed`)
+              continue
             }
           }
 
@@ -182,6 +187,67 @@ export async function GET(
         } catch (err) {
           console.error(`[PDF Compose] Failed to embed signature for field ${field.id}:`, err)
         }
+      }
+    }
+
+    // Check if we need to draw legacy signatures (fallback for contracts signed before new system)
+    // The admin's countersignature might only be in the legacy field
+    const hasAdminSignature = contract.signatureFields.some(f =>
+      f.assignedTo?.toUpperCase() === 'ADMIN' || f.signedByName?.toLowerCase().includes('kyle')
+    )
+
+    if (!hasAdminSignature && contractLegacy?.countersignatureUrl) {
+      console.log('[PDF Compose] No admin signature field found, using legacy countersignatureUrl')
+      try {
+        // Fetch the legacy countersignature
+        let sigData: ArrayBuffer
+        if (contractLegacy.countersignatureUrl.startsWith('data:image/')) {
+          const base64 = contractLegacy.countersignatureUrl.replace(/^data:image\/\w+;base64,/, '')
+          sigData = Buffer.from(base64, 'base64')
+        } else {
+          const res = await fetch(contractLegacy.countersignatureUrl)
+          if (res.ok) {
+            sigData = await res.arrayBuffer()
+          } else {
+            throw new Error('Failed to fetch countersignature')
+          }
+        }
+
+        // Detect format from bytes
+        const sigBytes = new Uint8Array(sigData)
+        const isPng = sigBytes[0] === 0x89 && sigBytes[1] === 0x50 && sigBytes[2] === 0x4E && sigBytes[3] === 0x47
+        console.log(`[PDF Compose] Legacy countersig format: ${isPng ? 'PNG' : 'JPEG'}`)
+
+        let image
+        try {
+          image = isPng ? await pdfDoc.embedPng(sigData) : await pdfDoc.embedJpg(sigData)
+        } catch {
+          image = isPng ? await pdfDoc.embedJpg(sigData) : await pdfDoc.embedPng(sigData)
+        }
+
+        // Draw at right side of signature area (page 4, similar position to Field 2)
+        // Use last page if contract doesn't have 4 pages
+        const lastPage = pages[Math.min(3, pages.length - 1)]
+        const { width: pw, height: ph } = lastPage.getSize()
+
+        const aspectRatio = image.width / image.height
+        const imgWidth = pw * 0.2 // 20% of page width
+        const imgHeight = imgWidth / aspectRatio
+
+        // Position: right side (around 64%), about 23% from top
+        const x = (pw * 0.6425) - (imgWidth / 2)
+        const y = ph - (ph * 0.227) - (imgHeight / 2)
+
+        console.log(`[PDF Compose] Drawing legacy countersig at (${x.toFixed(1)}, ${y.toFixed(1)})`)
+        lastPage.drawImage(image, {
+          x: Math.max(0, x),
+          y: Math.max(0, y),
+          width: imgWidth,
+          height: imgHeight,
+        })
+        console.log('[PDF Compose] Legacy countersig embedded successfully')
+      } catch (err) {
+        console.error('[PDF Compose] Failed to embed legacy countersignature:', err)
       }
     }
 
