@@ -147,7 +147,7 @@ export async function POST(
       return NextResponse.json({ success: true })
     }
 
-    // Action: unlink - Demote user to CUSTOMER and remove from team member
+    // Action: unlink - Demote user to CUSTOMER and deactivate team member
     if (action === 'unlink') {
       if (!teamMember.userId) {
         return NextResponse.json({ error: 'Team member does not have a user account' }, { status: 400 })
@@ -163,10 +163,13 @@ export async function POST(
         },
       })
 
-      // Disconnect user from team member
+      // Disconnect user from team member and set to INACTIVE
       await prisma.teamMember.update({
         where: { id },
-        data: { userId: null },
+        data: {
+          userId: null,
+          status: 'INACTIVE',
+        },
       })
 
       return NextResponse.json({ success: true })

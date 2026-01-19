@@ -39,6 +39,7 @@ export default function TeamPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showInactive, setShowInactive] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const { showToast } = useToast()
@@ -202,7 +203,7 @@ export default function TeamPage() {
       )}
 
       {/* Filter */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -220,62 +221,124 @@ export default function TeamPage() {
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
+
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          color: '#a1a1aa',
+        }}>
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          Show inactive / on leave
+        </label>
       </div>
 
       {/* Team List */}
-      {loading ? (
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '16px',
-          padding: '48px 24px',
-          textAlign: 'center',
-        }}>
-          <p style={{ color: '#71717a', margin: 0 }}>Loading team...</p>
-        </div>
-      ) : teamMembers.length === 0 ? (
-        <div style={{
-          background: '#18181b',
-          border: '1px solid #27272a',
-          borderRadius: '16px',
-          padding: '48px 24px',
-          textAlign: 'center',
-        }}>
-          <svg
-            style={{ width: '48px', height: '48px', margin: '0 auto 16px', color: '#71717a' }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <h3 style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            marginBottom: '8px',
-          }}>No team members yet</h3>
-          <p style={{ color: '#71717a', margin: '0 0 20px 0' }}>
-            Add your first team member to start tracking HR records
-          </p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            style={{
-              padding: '10px 20px',
-              background: '#3b82f6',
-              border: 'none',
-              borderRadius: '8px',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Add Team Member
-          </button>
-        </div>
-      ) : (
+      {(() => {
+        const visibleMembers = teamMembers.filter(member =>
+          showInactive || (member.status !== 'INACTIVE' && member.status !== 'ON_LEAVE')
+        )
+        const hiddenCount = teamMembers.length - visibleMembers.length
+
+        if (loading) {
+          return (
+            <div style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '16px',
+              padding: '48px 24px',
+              textAlign: 'center',
+            }}>
+              <p style={{ color: '#71717a', margin: 0 }}>Loading team...</p>
+            </div>
+          )
+        }
+
+        if (teamMembers.length === 0) {
+          return (
+            <div style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '16px',
+              padding: '48px 24px',
+              textAlign: 'center',
+            }}>
+              <svg
+                style={{ width: '48px', height: '48px', margin: '0 auto 16px', color: '#71717a' }}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <h3 style={{
+                fontSize: '24px',
+                fontWeight: 700,
+                marginBottom: '8px',
+              }}>No team members yet</h3>
+              <p style={{ color: '#71717a', margin: '0 0 20px 0' }}>
+                Add your first team member to start tracking HR records
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  padding: '10px 20px',
+                  background: '#3b82f6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Add Team Member
+              </button>
+            </div>
+          )
+        }
+
+        if (visibleMembers.length === 0 && hiddenCount > 0) {
+          return (
+            <div style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '16px',
+              padding: '48px 24px',
+              textAlign: 'center',
+            }}>
+              <p style={{ color: '#71717a', margin: 0 }}>
+                {hiddenCount} inactive/on-leave member{hiddenCount > 1 ? 's' : ''} hidden.{' '}
+                <button
+                  onClick={() => setShowInactive(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: 'inherit',
+                  }}
+                >
+                  Show all
+                </button>
+              </p>
+            </div>
+          )
+        }
+
+        return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {teamMembers.map((member) => (
+          {teamMembers
+            .filter(member => showInactive || (member.status !== 'INACTIVE' && member.status !== 'ON_LEAVE'))
+            .map((member) => (
             <div
               key={member.id}
               style={{
@@ -439,7 +502,8 @@ export default function TeamPage() {
             </div>
           ))}
         </div>
-      )}
+        )
+      })()}
 
       {/* Create Modal */}
       {showCreateModal && (
