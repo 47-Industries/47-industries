@@ -1255,7 +1255,7 @@ export default function InteractivePdfSigner({
                     ) : signerOptions.length > 0 ? (
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {signerOptions.map((signer) => {
-                          const colors = SIGNER_COLORS[signer.assignedTo]
+                          const colors = SIGNER_COLORS[signer.assignedTo] || SIGNER_COLORS.ADMIN
                           const isSelected = selectedSigner?.id === signer.id
                           return (
                             <button
@@ -1502,9 +1502,9 @@ export default function InteractivePdfSigner({
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-zinc-400 mb-2">Placeholder Preview</label>
                       <div
-                        className={`p-4 border-2 border-dashed ${SIGNER_COLORS[placeholderAssignedTo].border} ${SIGNER_COLORS[placeholderAssignedTo].bgLight} rounded-lg text-center`}
+                        className={`p-4 border-2 border-dashed ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).border} ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).bgLight} rounded-lg text-center`}
                       >
-                        <div className={`text-sm font-medium ${SIGNER_COLORS[placeholderAssignedTo].text}`}>
+                        <div className={`text-sm font-medium ${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).text}`}>
                           {selectedSigner.name}
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">
@@ -1540,7 +1540,7 @@ export default function InteractivePdfSigner({
                       disabled={!selectedSigner || savingToProfile}
                       className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
                         selectedSigner && !savingToProfile
-                          ? `${SIGNER_COLORS[placeholderAssignedTo].bg} text-white hover:opacity-90`
+                          ? `${(SIGNER_COLORS[placeholderAssignedTo] || SIGNER_COLORS.ADMIN).bg} text-white hover:opacity-90`
                           : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                       }`}
                     >
