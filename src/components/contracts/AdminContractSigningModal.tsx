@@ -131,6 +131,10 @@ export default function AdminContractSigningModal({
     onSuccess()
   }
 
+  // Filter to only show SIGNED fields (so admin sees existing signatures)
+  // Don't show unsigned placeholders - admin can click anywhere to sign
+  const signedFieldsOnly = existingSignatureFields.filter(f => f.isSigned)
+
   // Go directly to the PDF signer - no admin selection needed
   return (
     <InteractivePdfSigner
@@ -140,7 +144,8 @@ export default function AdminContractSigningModal({
       clientId={clientId}
       onSave={handleSave}
       onClose={onClose}
-      existingSignatureFields={existingSignatureFields}
+      existingSignatureFields={signedFieldsOnly}
+      mode="sign"
     />
   )
 }
