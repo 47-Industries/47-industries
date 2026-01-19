@@ -33,6 +33,8 @@ interface Partner {
   commissions: Commission[]
   payouts: Payout[]
   referredProjects: ReferredProject[]
+  stripeConnectId?: string
+  stripeConnectStatus?: string
   contract?: {
     id: string
     title: string
@@ -72,6 +74,7 @@ export default function PartnerDashboardPage() {
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [stripeConnectLoading, setStripeConnectLoading] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -100,6 +103,27 @@ export default function PartnerDashboardPage() {
       setError('error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function setupStripeConnect() {
+    setStripeConnectLoading(true)
+    try {
+      const res = await fetch('/api/account/partner/stripe-connect', {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (res.ok && data.onboardingUrl) {
+        // Redirect to Stripe onboarding
+        window.location.href = data.onboardingUrl
+      } else {
+        alert(data.error || 'Failed to setup Stripe Connect')
+      }
+    } catch (error) {
+      console.error('Error setting up Stripe Connect:', error)
+      alert('Failed to setup Stripe Connect')
+    } finally {
+      setStripeConnectLoading(false)
     }
   }
 
@@ -231,6 +255,76 @@ export default function PartnerDashboardPage() {
               <p className="text-xl font-bold text-purple-500">{partner.recurringRate}%</p>
             </div>
           </div>
+        </div>
+
+        {/* Stripe Connect for Payouts */}
+        <div className="p-5 border border-border rounded-xl bg-surface mb-8">
+          <h2 className="font-semibold mb-2">Payout Setup</h2>
+          <p className="text-sm text-text-secondary mb-4">
+            Connect your bank account to receive commission payouts directly via Stripe.
+          </p>
+
+          {!partner.stripeConnectId ? (
+            <div className="p-6 border border-dashed border-border rounded-lg text-center">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#635bff" className="mx-auto mb-4">
+                <rect x="3" y="4" width="18" height="14" rx="2" strokeWidth="1.5" />
+                <path d="M3 10h18" strokeWidth="1.5" />
+                <path d="M7 15h4" strokeWidth="1.5" />
+              </svg>
+              <p className="font-medium mb-2">Connect Your Bank Account</p>
+              <p className="text-sm text-text-secondary mb-4">
+                Set up direct deposit to receive your commission payouts automatically.
+              </p>
+              <button
+                onClick={setupStripeConnect}
+                disabled={stripeConnectLoading}
+                className="px-5 py-2.5 bg-[#635bff] text-white rounded-lg hover:bg-[#635bff]/90 transition-colors font-medium disabled:opacity-50"
+              >
+                {stripeConnectLoading ? 'Setting up...' : 'Connect with Stripe'}
+              </button>
+            </div>
+          ) : partner.stripeConnectStatus === 'CONNECTED' ? (
+            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                  <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-green-500">Bank Account Connected</p>
+                  <p className="text-sm text-text-secondary">
+                    You're all set to receive payouts directly to your bank account.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center">
+                    <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-yellow-500">Setup Incomplete</p>
+                    <p className="text-sm text-text-secondary">
+                      Please complete your Stripe onboarding to receive payouts.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={setupStripeConnect}
+                  disabled={stripeConnectLoading}
+                  className="px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-500/90 transition-colors font-medium text-sm disabled:opacity-50"
+                >
+                  {stripeConnectLoading ? 'Loading...' : 'Complete Setup'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Referred Projects */}
