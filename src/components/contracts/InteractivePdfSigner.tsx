@@ -1043,7 +1043,7 @@ export default function InteractivePdfSigner({
                 {placedElements
                   .filter(elem => elem.pageNumber === index + 1)
                   .map((elem) => {
-                    const colors = elem.isPlaceholder && elem.assignedTo
+                    const colors = elem.isPlaceholder && elem.assignedTo && SIGNER_COLORS[elem.assignedTo]
                       ? SIGNER_COLORS[elem.assignedTo]
                       : SIGNER_COLORS.ADMIN
 
@@ -1075,7 +1075,7 @@ export default function InteractivePdfSigner({
                           >
                             <div className="text-center px-2">
                               <div className={`text-xs font-medium ${colors.text}`}>
-                                {elem.label || `${SIGNER_LABELS[elem.assignedTo!]} ${elem.type}`}
+                                {elem.label || `${SIGNER_LABELS[elem.assignedTo as AssignedTo] || 'Signer'} ${elem.type}`}
                               </div>
                               <div className="text-[10px] text-zinc-500 mt-0.5">
                                 {elem.type === 'signature' ? 'Sign here' : elem.type === 'initials' ? 'Initial here' : 'Date'}
@@ -1117,7 +1117,7 @@ export default function InteractivePdfSigner({
                         {/* Type/Signer label */}
                         <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs text-zinc-500 opacity-0 group-hover:opacity-100 whitespace-nowrap">
                           {elem.isPlaceholder
-                            ? `${SIGNER_LABELS[elem.assignedTo!]} - ${elem.type}`
+                            ? `${SIGNER_LABELS[elem.assignedTo as AssignedTo] || 'Signer'} - ${elem.type}`
                             : elem.type === 'signature' ? 'Signature' : elem.type === 'initials' ? 'Initials' : 'Date'
                           }
                         </div>
