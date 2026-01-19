@@ -487,7 +487,8 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
 
   const getPayableCommissions = () => {
     if (!partner) return []
-    return partner.commissions.filter(c => c.status === 'APPROVED' && !c.payout)
+    // Include both PENDING and APPROVED commissions that haven't been paid out yet
+    return partner.commissions.filter(c => ['PENDING', 'APPROVED'].includes(c.status) && !c.payout)
   }
 
   if (loading) {
