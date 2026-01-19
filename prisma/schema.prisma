@@ -2608,6 +2608,7 @@ model TeamMember {
   phone             String?
   address           String?  @db.Text
   dateOfBirth       DateTime?
+  profileImageUrl   String?           // Profile picture (R2 URL)
 
   // Employment
   title             String
