@@ -40,6 +40,10 @@ export default function ClientDashboardPage() {
   const [client, setClient] = useState<ClientData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileData, setProfileData] = useState({ name: '', title: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileError, setProfileError] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -59,6 +63,15 @@ export default function ClientDashboardPage() {
       if (res.ok) {
         const data = await res.json()
         setClient(data.client)
+
+        // Check if profile is complete
+        if (!data.isProfileComplete) {
+          setProfileData({
+            name: data.user?.name || '',
+            title: data.user?.title || '',
+          })
+          setShowProfileModal(true)
+        }
       } else if (res.status === 404) {
         setError('No client account linked')
       } else {
@@ -68,6 +81,38 @@ export default function ClientDashboardPage() {
       setError('Failed to load client data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!profileData.name.trim() || !profileData.title.trim()) {
+      setProfileError('Please fill in all fields')
+      return
+    }
+
+    setSavingProfile(true)
+    setProfileError('')
+
+    try {
+      const res = await fetch('/api/account/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileData.name.trim(),
+          title: profileData.title.trim(),
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update profile')
+      }
+
+      setShowProfileModal(false)
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to update profile')
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -314,6 +359,56 @@ export default function ClientDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Profile Completion Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface border border-border rounded-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-2">Complete Your Profile</h2>
+            <p className="text-text-secondary mb-6">
+              Please provide your information to access the client portal and sign contracts.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Full Name *</label>
+                <input
+                  type="text"
+                  value={profileData.name}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-black border border-border rounded-lg focus:outline-none focus:border-accent"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Job Title / Position *</label>
+                <input
+                  type="text"
+                  value={profileData.title}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-3 bg-black border border-border rounded-lg focus:outline-none focus:border-accent"
+                  placeholder="CEO, Manager, etc."
+                />
+              </div>
+
+              {profileError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">
+                  {profileError}
+                </div>
+              )}
+
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile || !profileData.name.trim() || !profileData.title.trim()}
+                className="w-full py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingProfile ? 'Saving...' : 'Continue to Portal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

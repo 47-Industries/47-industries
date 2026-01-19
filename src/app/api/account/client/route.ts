@@ -73,6 +73,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No client account linked' }, { status: 404 })
     }
 
+    // Check if user profile is complete (has name and title)
+    const isProfileComplete = !!(userWithClient?.name && userWithClient?.title)
+
     return NextResponse.json({
       client: {
         id: client.id,
@@ -92,6 +95,7 @@ export async function GET(req: NextRequest) {
         email: userWithClient?.email || null,
         title: userWithClient?.title || null,
       },
+      isProfileComplete,
     })
   } catch (error) {
     console.error('Error fetching client data:', error)
