@@ -121,6 +121,9 @@ export default function TeamMemberDetailPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showCreateAccountModal, setShowCreateAccountModal] = useState(false)
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
 
   // Account access state
   const [accountSaving, setAccountSaving] = useState(false)
@@ -136,7 +139,20 @@ export default function TeamMemberDetailPage() {
 
   useEffect(() => {
     fetchTeamMember()
+    fetchCurrentUserRole()
   }, [params.id])
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const res = await fetch('/api/admin/session')
+      if (res.ok) {
+        const data = await res.json()
+        setCurrentUserRole(data.role)
+      }
+    } catch (error) {
+      console.error('Error fetching current user role:', error)
+    }
+  }
 
   // Sync account state when teamMember loads
   useEffect(() => {
@@ -158,6 +174,25 @@ export default function TeamMemberDetailPage() {
       console.error('Error:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteTeamMember = async () => {
+    if (!teamMember) return
+    setDeleting(true)
+
+    try {
+      const res = await fetch(`/api/admin/team/${teamMember.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete team member')
+
+      router.push('/admin/team')
+    } catch (err: any) {
+      alert(err.message)
+      setDeleting(false)
     }
   }
 
@@ -815,6 +850,30 @@ export default function TeamMemberDetailPage() {
               </button>
             </div>
           )}
+
+          {/* Danger Zone - Super Admin Only */}
+          {currentUserRole === 'SUPER_ADMIN' && (
+            <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-red-400 mb-2">Danger Zone</h2>
+              <p className="text-sm text-zinc-400 mb-4">
+                Permanently delete this team member record. {teamMember.user ? 'The linked user account will be demoted to a regular customer.' : 'This action cannot be undone.'}
+              </p>
+              <div className="text-sm text-zinc-500 mb-4 space-y-1">
+                <p>This will delete:</p>
+                <ul className="list-disc list-inside ml-2">
+                  <li>{teamMember.contracts.length} contract{teamMember.contracts.length !== 1 ? 's' : ''}</li>
+                  <li>{teamMember.documents.length} document{teamMember.documents.length !== 1 ? 's' : ''}</li>
+                  <li>{teamMember.payments.length} payment record{teamMember.payments.length !== 1 ? 's' : ''}</li>
+                </ul>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="px-4 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
+              >
+                Delete Team Member
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1142,6 +1201,54 @@ export default function TeamMemberDetailPage() {
             setShowResetPasswordModal(false)
           }}
         />
+      )}
+
+      {/* Delete Team Member Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl w-full max-w-md">
+            <div className="p-6 border-b border-zinc-800">
+              <h2 className="text-xl font-semibold text-red-400">Delete Team Member</h2>
+              <p className="text-sm text-zinc-400 mt-1">
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="p-6">
+              <p className="text-zinc-300 mb-4">
+                Are you sure you want to permanently delete the team record for{' '}
+                <span className="font-semibold text-white">{teamMember.name}</span>?
+              </p>
+              {teamMember.user && (
+                <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 px-4 py-3 rounded-lg text-sm mb-4">
+                  The linked user account ({teamMember.user.email}) will be demoted to a regular customer.
+                </div>
+              )}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-4 text-sm text-zinc-400">
+                <p className="font-medium text-zinc-300 mb-2">This will permanently delete:</p>
+                <ul className="space-y-1">
+                  <li>- {teamMember.contracts.length} contract{teamMember.contracts.length !== 1 ? 's' : ''}</li>
+                  <li>- {teamMember.documents.length} document{teamMember.documents.length !== 1 ? 's' : ''}</li>
+                  <li>- {teamMember.payments.length} payment record{teamMember.payments.length !== 1 ? 's' : ''}</li>
+                </ul>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteTeamMember}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Team Member'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

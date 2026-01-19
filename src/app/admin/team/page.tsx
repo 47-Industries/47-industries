@@ -38,7 +38,6 @@ export default function TeamPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('all')
   const [showInactive, setShowInactive] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -54,15 +53,12 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchTeamMembers()
-  }, [statusFilter])
+  }, [])
 
   const fetchTeamMembers = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (statusFilter !== 'all') params.append('status', statusFilter)
-
-      const res = await fetch(`/api/admin/team?${params}`)
+      const res = await fetch('/api/admin/team')
       if (res.ok) {
         const data = await res.json()
         setTeamMembers(data.teamMembers)
@@ -102,13 +98,6 @@ export default function TeamPage() {
       maximumFractionDigits: 0,
     }).format(amount)
   }
-
-  const statuses = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'INACTIVE', label: 'Inactive' },
-    { value: 'ON_LEAVE', label: 'On Leave' },
-  ]
 
   return (
     <div style={{ color: '#fff' }}>
@@ -203,25 +192,7 @@ export default function TeamPage() {
       )}
 
       {/* Filter */}
-      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: '12px 16px',
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '8px',
-            color: 'white',
-            fontSize: '14px',
-            minWidth: '150px',
-          }}
-        >
-          {statuses.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-
+      <div style={{ marginBottom: '24px' }}>
         <label style={{
           display: 'flex',
           alignItems: 'center',

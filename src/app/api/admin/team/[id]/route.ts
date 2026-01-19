@@ -237,7 +237,8 @@ export async function PUT(
   }
 }
 
-// DELETE /api/admin/team/[id] - Delete team member
+// DELETE /api/admin/team/[id] - Delete team member (SUPER_ADMIN only)
+// This demotes any linked user to CUSTOMER and deletes the team member record
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -249,28 +250,57 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { role: true },
     })
 
-    if (!user || user.role !== 'SUPER_ADMIN') {
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Only super admins can delete team members' }, { status: 403 })
     }
 
     const teamMember = await prisma.teamMember.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            contracts: true,
+            documents: true,
+            payments: true,
+          },
+        },
+      },
     })
 
     if (!teamMember) {
       return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
     }
 
-    await prisma.teamMember.delete({
-      where: { id },
+    // Use a transaction to demote user and delete team member
+    await prisma.$transaction(async (tx) => {
+      // If there's a linked user, demote them to CUSTOMER
+      if (teamMember.userId) {
+        await tx.user.update({
+          where: { id: teamMember.userId },
+          data: {
+            role: 'CUSTOMER',
+            permissions: [],
+            emailAccess: [],
+          },
+        })
+      }
+
+      // Delete the team member (cascading will handle contracts, documents, payments)
+      await tx.teamMember.delete({
+        where: { id },
+      })
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      message: 'Team member deleted successfully',
+      userDemoted: !!teamMember.userId,
+    })
   } catch (error) {
     console.error('Error deleting team member:', error)
     return NextResponse.json({ error: 'Failed to delete team member' }, { status: 500 })
