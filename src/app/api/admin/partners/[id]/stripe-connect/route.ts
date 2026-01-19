@@ -56,6 +56,7 @@ export async function POST(
         country: 'US',
         email: partner.email,
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
         },
         business_type: 'individual',
