@@ -2597,9 +2597,9 @@ model TeamMember {
   id                String   @id @default(cuid())
   employeeNumber    String   @unique  // EMP-001
 
-  // Link to User account
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id])
+  // Link to User account (optional - can be unlinked)
+  userId            String?  @unique
+  user              User?    @relation(fields: [userId], references: [id])
 
   // Personal Info
   name              String

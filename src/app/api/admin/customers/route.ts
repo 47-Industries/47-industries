@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = {
       role: 'CUSTOMER', // Only show customers, not admins
+      teamMember: null, // Exclude users who are team members
     }
 
     if (search) {
