@@ -19,6 +19,7 @@ interface TeamMember {
   salaryAmount?: number
   salaryFrequency?: string
   equityPercentage?: number
+  profileImageUrl?: string | null
   user?: { id: string; email: string; role: 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'; image?: string | null }
   _count: {
     contracts: number
@@ -294,9 +295,9 @@ export default function TeamPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   {/* Avatar */}
-                  {member.user?.image ? (
+                  {member.profileImageUrl || member.user?.image ? (
                     <img
-                      src={member.user.image}
+                      src={member.profileImageUrl || member.user?.image || ''}
                       alt={member.name}
                       style={{
                         width: '48px',
