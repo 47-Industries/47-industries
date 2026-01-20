@@ -19,10 +19,12 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
     if (period) where.period = period
 
-    // Get founder count for calculating per-person amounts
-    const founderCount = await prisma.user.count({
-      where: { isFounder: true }
+    // Get team members who split expenses
+    const splitters = await prisma.teamMember.findMany({
+      where: { splitsExpenses: true, status: 'ACTIVE' },
+      select: { id: true, name: true, email: true, profileImageUrl: true }
     })
+    const splitterCount = splitters.length
 
     const billInstances = await prisma.billInstance.findMany({
       where,
@@ -32,10 +34,10 @@ export async function GET(request: NextRequest) {
         recurringBill: {
           select: { id: true, name: true, paymentMethod: true }
         },
-        founderPayments: {
+        billSplits: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true, image: true }
+            teamMember: {
+              select: { id: true, name: true, email: true, profileImageUrl: true }
             }
           }
         }
@@ -45,8 +47,8 @@ export async function GET(request: NextRequest) {
     // Add per-person amount to each bill
     const billsWithSplit = billInstances.map(bill => ({
       ...bill,
-      founderCount,
-      perPersonAmount: founderCount > 0 ? Number(bill.amount) / founderCount : Number(bill.amount)
+      splitterCount,
+      perPersonAmount: splitterCount > 0 ? Number(bill.amount) / splitterCount : Number(bill.amount)
     }))
 
     // Calculate totals
@@ -61,7 +63,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       billInstances: billsWithSplit,
       total: billInstances.length,
-      founderCount,
+      splitterCount,
+      splitters,
       totalPending,
       totalPaid
     })
@@ -87,7 +90,9 @@ export async function POST(request: NextRequest) {
       amount,
       dueDate,
       period,
-      status
+      status,
+      splitterIds,  // Optional: specific team member IDs to split
+      customSplits  // Optional: { teamMemberId: amount } for custom amounts
     } = body
 
     if (!vendor || !vendorType || !amount || !dueDate) {
@@ -95,6 +100,34 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields: vendor, vendorType, amount, dueDate' },
         { status: 400 }
       )
+    }
+
+    // Determine who splits this bill
+    let splittersToUse: { id: string; splitPercent?: number }[] = []
+
+    if (splitterIds && splitterIds.length > 0) {
+      // Use specified splitters
+      splittersToUse = splitterIds.map((id: string) => ({ id }))
+    } else if (recurringBillId) {
+      // Check if recurring bill has default splitters
+      const recurringBill = await prisma.recurringBill.findUnique({
+        where: { id: recurringBillId },
+        include: { defaultSplitters: true }
+      })
+      if (recurringBill?.defaultSplitters?.length) {
+        splittersToUse = recurringBill.defaultSplitters.map(s => ({
+          id: s.teamMemberId,
+          splitPercent: s.splitPercent ? Number(s.splitPercent) : undefined
+        }))
+      }
+    }
+
+    // Fallback to all team members with splitsExpenses=true
+    if (splittersToUse.length === 0) {
+      const defaultSplitters = await prisma.teamMember.findMany({
+        where: { splitsExpenses: true, status: 'ACTIVE' }
+      })
+      splittersToUse = defaultSplitters.map(s => ({ id: s.id }))
     }
 
     // Create the bill instance
@@ -110,33 +143,48 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Create founder payment splits
-    const founders = await prisma.user.findMany({
-      where: { isFounder: true }
-    })
+    // Create bill splits
+    if (splittersToUse.length > 0) {
+      const totalAmount = parseFloat(amount)
 
-    if (founders.length > 0) {
-      const splitAmount = parseFloat(amount) / founders.length
+      // Calculate amounts for each splitter
+      const splits = splittersToUse.map(splitter => {
+        let splitAmount: number
+        let splitPercent: number | null = null
 
-      await prisma.founderPayment.createMany({
-        data: founders.map(founder => ({
+        if (customSplits && customSplits[splitter.id]) {
+          // Custom amount specified
+          splitAmount = parseFloat(customSplits[splitter.id])
+        } else if (splitter.splitPercent) {
+          // Use percentage from recurring bill defaults
+          splitPercent = splitter.splitPercent
+          splitAmount = totalAmount * (splitter.splitPercent / 100)
+        } else {
+          // Equal split
+          splitAmount = totalAmount / splittersToUse.length
+        }
+
+        return {
           billInstanceId: billInstance.id,
-          userId: founder.id,
+          teamMemberId: splitter.id,
           amount: splitAmount,
+          splitPercent,
           status: status === 'PAID' ? 'PAID' : 'PENDING',
           paidDate: status === 'PAID' ? new Date() : null
-        }))
+        }
       })
+
+      await prisma.billSplit.createMany({ data: splits })
     }
 
-    // Fetch the complete bill instance with payments
+    // Fetch the complete bill instance with splits
     const completeBillInstance = await prisma.billInstance.findUnique({
       where: { id: billInstance.id },
       include: {
-        founderPayments: {
+        billSplits: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true, image: true }
+            teamMember: {
+              select: { id: true, name: true, email: true, profileImageUrl: true }
             }
           }
         }

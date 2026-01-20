@@ -48,8 +48,8 @@ model User {
   // e.g., ["support@47industries.com", "sales@47industries.com"]
   emailAccess   Json?
 
-  // Founder flag - the 4 founding members who split household bills
-  // Staff hired later won't have this flag and won't see personal splits
+  // DEPRECATED: Use TeamMember.splitsExpenses instead
+  // Kept for backwards compatibility during migration
   isFounder     Boolean   @default(false)
 
   // Zoho Mail Integration
@@ -71,9 +71,8 @@ model User {
   blogPosts     BlogPost[]
   passwordResetTokens PasswordResetToken[]
 
-  // Expense tracking relations (for founders)
+  // Legacy expense tracking relations (deprecated - use BillSplit via TeamMember)
   billPayments  BillPayment[]
-  founderPayments FounderPayment[] @relation("FounderPayments")
 
   // Client portal - if this user is linked to a Client account
   client        Client?
@@ -89,7 +88,6 @@ model User {
 
   @@index([username])
   @@index([email])
-  @@index([isFounder])
 }
 
 model Account {
@@ -1500,8 +1498,9 @@ model FinanceIncome {
 // ============================================
 // EXPENSE & BILL TRACKING
 // ============================================
-// Bills are auto-split among Users with isFounder=true
-// Staff with "expenses" permission can view but not see personal splits
+// Bills are split among TeamMembers with splitsExpenses=true
+// Each RecurringBill can have default splitters, or customize per BillInstance
+// Supports equal splits (default) or custom percentage/amount per person
 
 // Bills detected from email (Duke Energy, Chase, Amex, Water, Trash, BoA)
 model Bill {
@@ -1657,10 +1656,29 @@ model RecurringBill {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  instances     BillInstance[]
+  instances        BillInstance[]
+  defaultSplitters RecurringBillSplitter[]  // Default team members who split this bill
 
   @@index([active])
   @@index([vendor])
+}
+
+// Join table for recurring bill default splitters
+model RecurringBillSplitter {
+  id              String        @id @default(cuid())
+  recurringBillId String
+  recurringBill   RecurringBill @relation(fields: [recurringBillId], references: [id], onDelete: Cascade)
+  teamMemberId    String
+  teamMember      TeamMember    @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  // Optional custom split percentage for this bill (null = equal split)
+  splitPercent    Decimal?      @db.Decimal(5, 2)
+
+  createdAt       DateTime      @default(now())
+
+  @@unique([recurringBillId, teamMemberId])
+  @@index([recurringBillId])
+  @@index([teamMemberId])
 }
 
 // Individual bill instances - each occurrence of a recurring bill
@@ -1690,7 +1708,7 @@ model BillInstance {
   updatedAt       DateTime       @updatedAt
 
   // Relations
-  founderPayments FounderPayment[]
+  billSplits      BillSplit[]
 
   @@index([recurringBillId])
   @@index([status])
@@ -1699,24 +1717,28 @@ model BillInstance {
   @@index([emailId])
 }
 
-// Track each founder's share of a bill
-model FounderPayment {
+// Track each team member's share of a bill
+model BillSplit {
   id             String       @id @default(cuid())
   billInstanceId String
   billInstance   BillInstance @relation(fields: [billInstanceId], references: [id], onDelete: Cascade)
-  userId         String       // Must be a User with isFounder=true
-  user           User         @relation("FounderPayments", fields: [userId], references: [id])
+  teamMemberId   String
+  teamMember     TeamMember   @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
 
-  amount         Decimal      @db.Decimal(10, 2) // bill.amount / founderCount
+  // Amount this person owes (can be custom or calculated from equal split)
+  amount         Decimal      @db.Decimal(10, 2)
+  // Optional percentage (for display/reference, null = equal split)
+  splitPercent   Decimal?     @db.Decimal(5, 2)
+
   status         String       @default("PENDING") // "PENDING", "PAID"
   paidDate       DateTime?
 
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  @@unique([billInstanceId, userId])
+  @@unique([billInstanceId, teamMemberId])
   @@index([billInstanceId])
-  @@index([userId])
+  @@index([teamMemberId])
   @@index([status])
 }
 
@@ -2636,10 +2658,16 @@ model TeamMember {
   equityVestingEnd  DateTime?
   equityNotes       String?  @db.Text
 
+  // Bill Splitting
+  splitsExpenses       Boolean  @default(false)  // Whether this team member splits company bills
+  defaultSplitPercent Decimal? @db.Decimal(5, 2)  // Optional default percentage (null = equal split)
+
   // Relations
   contracts         TeamMemberContract[]
   documents         TeamMemberDocument[]
   payments          TeamMemberPayment[]
+  billSplits        BillSplit[]  // Individual bill payment records
+  defaultBillSplits RecurringBillSplitter[]  // Which recurring bills they default split
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -2647,6 +2675,7 @@ model TeamMember {
   @@index([userId])
   @@index([status])
   @@index([employeeNumber])
+  @@index([splitsExpenses])
 }
 
 model TeamMemberContract {

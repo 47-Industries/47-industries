@@ -15,18 +15,28 @@ export async function GET(
   const { id } = await params
 
   try {
-    const founderCount = await prisma.user.count({
-      where: { isFounder: true }
+    const splitterCount = await prisma.teamMember.count({
+      where: { splitsExpenses: true, status: 'ACTIVE' }
     })
 
     const billInstance = await prisma.billInstance.findUnique({
       where: { id },
       include: {
-        recurringBill: true,
-        founderPayments: {
+        recurringBill: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true, image: true }
+            defaultSplitters: {
+              include: {
+                teamMember: {
+                  select: { id: true, name: true, email: true, profileImageUrl: true }
+                }
+              }
+            }
+          }
+        },
+        billSplits: {
+          include: {
+            teamMember: {
+              select: { id: true, name: true, email: true, profileImageUrl: true }
             }
           }
         }
@@ -40,8 +50,8 @@ export async function GET(
     return NextResponse.json({
       billInstance: {
         ...billInstance,
-        founderCount,
-        perPersonAmount: founderCount > 0 ? Number(billInstance.amount) / founderCount : Number(billInstance.amount)
+        splitterCount,
+        perPersonAmount: splitterCount > 0 ? Number(billInstance.amount) / splitterCount : Number(billInstance.amount)
       }
     })
   } catch (error: any) {
@@ -64,7 +74,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { amount, dueDate, status, paidDate, paidVia } = body
+    const { amount, dueDate, status, paidDate, paidVia, splitterIds, customSplits } = body
 
     const updateData: any = {}
     if (amount !== undefined) updateData.amount = parseFloat(amount)
@@ -78,9 +88,9 @@ export async function PATCH(
       data: updateData
     })
 
-    // If status changed to PAID, update all founder payments
+    // If status changed to PAID, update all bill splits
     if (status === 'PAID') {
-      await prisma.founderPayment.updateMany({
+      await prisma.billSplit.updateMany({
         where: { billInstanceId: id },
         data: {
           status: 'PAID',
@@ -89,21 +99,79 @@ export async function PATCH(
       })
     }
 
-    // If amount changed, update founder payment amounts
+    // If amount changed, recalculate splits
     if (amount !== undefined) {
-      const founders = await prisma.user.count({ where: { isFounder: true } })
-      if (founders > 0) {
-        const splitAmount = parseFloat(amount) / founders
-        await prisma.founderPayment.updateMany({
-          where: { billInstanceId: id },
-          data: { amount: splitAmount }
-        })
+      const existingSplits = await prisma.billSplit.findMany({
+        where: { billInstanceId: id }
+      })
+
+      if (existingSplits.length > 0) {
+        // Check if any have custom percentages
+        const hasCustomPercents = existingSplits.some(s => s.splitPercent !== null)
+
+        if (hasCustomPercents) {
+          // Update based on percentages
+          for (const split of existingSplits) {
+            const newAmount = split.splitPercent
+              ? parseFloat(amount) * (Number(split.splitPercent) / 100)
+              : parseFloat(amount) / existingSplits.length
+            await prisma.billSplit.update({
+              where: { id: split.id },
+              data: { amount: newAmount }
+            })
+          }
+        } else {
+          // Equal split
+          const splitAmount = parseFloat(amount) / existingSplits.length
+          await prisma.billSplit.updateMany({
+            where: { billInstanceId: id },
+            data: { amount: splitAmount }
+          })
+        }
       }
     }
 
+    // If splitters changed, recreate splits
+    if (splitterIds !== undefined) {
+      // Delete existing splits
+      await prisma.billSplit.deleteMany({
+        where: { billInstanceId: id }
+      })
+
+      // Create new splits
+      if (splitterIds.length > 0) {
+        const totalAmount = Number(billInstance.amount)
+        const splits = splitterIds.map((teamMemberId: string) => {
+          const customAmount = customSplits?.[teamMemberId]
+          return {
+            billInstanceId: id,
+            teamMemberId,
+            amount: customAmount ? parseFloat(customAmount) : totalAmount / splitterIds.length,
+            status: billInstance.status === 'PAID' ? 'PAID' : 'PENDING',
+            paidDate: billInstance.status === 'PAID' ? new Date() : null
+          }
+        })
+        await prisma.billSplit.createMany({ data: splits })
+      }
+    }
+
+    // Fetch updated bill instance
+    const updatedBillInstance = await prisma.billInstance.findUnique({
+      where: { id },
+      include: {
+        billSplits: {
+          include: {
+            teamMember: {
+              select: { id: true, name: true, email: true, profileImageUrl: true }
+            }
+          }
+        }
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      billInstance
+      billInstance: updatedBillInstance
     })
   } catch (error: any) {
     console.error('Error updating bill instance:', error)
@@ -124,7 +192,7 @@ export async function DELETE(
   const { id } = await params
 
   try {
-    // Founder payments will cascade delete
+    // Bill splits will cascade delete
     await prisma.billInstance.delete({
       where: { id }
     })

@@ -13,13 +13,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || new Date().toISOString().slice(0, 7) // Default to current month
 
-    // Get founders
-    const founders = await prisma.user.findMany({
-      where: { isFounder: true },
-      select: { id: true, name: true, email: true, image: true }
+    // Get team members who split expenses
+    const splitters = await prisma.teamMember.findMany({
+      where: { splitsExpenses: true, status: 'ACTIVE' },
+      select: { id: true, name: true, email: true, profileImageUrl: true }
     })
 
-    const founderCount = founders.length
+    const splitterCount = splitters.length
 
     // Get current month's bill instances
     const currentMonthBills = await prisma.billInstance.findMany({
@@ -29,22 +29,22 @@ export async function GET(request: NextRequest) {
         recurringBill: {
           select: { id: true, name: true, paymentMethod: true, amountType: true }
         },
-        founderPayments: {
+        billSplits: {
           include: {
-            user: {
-              select: { id: true, name: true, email: true }
+            teamMember: {
+              select: { id: true, name: true, email: true, profileImageUrl: true }
             }
           }
         }
       }
     })
 
-    // Calculate outstanding balances for each founder
-    const founderBalances = await Promise.all(founders.map(async (founder) => {
-      // Get all pending payments for this founder
-      const pendingPayments = await prisma.founderPayment.findMany({
+    // Calculate outstanding balances for each team member
+    const splitterBalances = await Promise.all(splitters.map(async (splitter) => {
+      // Get all pending splits for this team member
+      const pendingSplits = await prisma.billSplit.findMany({
         where: {
-          userId: founder.id,
+          teamMemberId: splitter.id,
           status: 'PENDING'
         },
         include: {
@@ -54,25 +54,25 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      const paidPayments = await prisma.founderPayment.findMany({
+      const paidSplits = await prisma.billSplit.findMany({
         where: {
-          userId: founder.id,
+          teamMemberId: splitter.id,
           status: 'PAID'
         }
       })
 
-      const pendingAmount = pendingPayments.reduce((sum, p) => sum + Number(p.amount), 0)
-      const paidAmount = paidPayments.reduce((sum, p) => sum + Number(p.amount), 0)
+      const pendingAmount = pendingSplits.reduce((sum, p) => sum + Number(p.amount), 0)
+      const paidAmount = paidSplits.reduce((sum, p) => sum + Number(p.amount), 0)
 
       // Get what bills they owe for (for display)
-      const owesFor = pendingPayments.map(p => p.billInstance.vendor)
+      const owesFor = pendingSplits.map(p => p.billInstance.vendor)
 
       return {
-        founder,
+        splitter,
         pendingAmount,
-        pendingCount: pendingPayments.length,
+        pendingCount: pendingSplits.length,
         paidAmount,
-        paidCount: paidPayments.length,
+        paidCount: paidSplits.length,
         owesFor: [...new Set(owesFor)] // Unique vendors
       }
     }))
@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
     // Add per-person amount to each bill
     const enrichBill = (bill: any) => ({
       ...bill,
-      founderCount,
-      perPersonAmount: founderCount > 0 ? Number(bill.amount) / founderCount : Number(bill.amount)
+      splitterCount,
+      perPersonAmount: splitterCount > 0 ? Number(bill.amount) / splitterCount : Number(bill.amount)
     })
 
     // Totals
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     const totalOverdue = billsByStatus.overdue.reduce((sum, b) => sum + Number(b.amount), 0)
 
     // Outstanding balances total
-    const totalOutstanding = founderBalances.reduce((sum, fb) => sum + fb.pendingAmount, 0)
+    const totalOutstanding = splitterBalances.reduce((sum, sb) => sum + sb.pendingAmount, 0)
 
     // Upcoming bills (next 7 days)
     const today = new Date()
@@ -121,7 +121,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       period,
-      founderCount,
+      splitterCount,
+      splitters,
 
       // Monthly bills view
       bills: {
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
       },
 
       // Outstanding balances (who owes what)
-      founderBalances,
+      splitterBalances,
       totalOutstanding,
 
       // Summary stats

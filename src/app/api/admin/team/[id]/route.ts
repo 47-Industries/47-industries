@@ -161,6 +161,9 @@ export async function PUT(
     }
     if (body.equityNotes !== undefined) updateData.equityNotes = body.equityNotes || null
 
+    // Company Expenses
+    if (body.splitsExpenses !== undefined) updateData.splitsExpenses = body.splitsExpenses
+
     // Update team member and optionally update linked user's username
     const updated = await prisma.$transaction(async (tx) => {
       // Update team member

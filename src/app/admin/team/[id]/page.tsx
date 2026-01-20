@@ -44,6 +44,8 @@ interface TeamMember {
   salaryFrequency: string | null
   equityPercentage: number | null
   equityNotes: string | null
+  splitsExpenses: boolean
+  defaultSplitPercent: number | null
   userId: string | null
   user: {
     id: string
@@ -1281,6 +1283,7 @@ function EditTeamMemberModal({
     salaryAmount: teamMember.salaryAmount?.toString() || '',
     salaryFrequency: teamMember.salaryFrequency || '',
     username: teamMember.user?.username || '',
+    splitsExpenses: teamMember.splitsExpenses || false,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1492,6 +1495,23 @@ function EditTeamMemberModal({
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Company Expenses */}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-400 mb-3">Company Expenses</h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.splitsExpenses}
+                onChange={(e) => setFormData({ ...formData, splitsExpenses: e.target.checked })}
+                className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-zinc-900"
+              />
+              <span className="text-white">Splits company expenses</span>
+            </label>
+            <p className="text-xs text-zinc-500 mt-2">
+              When enabled, this team member will be included in company bill splits by default.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">

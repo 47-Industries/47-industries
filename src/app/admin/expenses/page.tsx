@@ -2,18 +2,19 @@
 
 import { useState, useEffect } from 'react'
 
-interface Founder {
+interface Splitter {
   id: string
-  name: string | null
-  email: string
+  name: string
+  email: string | null
+  profileImageUrl: string | null
 }
 
-interface FounderPayment {
+interface BillSplit {
   id: string
   amount: number
   status: string
   paidDate: string | null
-  user: Founder
+  teamMember: Splitter
 }
 
 interface BillInstance {
@@ -26,7 +27,7 @@ interface BillInstance {
   status: string
   paidDate: string | null
   paidVia: string | null
-  founderPayments: FounderPayment[]
+  billSplits: BillSplit[]
   recurringBill?: { id: string; name: string; amountType: string }
 }
 
@@ -59,7 +60,7 @@ export default function ExpensesPage() {
 
   const [bills, setBills] = useState<BillInstance[]>([])
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
-  const [founders, setFounders] = useState<Founder[]>([])
+  const [splitters, setSplitters] = useState<Splitter[]>([])
   const [currentPeriod, setCurrentPeriod] = useState(() => new Date().toISOString().slice(0, 7))
 
   // Modal state
@@ -93,7 +94,7 @@ export default function ExpensesPage() {
       if (billsRes.ok) {
         const data = await billsRes.json()
         setBills(data.bills?.all || [])
-        setFounders(data.founderBalances?.map((b: any) => b.founder) || [])
+        setSplitters(data.splitters || [])
       }
 
       if (recurringRes.ok) {
@@ -134,12 +135,12 @@ export default function ExpensesPage() {
     return Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   }
 
-  const handleMarkFounderPaid = async (billId: string, founderId: string) => {
+  const handleMarkSplitterPaid = async (billId: string, teamMemberId: string) => {
     try {
-      const res = await fetch(`/api/admin/bill-instances/${billId}/founder-payments`, {
+      const res = await fetch(`/api/admin/bill-instances/${billId}/bill-splits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: founderId, status: 'PAID' })
+        body: JSON.stringify({ teamMemberId, status: 'PAID' })
       })
       if (res.ok) {
         setSuccess('Payment marked as paid')
@@ -339,21 +340,21 @@ export default function ExpensesPage() {
   const paidAmount = bills.filter(b => b.status === 'PAID').reduce((sum, b) => sum + Number(b.amount), 0)
   const pendingAmount = totalAmount - paidAmount
 
-  // Calculate founder totals
-  const founderTotals = founders.map(f => {
+  // Calculate splitter totals
+  const splitterTotals = splitters.map(s => {
     let pending = 0
     let paid = 0
     bills.forEach(b => {
-      const payment = b.founderPayments?.find(p => p.user.id === f.id)
-      if (payment) {
-        if (payment.status === 'PAID') {
-          paid += Number(payment.amount)
+      const split = b.billSplits?.find(sp => sp.teamMember.id === s.id)
+      if (split) {
+        if (split.status === 'PAID') {
+          paid += Number(split.amount)
         } else {
-          pending += Number(payment.amount)
+          pending += Number(split.amount)
         }
       }
     })
-    return { founder: f, pending, paid }
+    return { splitter: s, pending, paid }
   })
 
   return (
@@ -415,23 +416,31 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          {/* Founder Summary */}
+          {/* Splitter Summary */}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            {founderTotals.map(ft => (
-              <div key={ft.founder.id} style={{
+            {splitterTotals.map(st => (
+              <div key={st.splitter.id} style={{
                 background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '12px 16px',
                 display: 'flex', alignItems: 'center', gap: '12px', minWidth: '180px'
               }}>
-                <div style={{
-                  width: '36px', height: '36px', borderRadius: '50%', background: ft.pending > 0 ? '#f59e0b' : '#10b981',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '14px'
-                }}>
-                  {(ft.founder.name || ft.founder.email || '?').charAt(0).toUpperCase()}
-                </div>
+                {st.splitter.profileImageUrl ? (
+                  <img
+                    src={st.splitter.profileImageUrl}
+                    alt={st.splitter.name}
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '50%', background: st.pending > 0 ? '#f59e0b' : '#10b981',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '14px'
+                  }}>
+                    {(st.splitter.name || st.splitter.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{ft.founder.name || ft.founder.email}</div>
-                  <div style={{ fontSize: '12px', color: ft.pending > 0 ? '#f59e0b' : '#10b981' }}>
-                    {ft.pending > 0 ? `Owes ${formatCurrency(ft.pending)}` : 'All paid'}
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{st.splitter.name || st.splitter.email}</div>
+                  <div style={{ fontSize: '12px', color: st.pending > 0 ? '#f59e0b' : '#10b981' }}>
+                    {st.pending > 0 ? `Owes ${formatCurrency(st.pending)}` : 'All paid'}
                   </div>
                 </div>
               </div>
@@ -455,7 +464,8 @@ export default function ExpensesPage() {
                   const days = getDaysUntilDue(bill.dueDate)
                   const isOverdue = bill.status === 'PENDING' && days !== null && days < 0
                   const isVariable = bill.amount === 0 || (bill.recurringBill?.amountType === 'VARIABLE' && bill.amount === 0)
-                  const perPerson = founders.length > 0 ? Number(bill.amount) / founders.length : Number(bill.amount)
+                  const splitCount = bill.billSplits?.length || splitters.length || 1
+                  const perPerson = Number(bill.amount) / splitCount
 
                   return (
                     <div key={bill.id} style={{ borderBottom: '1px solid #27272a', padding: '16px 20px' }}>
@@ -512,34 +522,42 @@ export default function ExpensesPage() {
                         </div>
                       </div>
 
-                      {/* Founder Payments - Always visible */}
+                      {/* Bill Splits - Always visible */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {bill.founderPayments?.map(p => (
+                        {bill.billSplits?.map(split => (
                           <button
-                            key={p.id}
-                            onClick={() => p.status !== 'PAID' && handleMarkFounderPaid(bill.id, p.user.id)}
-                            disabled={p.status === 'PAID'}
+                            key={split.id}
+                            onClick={() => split.status !== 'PAID' && handleMarkSplitterPaid(bill.id, split.teamMember.id)}
+                            disabled={split.status === 'PAID'}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',
                               padding: '6px 12px', borderRadius: '20px',
-                              border: p.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
-                              background: p.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
-                              color: p.status === 'PAID' ? '#10b981' : '#fff',
-                              cursor: p.status === 'PAID' ? 'default' : 'pointer',
+                              border: split.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
+                              background: split.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
+                              color: split.status === 'PAID' ? '#10b981' : '#fff',
+                              cursor: split.status === 'PAID' ? 'default' : 'pointer',
                               fontSize: '13px'
                             }}
-                            title={p.status === 'PAID' ? 'Paid' : 'Click to mark as paid'}
+                            title={split.status === 'PAID' ? 'Paid' : 'Click to mark as paid'}
                           >
-                            <span style={{
-                              width: '20px', height: '20px', borderRadius: '50%',
-                              background: p.status === 'PAID' ? '#10b981' : '#3b82f6',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '10px', fontWeight: 600
-                            }}>
-                              {p.status === 'PAID' ? '✓' : (p.user.name || p.user.email || '?').charAt(0).toUpperCase()}
-                            </span>
-                            <span>{p.user.name?.split(' ')[0] || p.user.email?.split('@')[0]}</span>
-                            <span style={{ color: '#71717a' }}>{formatCurrency(Number(p.amount))}</span>
+                            {split.teamMember.profileImageUrl ? (
+                              <img
+                                src={split.teamMember.profileImageUrl}
+                                alt={split.teamMember.name}
+                                style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <span style={{
+                                width: '20px', height: '20px', borderRadius: '50%',
+                                background: split.status === 'PAID' ? '#10b981' : '#3b82f6',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '10px', fontWeight: 600
+                              }}>
+                                {split.status === 'PAID' ? 'OK' : (split.teamMember.name || split.teamMember.email || '?').charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                            <span>{split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}</span>
+                            <span style={{ color: '#71717a' }}>{formatCurrency(Number(split.amount))}</span>
                           </button>
                         ))}
 

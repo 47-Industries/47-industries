@@ -171,8 +171,12 @@ If this is not a bill or payment, return confidence: 0.`
 
     console.log(`[PARSER] Processing ${parsed.vendor} for period ${period}`)
 
-    // Get founder count for splitting
-    const founderCount = await prisma.user.count({ where: { isFounder: true } })
+    // Get team members who split expenses
+    const splitters = await prisma.teamMember.findMany({
+      where: { splitsExpenses: true, status: 'ACTIVE' },
+      select: { id: true }
+    })
+    const splitterCount = splitters.length
 
     if (parsed.isPaid) {
       // This is a payment confirmation - find and update existing bill instance
@@ -180,7 +184,7 @@ If this is not a bill or payment, return confidence: 0.`
       return result
     } else {
       // This is a bill notification - create new bill instance
-      const result = await this.handleBillNotification(email, parsed, period, founderCount)
+      const result = await this.handleBillNotification(email, parsed, period, splitterCount)
       return result
     }
   }
@@ -234,8 +238,8 @@ If this is not a bill or payment, return confidence: 0.`
         }
       })
 
-      // Mark all founder payments as paid
-      await prisma.founderPayment.updateMany({
+      // Mark all bill splits as paid
+      await prisma.billSplit.updateMany({
         where: { billInstanceId: existingBill.id },
         data: {
           status: 'PAID',
@@ -257,7 +261,7 @@ If this is not a bill or payment, return confidence: 0.`
     email: EmailData,
     parsed: ParsedBill,
     period: string,
-    founderCount: number
+    splitterCount: number
   ): Promise<{ created: boolean; billId?: string; action?: string }> {
     // Find matching recurring bill for better vendor matching
     const recurringBill = await this.matchRecurringBill(email)
@@ -302,13 +306,34 @@ If this is not a bill or payment, return confidence: 0.`
           }
         })
 
-        // Update founder payment amounts
-        if (founderCount > 0 && parsed.amount) {
-          const perPerson = parsed.amount / founderCount
-          await prisma.founderPayment.updateMany({
-            where: { billInstanceId: existingBill.id },
-            data: { amount: perPerson }
-          })
+        // Update bill split amounts
+        const existingSplits = await prisma.billSplit.findMany({
+          where: { billInstanceId: existingBill.id }
+        })
+
+        if (existingSplits.length > 0 && parsed.amount) {
+          // Check if any have custom percentages
+          const hasCustomPercents = existingSplits.some(s => s.splitPercent !== null)
+
+          if (hasCustomPercents) {
+            // Update based on percentages
+            for (const split of existingSplits) {
+              const newAmount = split.splitPercent
+                ? parsed.amount * (Number(split.splitPercent) / 100)
+                : parsed.amount / existingSplits.length
+              await prisma.billSplit.update({
+                where: { id: split.id },
+                data: { amount: newAmount }
+              })
+            }
+          } else {
+            // Equal split
+            const perPerson = parsed.amount / existingSplits.length
+            await prisma.billSplit.updateMany({
+              where: { billInstanceId: existingBill.id },
+              data: { amount: perPerson }
+            })
+          }
         }
 
         console.log(`[PARSER] Updated ${parsed.vendor} amount to $${parsed.amount}`)
@@ -335,6 +360,9 @@ If this is not a bill or payment, return confidence: 0.`
         where: {
           vendor: { contains: parsed.vendor.split(' ')[0] },
           active: true
+        },
+        include: {
+          defaultSplitters: true
         }
       })
 
@@ -361,16 +389,25 @@ If this is not a bill or payment, return confidence: 0.`
         amount = Number(recurringBill.fixedAmount)
       }
 
-      // Get founders for payment splitting
-      const founders = await prisma.user.findMany({
-        where: { isFounder: true },
-        select: { id: true }
-      })
+      // Determine who splits this bill
+      let splittersToUse: { id: string; splitPercent?: number }[] = []
 
-      const founderCount = founders.length
-      const perPersonAmount = founderCount > 0 ? amount / founderCount : amount
+      if (recurringBill?.defaultSplitters?.length) {
+        // Use recurring bill's default splitters
+        splittersToUse = recurringBill.defaultSplitters.map(s => ({
+          id: s.teamMemberId,
+          splitPercent: s.splitPercent ? Number(s.splitPercent) : undefined
+        }))
+      } else {
+        // Fallback to all team members with splitsExpenses=true
+        const defaultSplitters = await prisma.teamMember.findMany({
+          where: { splitsExpenses: true, status: 'ACTIVE' },
+          select: { id: true }
+        })
+        splittersToUse = defaultSplitters.map(s => ({ id: s.id }))
+      }
 
-      // Create bill instance with founder payments
+      // Create bill instance
       const billInstance = await prisma.billInstance.create({
         data: {
           recurringBillId: recurringBill?.id,
@@ -384,17 +421,36 @@ If this is not a bill or payment, return confidence: 0.`
           paidVia: isPaid ? (parsed.paymentMethod || 'Confirmed via email') : null,
           emailId: email.id,
           emailSubject: email.subject,
-          emailFrom: email.from,
-          founderPayments: {
-            create: founders.map(founder => ({
-              userId: founder.id,
-              amount: perPersonAmount,
-              status: isPaid ? 'PAID' : 'PENDING',
-              paidDate: isPaid ? new Date() : null
-            }))
-          }
+          emailFrom: email.from
         }
       })
+
+      // Create bill splits
+      if (splittersToUse.length > 0) {
+        const splits = splittersToUse.map(splitter => {
+          let splitAmount: number
+          let splitPercent: number | null = null
+
+          if (splitter.splitPercent) {
+            splitPercent = splitter.splitPercent
+            splitAmount = amount * (splitter.splitPercent / 100)
+          } else {
+            // Equal split
+            splitAmount = amount / splittersToUse.length
+          }
+
+          return {
+            billInstanceId: billInstance.id,
+            teamMemberId: splitter.id,
+            amount: splitAmount,
+            splitPercent,
+            status: isPaid ? 'PAID' : 'PENDING',
+            paidDate: isPaid ? new Date() : null
+          }
+        })
+
+        await prisma.billSplit.createMany({ data: splits })
+      }
 
       await this.markProcessed(email.id, parsed.vendor, billInstance.id)
       console.log(`[PARSER] Created bill instance: ${parsed.vendor} - $${amount}`)
