@@ -506,6 +506,18 @@ If this is not a bill or payment, return confidence: 0.`
     // Find matching recurring bill if any
     const recurringBill = await this.matchRecurringBill(email)
 
+    // If recurring bill has autoApprove enabled, skip the queue and directly create BillInstance
+    if (recurringBill?.autoApprove) {
+      const result = await this.processEmail(email)
+      // Mark as processed
+      await this.markProcessed(email.id, parsed?.vendor || recurringBill.name)
+      console.log(`[PARSER] Auto-approved bill for recurring: ${recurringBill.name}`)
+      return {
+        created: result.created,
+        action: result.created ? 'auto_approved' : 'auto_approve_failed'
+      }
+    }
+
     // Create proposed bill regardless of parse result (even low confidence)
     // The human reviewer can decide if it's a real bill
     try {
@@ -602,8 +614,9 @@ If this is not a bill or payment, return confidence: 0.`
       vendorType?: string
       amount?: number
       dueDate?: string
+      enableAutoApprove?: boolean
     }
-  ): Promise<{ success: boolean; billInstanceId?: string; error?: string }> {
+  ): Promise<{ success: boolean; billInstanceId?: string; recurringBillId?: string; error?: string }> {
     try {
       const proposed = await prisma.proposedBill.findUnique({
         where: { id: proposedBillId }
@@ -710,8 +723,49 @@ If this is not a bill or payment, return confidence: 0.`
         }
       })
 
+      // Handle auto-approve setting
+      let recurringBillId = proposed.matchedRecurringBillId
+
+      if (overrides?.enableAutoApprove) {
+        if (recurringBillId) {
+          // Update existing recurring bill to enable auto-approve
+          await prisma.recurringBill.update({
+            where: { id: recurringBillId },
+            data: { autoApprove: true }
+          })
+          console.log(`[PARSER] Enabled auto-approve for recurring bill ${recurringBillId}`)
+        } else {
+          // Create a new recurring bill with auto-approve enabled
+          const newRecurring = await prisma.recurringBill.create({
+            data: {
+              name: vendor,
+              vendorType: vendorType as any,
+              expectedAmount: amount,
+              frequency: 'MONTHLY', // Default frequency
+              isActive: true,
+              autoApprove: true,
+              defaultSplitters: {
+                create: splittersToUse.map(s => ({
+                  teamMemberId: s.id,
+                  splitPercent: s.splitPercent || null
+                }))
+              }
+            }
+          })
+          recurringBillId = newRecurring.id
+
+          // Link the bill instance to the new recurring bill
+          await prisma.billInstance.update({
+            where: { id: billInstance.id },
+            data: { recurringBillId: newRecurring.id }
+          })
+
+          console.log(`[PARSER] Created new recurring bill ${newRecurring.id} with auto-approve`)
+        }
+      }
+
       console.log(`[PARSER] Approved proposed bill ${proposedBillId} -> BillInstance ${billInstance.id}`)
-      return { success: true, billInstanceId: billInstance.id }
+      return { success: true, billInstanceId: billInstance.id, recurringBillId }
     } catch (error: any) {
       console.error('[PARSER] Error approving proposed bill:', error.message)
       return { success: false, error: error.message }

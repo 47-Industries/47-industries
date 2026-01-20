@@ -1652,6 +1652,9 @@ model RecurringBill {
   vendorType    String    // "RENT", "UTILITY", "CREDIT_CARD", "SUBSCRIPTION", "OTHER"
   active        Boolean   @default(true)
 
+  // Auto-approval: Skip approval queue for future bills matching this pattern
+  autoApprove   Boolean   @default(false)
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -1661,6 +1664,7 @@ model RecurringBill {
 
   @@index([active])
   @@index([vendor])
+  @@index([autoApprove])
 }
 
 // Join table for recurring bill default splitters

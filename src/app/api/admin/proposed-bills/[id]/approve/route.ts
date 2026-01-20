@@ -23,8 +23,11 @@ export async function POST(
     const { id } = await params
     const body = await request.json().catch(() => ({}))
 
-    // Allow overrides for vendor, vendorType, amount, dueDate
-    const overrides = body.overrides || {}
+    // Allow overrides for vendor, vendorType, amount, dueDate, and enableAutoApprove
+    const overrides = {
+      ...body.overrides,
+      enableAutoApprove: body.enableAutoApprove || false
+    }
 
     const result = await billParser.approveProposedBill(id, session.user.id, overrides)
 
@@ -34,7 +37,9 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      billInstanceId: result.billInstanceId
+      billInstanceId: result.billInstanceId,
+      recurringBillId: result.recurringBillId,
+      autoApproveEnabled: overrides.enableAutoApprove
     })
   } catch (error: any) {
     console.error('[PROPOSED_BILLS] Error approving:', error.message)

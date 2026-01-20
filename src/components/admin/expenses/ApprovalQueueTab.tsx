@@ -52,10 +52,14 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     }
   }
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, enableAutoApprove: boolean = false) => {
     setProcessing(id)
     try {
-      const res = await fetch(`/api/admin/proposed-bills/${id}/approve`, { method: 'POST' })
+      const res = await fetch(`/api/admin/proposed-bills/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enableAutoApprove })
+      })
       if (res.ok) {
         fetchProposedBills()
       } else {
@@ -323,11 +327,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                   {bill.status === 'PENDING' ? (
                     <>
                       <button
-                        onClick={() => handleApprove(bill.id)}
+                        onClick={() => handleApprove(bill.id, false)}
                         disabled={processing === bill.id}
                         style={{
                           padding: '6px 12px',
@@ -399,6 +403,45 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                       <div style={{ fontSize: '13px' }}>{bill.isPaid ? 'Yes (Payment Confirmation)' : 'No (Bill Notification)'}</div>
                     </div>
                   </div>
+
+                  {/* Auto-Approve Option */}
+                  {bill.status === 'PENDING' && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #27272a' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '2px' }}>
+                            Enable Auto-Approve for Future Bills
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#71717a' }}>
+                            Future bills from this vendor will be automatically approved
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleApprove(bill.id, true)}
+                          disabled={processing === bill.id}
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: '#3b82f6',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            opacity: processing === bill.id ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          Approve + Auto-Approve
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
