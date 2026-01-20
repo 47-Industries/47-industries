@@ -156,6 +156,14 @@ export async function PUT(request: NextRequest) {
       },
     })
 
+    // Sync profile image to TeamMember if linked
+    if (updateData.image) {
+      await prisma.teamMember.updateMany({
+        where: { userId: session.user.id },
+        data: { profileImageUrl: updateData.image }
+      })
+    }
+
     return NextResponse.json({ user })
   } catch (error) {
     console.error('Error updating profile:', error)

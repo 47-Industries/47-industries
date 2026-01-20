@@ -215,6 +215,11 @@ export async function PUT(
           userUpdateData.email = newEmail
         }
 
+        // Sync profile image to User.image
+        if (body.profileImageUrl !== undefined) {
+          userUpdateData.image = body.profileImageUrl || null
+        }
+
         // Update user if there are changes
         if (Object.keys(userUpdateData).length > 0) {
           const updatedUser = await tx.user.update({
