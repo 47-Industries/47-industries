@@ -54,7 +54,7 @@ interface ApprovalQueueTabProps {
 export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProps) {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<ApprovalItem[]>([])
-  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING')
+  const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'SKIPPED' | 'ALL'>('PENDING')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'email' | 'bank'>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [processing, setProcessing] = useState<string | null>(null)
@@ -68,6 +68,10 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     createRecurring: boolean
     autoApprove: boolean
   }>>({})
+
+  // Skip modal state
+  const [skipModalItem, setSkipModalItem] = useState<ApprovalItem | null>(null)
+  const [skipRuleType, setSkipRuleType] = useState<'NONE' | 'ACCOUNT' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
 
   useEffect(() => {
     fetchItems()
@@ -95,7 +99,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         }))
 
         // Transform bank transactions
-        const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: BankTransaction) => ({
+        const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: any) => ({
           id: `bank-${txn.id}`,
           type: 'bank' as const,
           vendor: txn.merchantName || txn.description || 'Bank Transaction',
@@ -103,7 +107,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
           amount: Math.abs(txn.amount),
           date: txn.transactedAt,
           source: `${txn.financialAccount.institutionName}${txn.financialAccount.accountLast4 ? ` ****${txn.financialAccount.accountLast4}` : ''}`,
-          status: 'PENDING',
+          status: txn.approvalStatus || 'PENDING',
           original: txn
         }))
 
@@ -210,19 +214,34 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     }
   }
 
-  const handleSkip = async (item: ApprovalItem) => {
-    if (item.type !== 'bank') return
+  const openSkipModal = (item: ApprovalItem) => {
+    setSkipModalItem(item)
+    setSkipRuleType('NONE')
+  }
 
-    setProcessing(item.id)
+  const handleSkip = async (createRule: boolean = false) => {
+    if (!skipModalItem || skipModalItem.type !== 'bank') return
+
+    setProcessing(skipModalItem.id)
     setError('')
     try {
-      const txnId = item.id.replace('bank-', '')
+      const txnId = skipModalItem.id.replace('bank-', '')
       const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          createRule: createRule && skipRuleType !== 'NONE',
+          ruleType: skipRuleType
+        })
       })
       if (res.ok) {
-        setSuccess('Transaction skipped')
+        const data = await res.json()
+        if (data.ruleCreated) {
+          setSuccess(`Transaction skipped. Rule created - ${data.additionalSkipped} additional transaction(s) also skipped.`)
+        } else {
+          setSuccess('Transaction skipped')
+        }
+        setSkipModalItem(null)
         fetchItems()
       } else {
         const data = await res.json()
@@ -363,7 +382,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
           {/* Status Filter */}
           <div style={{ display: 'flex', gap: '4px', background: '#18181b', borderRadius: '6px', padding: '4px' }}>
-            {(['PENDING', 'APPROVED', 'ALL'] as const).map(status => (
+            {(['PENDING', 'APPROVED', 'SKIPPED', 'ALL'] as const).map(status => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -522,7 +541,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                       )}
                       {item.type === 'bank' && (
                         <button
-                          onClick={() => handleSkip(item)}
+                          onClick={() => openSkipModal(item)}
                           disabled={processing === item.id}
                           style={{
                             padding: '6px 12px',
@@ -543,8 +562,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     <span style={{
                       padding: '4px 10px',
                       borderRadius: '4px',
-                      background: item.status === 'APPROVED' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                      color: item.status === 'APPROVED' ? '#10b981' : '#ef4444',
+                      background: item.status === 'APPROVED' ? 'rgba(16,185,129,0.1)' : item.status === 'SKIPPED' ? 'rgba(113,113,122,0.2)' : 'rgba(239,68,68,0.1)',
+                      color: item.status === 'APPROVED' ? '#10b981' : item.status === 'SKIPPED' ? '#a1a1aa' : '#ef4444',
                       fontSize: '11px',
                       fontWeight: 500
                     }}>
@@ -687,6 +706,137 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Skip Modal */}
+      {skipModalItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setSkipModalItem(null)}>
+          <div
+            style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '90%'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600 }}>Skip Transaction</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#a1a1aa' }}>
+              {skipModalItem.description}
+            </p>
+
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '12px' }}>
+                How should future transactions like this be handled?
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'NONE' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'NONE' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="skipRule"
+                    checked={skipRuleType === 'NONE'}
+                    onChange={() => setSkipRuleType('NONE')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip just this transaction</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>No rule created - future similar transactions will still appear</div>
+                  </div>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'ACCOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'ACCOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="skipRule"
+                    checked={skipRuleType === 'ACCOUNT'}
+                    onChange={() => setSkipRuleType('ACCOUNT')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip all from this account (Personal account)</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>All transactions from {skipModalItem.source} will be skipped</div>
+                  </div>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="skipRule"
+                    checked={skipRuleType === 'VENDOR_AMOUNT'}
+                    onChange={() => setSkipRuleType('VENDOR_AMOUNT')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip this vendor + amount combo</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>e.g., "{skipModalItem.vendor}" at ~{formatCurrency(skipModalItem.amount)} will be skipped</div>
+                  </div>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'DESCRIPTION_PATTERN' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'DESCRIPTION_PATTERN' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="skipRule"
+                    checked={skipRuleType === 'DESCRIPTION_PATTERN'}
+                    onChange={() => setSkipRuleType('DESCRIPTION_PATTERN')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by description pattern</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>Any transaction containing similar text will be skipped</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setSkipModalItem(null)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: '1px solid #3f3f46',
+                  background: 'transparent',
+                  color: '#a1a1aa',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSkip(skipRuleType !== 'NONE')}
+                disabled={processing === skipModalItem.id}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  opacity: processing === skipModalItem.id ? 0.5 : 1
+                }}
+              >
+                {skipRuleType === 'NONE' ? 'Skip Transaction' : 'Skip + Create Rule'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

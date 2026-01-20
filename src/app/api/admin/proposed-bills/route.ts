@@ -44,9 +44,11 @@ export async function GET(request: NextRequest) {
       ? {}
       : status === 'APPROVED'
         ? { approvalStatus: 'APPROVED' }
-        : { approvalStatus: 'PENDING' } // PENDING excludes SKIPPED
+        : status === 'SKIPPED'
+          ? { approvalStatus: 'SKIPPED' }
+          : { approvalStatus: 'PENDING' } // PENDING excludes SKIPPED
 
-    if (status === 'PENDING' || status === 'APPROVED' || status === 'ALL') {
+    if (status === 'PENDING' || status === 'APPROVED' || status === 'SKIPPED' || status === 'ALL') {
       const [txns, txnCount] = await Promise.all([
         prisma.stripeTransaction.findMany({
           where: bankStatusFilter,

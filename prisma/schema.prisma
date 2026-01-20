@@ -2882,7 +2882,8 @@ model StripeFinancialAccount {
   
   // Relations
   transactions      StripeTransaction[]
-  
+  skipRules         TransactionSkipRule[]
+
   @@index([status])
   @@index([institutionName])
 }
@@ -2909,6 +2910,7 @@ model StripeTransaction {
   // Status
   status                String    // pending, posted (Stripe status)
   approvalStatus        String    @default("PENDING") // PENDING, APPROVED, SKIPPED
+  skippedByRuleId       String?   // If auto-skipped, which rule matched
 
   // Bill matching
   matchedBillInstanceId  String?   // If matched to a BillInstance
@@ -2924,4 +2926,39 @@ model StripeTransaction {
   @@index([transactedAt])
   @@index([matchedBillInstanceId])
   @@index([merchantName])
+  @@index([approvalStatus])
+}
+
+// TransactionSkipRule - Rules for auto-skipping personal/non-company transactions
+model TransactionSkipRule {
+  id                  String    @id @default(cuid())
+
+  // Rule type determines which fields are used
+  ruleType            String    // "ACCOUNT", "VENDOR_AMOUNT", "DESCRIPTION_PATTERN"
+
+  // For ACCOUNT rules - skip all transactions from this account
+  financialAccountId  String?
+  financialAccount    StripeFinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+
+  // For VENDOR_AMOUNT rules - skip transactions matching vendor AND amount
+  vendorPattern       String?   // Substring match on description/merchantName
+  amount              Decimal?  @db.Decimal(12, 2)
+  amountVariance      Int?      @default(5) // Percentage variance allowed (e.g., 5 = 5%)
+
+  // For DESCRIPTION_PATTERN rules - skip transactions containing this text
+  descriptionPattern  String?   // Substring match on description
+
+  // Rule metadata
+  name                String    // User-friendly name (e.g., "Personal Checking", "Publix Payroll")
+  reason              String?   // Why skipped (e.g., "Personal expense", "Payroll deposit")
+
+  isActive            Boolean   @default(true)
+  skipCount           Int       @default(0) // How many transactions auto-skipped by this rule
+
+  createdAt           DateTime  @default(now())
+  createdBy           String?   // User ID who created the rule
+
+  @@index([ruleType])
+  @@index([financialAccountId])
+  @@index([isActive])
 }

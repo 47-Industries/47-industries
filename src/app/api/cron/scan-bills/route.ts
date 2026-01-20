@@ -311,6 +311,41 @@ async function syncBankTransactions(): Promise<{
 
           if (existing) continue
 
+          // Check if this transaction should be auto-skipped by a rule
+          const skipRule = await findMatchingSkipRule(
+            account.id,
+            txn.description || '',
+            Math.abs(txn.amount) / 100
+          )
+
+          if (skipRule) {
+            // Create as auto-skipped
+            await prisma.stripeTransaction.create({
+              data: {
+                financialAccountId: account.id,
+                stripeTransactionId: txn.id,
+                amount: txn.amount / 100,
+                description: txn.description || null,
+                merchantName: null,
+                category: null,
+                transactedAt: new Date(txn.transacted_at * 1000),
+                postedAt: txn.posted_at ? new Date(txn.posted_at * 1000) : null,
+                status: txn.status,
+                approvalStatus: 'SKIPPED',
+                skippedByRuleId: skipRule.id
+              }
+            })
+
+            // Increment skip count
+            await prisma.transactionSkipRule.update({
+              where: { id: skipRule.id },
+              data: { skipCount: { increment: 1 } }
+            })
+
+            results.synced++
+            continue // Skip further processing
+          }
+
           // Try to auto-match to a recurring bill
           const matchedRecurring = findMatchingRecurringBill(recurringBills, txn.description || '', Math.abs(txn.amount) / 100)
 
@@ -354,6 +389,49 @@ async function syncBankTransactions(): Promise<{
   }
 
   return results
+}
+
+// Find a skip rule that matches the transaction
+async function findMatchingSkipRule(
+  accountId: string,
+  description: string,
+  amount: number
+): Promise<any | null> {
+  const rules = await prisma.transactionSkipRule.findMany({
+    where: { isActive: true }
+  })
+
+  const descLower = description.toLowerCase()
+
+  for (const rule of rules) {
+    // Check ACCOUNT rule
+    if (rule.ruleType === 'ACCOUNT' && rule.financialAccountId === accountId) {
+      return rule
+    }
+
+    // Check VENDOR_AMOUNT rule
+    if (rule.ruleType === 'VENDOR_AMOUNT' && rule.vendorPattern && rule.amount) {
+      const vendorMatch = descLower.includes(rule.vendorPattern.toLowerCase())
+      const ruleAmount = Number(rule.amount)
+      const variance = rule.amountVariance || 5
+      const minAmount = ruleAmount * (1 - variance / 100)
+      const maxAmount = ruleAmount * (1 + variance / 100)
+      const amountMatch = amount >= minAmount && amount <= maxAmount
+
+      if (vendorMatch && amountMatch) {
+        return rule
+      }
+    }
+
+    // Check DESCRIPTION_PATTERN rule
+    if (rule.ruleType === 'DESCRIPTION_PATTERN' && rule.descriptionPattern) {
+      if (descLower.includes(rule.descriptionPattern.toLowerCase())) {
+        return rule
+      }
+    }
+  }
+
+  return null
 }
 
 // Find a recurring bill that matches the transaction
