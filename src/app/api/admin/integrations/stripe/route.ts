@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server'
-import { verifyAdminAuth } from '@/lib/auth-helper'
-
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // GET /api/admin/integrations/stripe - Check Stripe configuration status
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-
-    if (!isAuthorized) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
