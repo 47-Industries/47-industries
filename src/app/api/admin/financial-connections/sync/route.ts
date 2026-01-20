@@ -54,6 +54,17 @@ export async function POST(request: NextRequest) {
             continue
           }
 
+          // Make sure we're subscribed to transactions
+          try {
+            await stripe.financialConnections.accounts.subscribe(account.stripeAccountId, {
+              features: ['transactions']
+            })
+            console.log(`[SYNC] Subscribed to transactions for ${account.stripeAccountId}`)
+          } catch (subErr: any) {
+            // Might already be subscribed
+            console.log(`[SYNC] Subscribe note:`, subErr.message)
+          }
+
           // Trigger a transaction refresh (Stripe fetches latest from bank)
           // This is async - transactions may not be immediately available
           await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
@@ -73,6 +84,10 @@ export async function POST(request: NextRequest) {
         })
 
         console.log(`[SYNC] Found ${transactions.data.length} transactions for ${account.stripeAccountId}`)
+
+        if (transactions.data.length > 0) {
+          console.log(`[SYNC] First transaction:`, JSON.stringify(transactions.data[0], null, 2))
+        }
 
         for (const txn of transactions.data) {
           // Check if transaction already exists
@@ -106,6 +121,7 @@ export async function POST(request: NextRequest) {
 
         results.accountsSynced++
       } catch (err: any) {
+        console.error(`[SYNC] Error for ${account.stripeAccountId}:`, err.message, err.code || '')
         results.errors.push(`${account.institutionName}: ${err.message}`)
         await prisma.stripeFinancialAccount.update({
           where: { id: account.id },

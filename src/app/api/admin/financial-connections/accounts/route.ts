@@ -99,6 +99,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ account: updated, updated: true })
     }
 
+    // Subscribe to the account for ongoing transaction access
+    try {
+      await stripe.financialConnections.accounts.subscribe(stripeAccount.id, {
+        features: ['transactions']
+      })
+      console.log(`[FC] Subscribed to transactions for ${stripeAccount.id}`)
+    } catch (subErr: any) {
+      console.log(`[FC] Subscribe note for ${stripeAccount.id}:`, subErr.message)
+      // Continue - might already be subscribed or not supported
+    }
+
     // Create new account record
     const account = await prisma.stripeFinancialAccount.create({
       data: {
