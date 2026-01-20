@@ -49,12 +49,18 @@ export async function GET(req: NextRequest) {
       _sum: { amount: true },
     })
 
+    const paidTotal = await prisma.partnerPayout.aggregate({
+      where: { ...where, status: 'PAID' },
+      _sum: { amount: true },
+    })
+
     return NextResponse.json({
       payouts,
-      totals: {
-        total: totals._sum.amount || 0,
-        count: totals._count,
-        pending: pendingTotal._sum.amount || 0,
+      stats: {
+        total: totals._count,
+        totalAmount: totals._sum.amount || 0,
+        pendingAmount: pendingTotal._sum.amount || 0,
+        paidAmount: paidTotal._sum.amount || 0,
       },
     })
   } catch (error) {

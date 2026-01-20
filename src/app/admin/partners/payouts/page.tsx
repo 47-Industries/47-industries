@@ -18,9 +18,7 @@ interface Payout {
     name: string
     partnerNumber: string
   }
-  _count: {
-    commissions: number
-  }
+  commissions: { id: string; amount: number; type: string }[]
 }
 
 interface Stats {
@@ -293,7 +291,7 @@ export default function PartnerPayoutsPage() {
                     <Link href={`/admin/partners/${payout.partner.id}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
                       {payout.partner.name}
                     </Link>
-                    {' '}| {payout._count.commissions} commission{payout._count.commissions !== 1 ? 's' : ''}
+                    {' '}| {payout.commissions?.length || 0} commission{(payout.commissions?.length || 0) !== 1 ? 's' : ''}
                   </p>
                   <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '13px' }}>
                     Created {formatDate(payout.createdAt)}
