@@ -35,13 +35,21 @@ export async function GET(request: NextRequest) {
       })
     ])
 
-    // Get unmatched bank transactions (only for PENDING or ALL status)
+    // Get bank transactions based on status filter
     let bankTransactions: any[] = []
     let bankTotal = 0
-    if (status === 'PENDING' || status === 'ALL') {
+
+    // Map status filter to approvalStatus
+    const bankStatusFilter = status === 'ALL'
+      ? {}
+      : status === 'APPROVED'
+        ? { approvalStatus: 'APPROVED' }
+        : { approvalStatus: 'PENDING' } // PENDING excludes SKIPPED
+
+    if (status === 'PENDING' || status === 'APPROVED' || status === 'ALL') {
       const [txns, txnCount] = await Promise.all([
         prisma.stripeTransaction.findMany({
-          where: { matchedBillInstanceId: null },
+          where: bankStatusFilter,
           orderBy: { transactedAt: 'desc' },
           take: limit,
           include: {
@@ -54,7 +62,7 @@ export async function GET(request: NextRequest) {
           }
         }),
         prisma.stripeTransaction.count({
-          where: { matchedBillInstanceId: null }
+          where: bankStatusFilter
         })
       ])
       bankTransactions = txns
@@ -64,7 +72,7 @@ export async function GET(request: NextRequest) {
     // Get pending counts for badge
     const [pendingEmailCount, pendingBankCount] = await Promise.all([
       prisma.proposedBill.count({ where: { status: 'PENDING' } }),
-      prisma.stripeTransaction.count({ where: { matchedBillInstanceId: null } })
+      prisma.stripeTransaction.count({ where: { approvalStatus: 'PENDING' } })
     ])
 
     return NextResponse.json({

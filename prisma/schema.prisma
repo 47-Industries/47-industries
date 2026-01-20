@@ -2907,8 +2907,9 @@ model StripeTransaction {
   postedAt              DateTime?
   
   // Status
-  status                String    // pending, posted
-  
+  status                String    // pending, posted (Stripe status)
+  approvalStatus        String    @default("PENDING") // PENDING, APPROVED, SKIPPED
+
   // Bill matching
   matchedBillInstanceId  String?   // If matched to a BillInstance
   matchedRecurringBillId String?   // Pre-matched to RecurringBill before approval

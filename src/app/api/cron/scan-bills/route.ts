@@ -426,10 +426,14 @@ async function autoApproveTransaction(transactionId: string, recurringBill: any)
     }
   })
 
-  // Link transaction to the bill instance
+  // Link transaction to the bill instance and mark as approved
   await prisma.stripeTransaction.update({
     where: { id: transactionId },
-    data: { matchedBillInstanceId: billInstance.id }
+    data: {
+      matchedBillInstanceId: billInstance.id,
+      approvalStatus: 'APPROVED',
+      matchedAt: new Date()
+    }
   })
 
   console.log(`[CRON] Auto-approved transaction as ${recurringBill.vendor}: $${amount}`)

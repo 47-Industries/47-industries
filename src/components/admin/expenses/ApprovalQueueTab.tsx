@@ -189,12 +189,6 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   }
 
   const handleReject = async (item: ApprovalItem, reason?: string) => {
-    if (item.type === 'bank') {
-      // For bank transactions, we just ignore/skip them - no reject action needed
-      setError('Bank transactions can only be approved or skipped')
-      return
-    }
-
     setProcessing(item.id)
     try {
       const billId = item.id.replace('email-', '')
@@ -211,6 +205,31 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
       }
     } catch (err) {
       setError('Failed to reject')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleSkip = async (item: ApprovalItem) => {
+    if (item.type !== 'bank') return
+
+    setProcessing(item.id)
+    setError('')
+    try {
+      const txnId = item.id.replace('bank-', '')
+      const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      if (res.ok) {
+        setSuccess('Transaction skipped')
+        fetchItems()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to skip')
+      }
+    } catch (err) {
+      setError('Failed to skip')
     } finally {
       setProcessing(null)
     }
@@ -499,6 +518,24 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                           }}
                         >
                           Reject
+                        </button>
+                      )}
+                      {item.type === 'bank' && (
+                        <button
+                          onClick={() => handleSkip(item)}
+                          disabled={processing === item.id}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: '1px solid #71717a',
+                            background: 'transparent',
+                            color: '#a1a1aa',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            opacity: processing === item.id ? 0.5 : 1
+                          }}
+                        >
+                          Skip
                         </button>
                       )}
                     </>

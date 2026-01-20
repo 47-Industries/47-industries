@@ -126,12 +126,15 @@ export async function POST(
       await prisma.billSplit.createMany({ data: splits })
     }
 
-    // Link transaction to bill instance
+    // Link transaction to bill instance and mark as approved
     await prisma.stripeTransaction.update({
       where: { id },
       data: {
         matchedBillInstanceId: billInstance.id,
-        matchConfidence: 100 // Manual match
+        matchConfidence: 100, // Manual match
+        approvalStatus: 'APPROVED',
+        matchedBy: session.user.id,
+        matchedAt: new Date()
       }
     })
 
