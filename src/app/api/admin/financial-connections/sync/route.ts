@@ -42,12 +42,37 @@ export async function POST(request: NextRequest) {
 
     for (const account of accounts) {
       try {
+        // First, check if the account supports transactions and trigger refresh
+        try {
+          const stripeAccount = await stripe.financialConnections.accounts.retrieve(account.stripeAccountId)
+          console.log(`[SYNC] Account ${account.stripeAccountId} permissions:`, stripeAccount.permissions)
+          console.log(`[SYNC] Account ${account.stripeAccountId} supported features:`, stripeAccount.supported_payment_method_types)
+
+          // Check if transactions permission was granted
+          if (!stripeAccount.permissions?.includes('transactions')) {
+            results.errors.push(`${account.institutionName}: Transaction permission not granted. Reconnect account with transaction access.`)
+            continue
+          }
+
+          // Trigger a transaction refresh (Stripe fetches latest from bank)
+          // This is async - transactions may not be immediately available
+          await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
+            features: ['transactions']
+          })
+          console.log(`[SYNC] Triggered transaction refresh for ${account.stripeAccountId}`)
+        } catch (refreshErr: any) {
+          console.log(`[SYNC] Refresh note for ${account.stripeAccountId}:`, refreshErr.message)
+          // Continue anyway - transactions might already be available
+        }
+
         // Fetch transactions from Stripe
         // Note: Stripe Financial Connections transactions API
         const transactions = await stripe.financialConnections.transactions.list({
           account: account.stripeAccountId,
           limit: 100
         })
+
+        console.log(`[SYNC] Found ${transactions.data.length} transactions for ${account.stripeAccountId}`)
 
         for (const txn of transactions.data) {
           // Check if transaction already exists
@@ -87,6 +112,11 @@ export async function POST(request: NextRequest) {
           data: { lastSyncError: err.message }
         })
       }
+    }
+
+    // Add helpful message if no transactions found
+    if (results.transactionsAdded === 0 && results.accountsSynced > 0 && results.errors.length === 0) {
+      results.errors.push('Transaction refresh triggered. Transactions may take a few minutes to appear. Try syncing again shortly.')
     }
 
     return NextResponse.json({
