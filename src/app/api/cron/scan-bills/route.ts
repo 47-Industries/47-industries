@@ -21,93 +21,131 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Get daysBack from query params (default 1 for cron, can be up to 60 for deep scan)
+  // Get daysBack and mode from query params
   const { searchParams } = new URL(request.url)
   const daysBackParam = searchParams.get('daysBack')
   const daysBack = Math.min(Math.max(parseInt(daysBackParam || '1') || 1, 1), 60)
+  const mode = searchParams.get('mode') || 'proposed' // 'proposed' or 'legacy'
 
   try {
-    console.log(`[SCAN] Starting bill scan (${daysBack} days back)...`)
-
-    // Check if Gmail is configured
-    if (!process.env.GMAIL_REFRESH_TOKEN) {
-      console.error('[SCAN] GMAIL_REFRESH_TOKEN not configured')
-      return NextResponse.json({
-        success: false,
-        error: 'Gmail not configured',
-        message: 'GMAIL_REFRESH_TOKEN environment variable is missing'
-      }, { status: 500 })
-    }
-
-    // Fetch emails from specified days back
-    const emails = await gmailScanner.fetchFromAllAccounts(daysBack)
-    console.log(`[SCAN] Found ${emails.length} emails to process`)
+    console.log(`[SCAN] Starting bill scan (${daysBack} days back, mode: ${mode})...`)
 
     const results = {
       processed: 0,
-      created: 0,
+      proposed: 0, // New: proposed bills created
+      created: 0,  // Legacy: direct bills created
       paid: 0,
       skipped: 0,
       errors: 0,
       notifications: 0
     }
 
-    for (const email of emails) {
-      try {
-        // Check if already processed in database
-        const alreadyProcessed = await gmailScanner.isEmailProcessed(email.id)
-        if (alreadyProcessed) {
-          results.skipped++
-          continue
-        }
+    // Check for database-configured email accounts
+    const dbGmailAccounts = await prisma.emailAccount.count({
+      where: { provider: 'GMAIL', isActive: true, scanForBills: true }
+    })
+    const dbZohoAccounts = await prisma.emailAccount.count({
+      where: { provider: 'ZOHO', isActive: true, scanForBills: true }
+    })
 
-        // Process the email
-        const result = await billParser.processEmail(email)
-        results.processed++
+    // If no database accounts, fall back to env var check
+    if (dbGmailAccounts === 0 && dbZohoAccounts === 0 && !process.env.GMAIL_REFRESH_TOKEN) {
+      console.error('[SCAN] No email accounts configured')
+      return NextResponse.json({
+        success: false,
+        error: 'No email accounts configured',
+        message: 'Add email accounts in Settings or set GMAIL_REFRESH_TOKEN'
+      }, { status: 500 })
+    }
 
-        if (result.created) {
-          results.created++
+    // Scan Gmail accounts
+    const gmailResults = await gmailScanner.fetchFromAllAccountsWithInfo(daysBack)
+    let totalEmails = 0
 
-          // Send push notification for new bills
-          if (result.action === 'created_new') {
-            const billInstance = await prisma.billInstance.findUnique({
-              where: { id: result.billId }
-            })
+    for (const accountResult of gmailResults) {
+      totalEmails += accountResult.emails.length
 
-            if (billInstance) {
-              await pushService.sendBillNotification(
-                billInstance.vendor,
-                Number(billInstance.amount),
-                billInstance.dueDate?.toISOString().split('T')[0] || null
-              )
-              results.notifications++
+      for (const email of accountResult.emails) {
+        try {
+          // Check if already processed in database
+          const alreadyProcessed = await gmailScanner.isEmailProcessed(email.id)
+          if (alreadyProcessed) {
+            results.skipped++
+            continue
+          }
+
+          if (mode === 'proposed') {
+            // New flow: Create proposed bills for manual approval
+            const result = await billParser.processEmailToProposed(email, 'GMAIL', accountResult.accountId)
+            results.processed++
+
+            if (result.created) {
+              results.proposed++
+            } else if (result.action === 'already_proposed' || result.action === 'already_processed') {
+              results.skipped++
+            }
+          } else {
+            // Legacy flow: Direct bill creation
+            const result = await billParser.processEmail(email)
+            results.processed++
+
+            if (result.created) {
+              results.created++
+
+              // Send push notification for new bills
+              if (result.action === 'created_new') {
+                const billInstance = await prisma.billInstance.findUnique({
+                  where: { id: result.billId }
+                })
+
+                if (billInstance) {
+                  await pushService.sendBillNotification(
+                    billInstance.vendor,
+                    Number(billInstance.amount),
+                    billInstance.dueDate?.toISOString().split('T')[0] || null
+                  )
+                  results.notifications++
+                }
+              }
+            }
+
+            if (result.action === 'marked_paid') {
+              results.paid++
+
+              // Send push notification for payment confirmations
+              const billInstance = await prisma.billInstance.findUnique({
+                where: { id: result.billId }
+              })
+
+              if (billInstance) {
+                await pushService.sendPaymentConfirmation(
+                  billInstance.vendor,
+                  Number(billInstance.amount)
+                )
+                results.notifications++
+              }
+            }
+
+            if (result.action === 'not_a_bill' || result.action === 'already_processed') {
+              results.skipped++
             }
           }
+        } catch (error: any) {
+          console.error(`[CRON] Error processing email ${email.id}:`, error.message)
+          results.errors++
         }
+      }
+    }
 
-        if (result.action === 'marked_paid') {
-          results.paid++
+    // Scan Zoho accounts (if any)
+    if (dbZohoAccounts > 0) {
+      const { zohoBillScanner } = await import('@/lib/zoho-bill-scanner')
+      const zohoResults = await zohoBillScanner.scanAllAccounts(daysBack)
+      totalEmails += zohoResults.totalEmails
+      results.proposed += zohoResults.proposedBills
 
-          // Send push notification for payment confirmations
-          const billInstance = await prisma.billInstance.findUnique({
-            where: { id: result.billId }
-          })
-
-          if (billInstance) {
-            await pushService.sendPaymentConfirmation(
-              billInstance.vendor,
-              Number(billInstance.amount)
-            )
-            results.notifications++
-          }
-        }
-
-        if (result.action === 'not_a_bill' || result.action === 'already_processed') {
-          results.skipped++
-        }
-      } catch (error: any) {
-        console.error(`[CRON] Error processing email ${email.id}:`, error.message)
-        results.errors++
+      if (zohoResults.errors.length > 0) {
+        results.errors += zohoResults.errors.length
       }
     }
 
@@ -120,7 +158,8 @@ export async function GET(request: NextRequest) {
       success: true,
       timestamp: new Date().toISOString(),
       daysBack,
-      emailsFound: emails.length,
+      mode,
+      emailsFound: totalEmails,
       results
     })
   } catch (error: any) {

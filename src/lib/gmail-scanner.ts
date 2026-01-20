@@ -16,9 +16,20 @@ interface EmailMessage {
   date: string
 }
 
+interface EmailAccountInfo {
+  id: string
+  email: string
+  refreshToken: string
+  accessToken?: string
+  tokenExpiry?: Date | null
+}
+
 export class GmailScanner {
   private processedEmailIds: Set<string> = new Set()
 
+  /**
+   * Get refresh tokens from environment variables (legacy support)
+   */
   async getRefreshTokens(): Promise<string[]> {
     // Support multiple Gmail accounts
     const tokens: string[] = []
@@ -26,6 +37,37 @@ export class GmailScanner {
     if (process.env.GMAIL_REFRESH_TOKEN_2) tokens.push(process.env.GMAIL_REFRESH_TOKEN_2)
     if (process.env.GMAIL_REFRESH_TOKEN_3) tokens.push(process.env.GMAIL_REFRESH_TOKEN_3)
     return tokens
+  }
+
+  /**
+   * Get Gmail accounts from the EmailAccount database table
+   */
+  async getEmailAccountsFromDb(): Promise<EmailAccountInfo[]> {
+    const accounts = await prisma.emailAccount.findMany({
+      where: {
+        provider: 'GMAIL',
+        isActive: true,
+        scanForBills: true,
+        refreshToken: { not: null }
+      },
+      select: {
+        id: true,
+        email: true,
+        refreshToken: true,
+        accessToken: true,
+        tokenExpiry: true
+      }
+    })
+
+    return accounts
+      .filter(a => a.refreshToken)
+      .map(a => ({
+        id: a.id,
+        email: a.email,
+        refreshToken: a.refreshToken!,
+        accessToken: a.accessToken || undefined,
+        tokenExpiry: a.tokenExpiry
+      }))
   }
 
   buildSearchQuery(): string {
@@ -169,19 +211,94 @@ export class GmailScanner {
   }
 
   async fetchFromAllAccounts(daysBack: number = 1): Promise<EmailMessage[]> {
-    const tokens = await this.getRefreshTokens()
     const allEmails: EmailMessage[] = []
 
-    for (const token of tokens) {
-      try {
-        const emails = await this.fetchRecentEmails(token, daysBack)
-        allEmails.push(...emails)
-      } catch (error: any) {
-        console.error('Error fetching from account:', error.message)
+    // First try database accounts
+    const dbAccounts = await this.getEmailAccountsFromDb()
+    if (dbAccounts.length > 0) {
+      console.log(`[GMAIL] Fetching from ${dbAccounts.length} database accounts`)
+      for (const account of dbAccounts) {
+        try {
+          const emails = await this.fetchRecentEmails(account.refreshToken, daysBack)
+          allEmails.push(...emails)
+
+          // Update last sync time
+          await prisma.emailAccount.update({
+            where: { id: account.id },
+            data: { lastSyncAt: new Date(), lastSyncError: null }
+          })
+        } catch (error: any) {
+          console.error(`[GMAIL] Error fetching from ${account.email}:`, error.message)
+          await prisma.emailAccount.update({
+            where: { id: account.id },
+            data: { lastSyncError: error.message }
+          })
+        }
+      }
+    }
+
+    // Fall back to env var tokens if no database accounts
+    if (dbAccounts.length === 0) {
+      const tokens = await this.getRefreshTokens()
+      console.log(`[GMAIL] Fetching from ${tokens.length} env var accounts`)
+      for (const token of tokens) {
+        try {
+          const emails = await this.fetchRecentEmails(token, daysBack)
+          allEmails.push(...emails)
+        } catch (error: any) {
+          console.error('[GMAIL] Error fetching from env account:', error.message)
+        }
       }
     }
 
     return allEmails
+  }
+
+  /**
+   * Fetch from all accounts and return with account info for proposed bills
+   */
+  async fetchFromAllAccountsWithInfo(daysBack: number = 1): Promise<{
+    emails: EmailMessage[]
+    accountId?: string
+    source: 'GMAIL'
+  }[]> {
+    const results: { emails: EmailMessage[]; accountId?: string; source: 'GMAIL' }[] = []
+
+    // First try database accounts
+    const dbAccounts = await this.getEmailAccountsFromDb()
+    for (const account of dbAccounts) {
+      try {
+        const emails = await this.fetchRecentEmails(account.refreshToken, daysBack)
+        results.push({ emails, accountId: account.id, source: 'GMAIL' })
+
+        // Update last sync time
+        await prisma.emailAccount.update({
+          where: { id: account.id },
+          data: { lastSyncAt: new Date(), lastSyncError: null }
+        })
+      } catch (error: any) {
+        console.error(`[GMAIL] Error fetching from ${account.email}:`, error.message)
+        await prisma.emailAccount.update({
+          where: { id: account.id },
+          data: { lastSyncError: error.message }
+        })
+      }
+    }
+
+    // Fall back to env var tokens if no database accounts
+    if (dbAccounts.length === 0) {
+      const tokens = await this.getRefreshTokens()
+      for (const token of tokens) {
+        try {
+          const emails = await this.fetchRecentEmails(token, daysBack)
+          results.push({ emails, source: 'GMAIL' })
+        } catch (error: any) {
+          console.error('[GMAIL] Error fetching from env account:', error.message)
+        }
+      }
+    }
+
+    return results
   }
 
   async isEmailProcessed(emailId: string): Promise<boolean> {

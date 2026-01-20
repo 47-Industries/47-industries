@@ -296,7 +296,7 @@ If this is not a bill or payment, return confidence: 0.`
         (recurringBill?.amountType === 'VARIABLE' && parsed.amount !== Number(existingBill.amount))
       )
 
-      if (shouldUpdateAmount) {
+      if (shouldUpdateAmount && parsed.amount) {
         await prisma.billInstance.update({
           where: { id: existingBill.id },
           data: {
@@ -471,6 +471,290 @@ If this is not a bill or payment, return confidence: 0.`
     }).catch(() => {
       // Ignore duplicate errors
     })
+  }
+
+  /**
+   * Process an email and create a ProposedBill instead of BillInstance.
+   * All bills require manual approval before being created as actual BillInstances.
+   */
+  async processEmailToProposed(
+    email: EmailData,
+    source: 'GMAIL' | 'ZOHO',
+    sourceAccountId?: string
+  ): Promise<{ created: boolean; proposedBillId?: string; action: string }> {
+    // Check if already processed
+    const existing = await prisma.processedEmail.findUnique({
+      where: { emailId: email.id }
+    })
+
+    if (existing) {
+      return { created: false, action: 'already_processed' }
+    }
+
+    // Check if we already have a proposed bill for this email
+    const existingProposed = await prisma.proposedBill.findUnique({
+      where: { emailId: email.id }
+    })
+
+    if (existingProposed) {
+      return { created: false, proposedBillId: existingProposed.id, action: 'already_proposed' }
+    }
+
+    // Parse the email
+    const parsed = await this.parseEmail(email)
+
+    // Find matching recurring bill if any
+    const recurringBill = await this.matchRecurringBill(email)
+
+    // Create proposed bill regardless of parse result (even low confidence)
+    // The human reviewer can decide if it's a real bill
+    try {
+      const proposedBill = await prisma.proposedBill.create({
+        data: {
+          source,
+          sourceAccountId,
+          emailId: email.id,
+          emailSubject: email.subject || null,
+          emailFrom: email.from,
+          emailDate: email.date ? new Date(email.date) : null,
+          emailBody: email.body?.substring(0, 10000) || null, // Limit body size
+
+          // Parsed data (may be null/incomplete)
+          vendor: parsed?.vendor || this.extractVendorFromEmail(email),
+          vendorType: parsed?.vendorType || null,
+          amount: parsed?.amount || null,
+          dueDate: parsed?.dueDate ? new Date(parsed.dueDate) : null,
+          isPaid: parsed?.isPaid || false,
+          paymentMethod: parsed?.paymentMethod || null,
+
+          // AI metadata
+          confidence: parsed?.confidence || 0,
+          parseRawOutput: parsed ? JSON.parse(JSON.stringify(parsed)) : null,
+
+          // Matching
+          matchedRecurringBillId: recurringBill?.id || null,
+
+          // Status
+          status: 'PENDING'
+        }
+      })
+
+      // Mark email as processed
+      await this.markProcessed(email.id, parsed?.vendor || 'Unknown')
+
+      console.log(`[PARSER] Created proposed bill: ${parsed?.vendor || 'Unknown'} - confidence: ${parsed?.confidence || 0}`)
+      return { created: true, proposedBillId: proposedBill.id, action: 'proposed' }
+    } catch (error: any) {
+      console.error('[PARSER] Error creating proposed bill:', error.message)
+      return { created: false, action: `error: ${error.message}` }
+    }
+  }
+
+  /**
+   * Extract a vendor name from the email when AI parsing fails
+   */
+  private extractVendorFromEmail(email: EmailData): string {
+    // Try to extract from the "from" address
+    const from = email.from.toLowerCase()
+
+    // Known vendor patterns
+    const vendors: Record<string, string> = {
+      'duke-energy': 'Duke Energy',
+      'duke energy': 'Duke Energy',
+      'chase': 'Chase',
+      'americanexpress': 'American Express',
+      'amex': 'American Express',
+      'bankofamerica': 'Bank of America',
+      'wells fargo': 'Wells Fargo',
+      'verizon': 'Verizon',
+      'spectrum': 'Spectrum',
+      'comcast': 'Comcast',
+      'xfinity': 'Xfinity',
+      'zelle': 'Zelle Transfer',
+      'venmo': 'Venmo',
+      'paypal': 'PayPal'
+    }
+
+    for (const [pattern, vendor] of Object.entries(vendors)) {
+      if (from.includes(pattern)) {
+        return vendor
+      }
+    }
+
+    // Try to extract from email domain
+    const domainMatch = from.match(/@([^>]+)/)
+    if (domainMatch) {
+      const domain = domainMatch[1].split('.')[0]
+      return domain.charAt(0).toUpperCase() + domain.slice(1)
+    }
+
+    return 'Unknown Vendor'
+  }
+
+  /**
+   * Approve a proposed bill - creates BillInstance with splits
+   */
+  async approveProposedBill(
+    proposedBillId: string,
+    reviewerId: string,
+    overrides?: {
+      vendor?: string
+      vendorType?: string
+      amount?: number
+      dueDate?: string
+    }
+  ): Promise<{ success: boolean; billInstanceId?: string; error?: string }> {
+    try {
+      const proposed = await prisma.proposedBill.findUnique({
+        where: { id: proposedBillId }
+      })
+
+      if (!proposed) {
+        return { success: false, error: 'Proposed bill not found' }
+      }
+
+      if (proposed.status !== 'PENDING') {
+        return { success: false, error: `Bill already ${proposed.status.toLowerCase()}` }
+      }
+
+      // Merge overrides with proposed data
+      const vendor = overrides?.vendor || proposed.vendor || 'Unknown'
+      const vendorType = overrides?.vendorType || proposed.vendorType || 'OTHER'
+      const amount = overrides?.amount ?? (proposed.amount ? Number(proposed.amount) : 0)
+      const dueDate = overrides?.dueDate
+        ? new Date(overrides.dueDate)
+        : proposed.dueDate || new Date()
+
+      // Determine period
+      const period = dueDate.toISOString().slice(0, 7)
+
+      // Get team members who split expenses
+      const splitters = await prisma.teamMember.findMany({
+        where: { splitsExpenses: true, status: 'ACTIVE' },
+        select: { id: true }
+      })
+
+      // Check for linked recurring bill to get default splitters
+      let splittersToUse: { id: string; splitPercent?: number }[] = []
+
+      if (proposed.matchedRecurringBillId) {
+        const recurring = await prisma.recurringBill.findUnique({
+          where: { id: proposed.matchedRecurringBillId },
+          include: { defaultSplitters: true }
+        })
+
+        if (recurring?.defaultSplitters?.length) {
+          splittersToUse = recurring.defaultSplitters.map(s => ({
+            id: s.teamMemberId,
+            splitPercent: s.splitPercent ? Number(s.splitPercent) : undefined
+          }))
+        }
+      }
+
+      if (splittersToUse.length === 0) {
+        splittersToUse = splitters.map(s => ({ id: s.id }))
+      }
+
+      // Create bill instance
+      const billInstance = await prisma.billInstance.create({
+        data: {
+          recurringBillId: proposed.matchedRecurringBillId,
+          vendor,
+          vendorType,
+          amount,
+          dueDate,
+          period,
+          status: proposed.isPaid ? 'PAID' : 'PENDING',
+          paidDate: proposed.isPaid ? new Date() : null,
+          paidVia: proposed.isPaid ? (proposed.paymentMethod || 'Via proposed bill') : null,
+          emailId: proposed.emailId,
+          emailSubject: proposed.emailSubject,
+          emailFrom: proposed.emailFrom
+        }
+      })
+
+      // Create bill splits
+      if (splittersToUse.length > 0 && amount > 0) {
+        const splits = splittersToUse.map(splitter => {
+          let splitAmount: number
+          let splitPercent: number | null = null
+
+          if (splitter.splitPercent) {
+            splitPercent = splitter.splitPercent
+            splitAmount = amount * (splitter.splitPercent / 100)
+          } else {
+            splitAmount = amount / splittersToUse.length
+          }
+
+          return {
+            billInstanceId: billInstance.id,
+            teamMemberId: splitter.id,
+            amount: splitAmount,
+            splitPercent,
+            status: proposed.isPaid ? 'PAID' : 'PENDING',
+            paidDate: proposed.isPaid ? new Date() : null
+          }
+        })
+
+        await prisma.billSplit.createMany({ data: splits })
+      }
+
+      // Update proposed bill status
+      await prisma.proposedBill.update({
+        where: { id: proposedBillId },
+        data: {
+          status: 'APPROVED',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          createdBillInstanceId: billInstance.id
+        }
+      })
+
+      console.log(`[PARSER] Approved proposed bill ${proposedBillId} -> BillInstance ${billInstance.id}`)
+      return { success: true, billInstanceId: billInstance.id }
+    } catch (error: any) {
+      console.error('[PARSER] Error approving proposed bill:', error.message)
+      return { success: false, error: error.message }
+    }
+  }
+
+  /**
+   * Reject a proposed bill
+   */
+  async rejectProposedBill(
+    proposedBillId: string,
+    reviewerId: string,
+    reason?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const proposed = await prisma.proposedBill.findUnique({
+        where: { id: proposedBillId }
+      })
+
+      if (!proposed) {
+        return { success: false, error: 'Proposed bill not found' }
+      }
+
+      if (proposed.status !== 'PENDING') {
+        return { success: false, error: `Bill already ${proposed.status.toLowerCase()}` }
+      }
+
+      await prisma.proposedBill.update({
+        where: { id: proposedBillId },
+        data: {
+          status: 'REJECTED',
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          rejectionReason: reason || null
+        }
+      })
+
+      console.log(`[PARSER] Rejected proposed bill ${proposedBillId}: ${reason || 'No reason provided'}`)
+      return { success: true }
+    } catch (error: any) {
+      console.error('[PARSER] Error rejecting proposed bill:', error.message)
+      return { success: false, error: error.message }
+    }
   }
 }
 

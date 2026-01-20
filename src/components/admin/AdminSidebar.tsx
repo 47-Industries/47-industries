@@ -21,14 +21,15 @@ interface AdminSidebarProps {
   isMobileMenuOpen: boolean
   onCloseMobile: () => void
   brandingFontClass?: string
+  hiddenSections?: string[]
 }
 
-export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile, brandingFontClass }: AdminSidebarProps) {
+export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile, brandingFontClass, hiddenSections = [] }: AdminSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [collapsedSections, setCollapsedSections] = useState<string[]>([])
 
-  const navSections: NavSection[] = [
+  const allNavSections: NavSection[] = [
     {
       title: 'Overview',
       items: [
@@ -110,6 +111,11 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       ],
     },
   ]
+
+  // Filter out hidden sections
+  const navSections = allNavSections.filter(
+    section => !hiddenSections.includes(section.title)
+  )
 
   const toggleSection = (title: string) => {
     setCollapsedSections((prev) =>

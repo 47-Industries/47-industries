@@ -23,6 +23,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [hiddenSections, setHiddenSections] = useState<string[]>([])
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // SECURITY: Redirect to login if not authenticated or not an admin
@@ -70,6 +71,37 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Fetch expense permission to conditionally hide Finance section
+  useEffect(() => {
+    if (status !== 'authenticated' || !session) return
+
+    // SUPER_ADMIN always sees everything
+    if (session.user?.role === 'SUPER_ADMIN') {
+      setHiddenSections([])
+      return
+    }
+
+    // For other users, check if they can access expenses
+    const checkExpensePermission = async () => {
+      try {
+        const res = await fetch('/api/admin/expense-permission')
+        if (res.ok) {
+          const data = await res.json()
+          if (!data.canAccess) {
+            setHiddenSections(['Finance'])
+          } else {
+            setHiddenSections([])
+          }
+        }
+      } catch (error) {
+        // On error, hide Finance section for safety
+        setHiddenSections(['Finance'])
+      }
+    }
+
+    checkExpensePermission()
+  }, [session, status])
 
   // Login and password reset pages get NO admin layout - just render children directly
   if (isAuthExemptPage) {
@@ -156,6 +188,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobile={closeMobileMenu}
           brandingFontClass={spaceGrotesk.className}
+          hiddenSections={hiddenSections}
         />
       </Suspense>
 

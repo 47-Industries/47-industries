@@ -1,6 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ExpenseAccessDenied from '@/components/admin/ExpenseAccessDenied'
+import ApprovalQueueTab from '@/components/admin/expenses/ApprovalQueueTab'
+import TransactionsTab from '@/components/admin/expenses/TransactionsTab'
+import ExpenseSettingsTab from '@/components/admin/expenses/ExpenseSettingsTab'
+
+type TabType = 'bills' | 'approval' | 'transactions' | 'settings'
+
+interface ExpensePermission {
+  canAccess: boolean
+  userId: string | null
+  teamMemberId: string | null
+  reason: string
+}
 
 interface Splitter {
   id: string
@@ -58,6 +71,15 @@ export default function ExpensesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Permission checking
+  const [permissionLoading, setPermissionLoading] = useState(true)
+  const [permission, setPermission] = useState<ExpensePermission | null>(null)
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>('bills')
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
+  const [unmatchedTransactionCount, setUnmatchedTransactionCount] = useState(0)
+
   const [bills, setBills] = useState<BillInstance[]>([])
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
   const [splitters, setSplitters] = useState<Splitter[]>([])
@@ -79,9 +101,63 @@ export default function ExpensesPage() {
   const [billHistory, setBillHistory] = useState<BillInstance[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
+  // Check permission on mount
   useEffect(() => {
-    fetchData()
-  }, [currentPeriod])
+    const checkPermission = async () => {
+      try {
+        const res = await fetch('/api/admin/expense-permission')
+        if (res.ok) {
+          const data = await res.json()
+          setPermission(data)
+        } else {
+          setPermission({
+            canAccess: false,
+            userId: null,
+            teamMemberId: null,
+            reason: 'Failed to check permission'
+          })
+        }
+      } catch (err) {
+        setPermission({
+          canAccess: false,
+          userId: null,
+          teamMemberId: null,
+          reason: 'Error checking permission'
+        })
+      } finally {
+        setPermissionLoading(false)
+      }
+    }
+    checkPermission()
+  }, [])
+
+  useEffect(() => {
+    // Only fetch data if permission is granted
+    if (permission?.canAccess) {
+      fetchData()
+      fetchBadgeCounts()
+    }
+  }, [currentPeriod, permission?.canAccess])
+
+  const fetchBadgeCounts = async () => {
+    try {
+      // Fetch pending approval count
+      const proposedRes = await fetch('/api/admin/proposed-bills?status=PENDING&limit=1')
+      if (proposedRes.ok) {
+        const data = await proposedRes.json()
+        setPendingApprovalCount(data.pendingCount || 0)
+      }
+
+      // Fetch unmatched transaction count
+      const txnRes = await fetch('/api/admin/financial-connections/transactions?matched=false&limit=1')
+      if (txnRes.ok) {
+        const data = await txnRes.json()
+        setUnmatchedTransactionCount(data.unmatchedCount || 0)
+      }
+    } catch (err) {
+      console.error('Failed to fetch badge counts:', err)
+    }
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -357,29 +433,103 @@ export default function ExpensesPage() {
     return { splitter: s, pending, paid }
   })
 
+  // Show loading while checking permission
+  if (permissionLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px', color: '#71717a' }}>
+        Checking access...
+      </div>
+    )
+  }
+
+  // Show access denied if no permission
+  if (!permission?.canAccess) {
+    return <ExpenseAccessDenied reason={permission?.reason} />
+  }
+
+  const tabs = [
+    { id: 'bills' as TabType, label: 'Bills', badge: null },
+    { id: 'approval' as TabType, label: 'Approval Queue', badge: pendingApprovalCount },
+    { id: 'transactions' as TabType, label: 'Transactions', badge: unmatchedTransactionCount },
+    { id: 'settings' as TabType, label: 'Settings', badge: null }
+  ]
+
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '16px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: 700, marginBottom: '4px' }}>Expenses</h1>
         <p style={{ color: '#71717a', fontSize: '14px' }}>Track and manage shared bills</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid #27272a', paddingBottom: '0' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '12px 20px',
+              background: activeTab === tab.id ? '#18181b' : 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '2px solid #3b82f6' : '2px solid transparent',
+              color: activeTab === tab.id ? '#ffffff' : '#71717a',
+              cursor: 'pointer',
+              fontWeight: 500,
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.15s'
+            }}
+          >
+            {tab.label}
+            {tab.badge !== null && tab.badge > 0 && (
+              <span style={{
+                background: tab.id === 'approval' ? '#f59e0b' : '#3b82f6',
+                color: '#000',
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: '12px',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Messages */}
       {error && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
           {error}
-          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>×</button>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>x</button>
         </div>
       )}
       {success && (
         <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
           {success}
-          <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}>×</button>
+          <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}>x</button>
         </div>
       )}
 
-      {loading ? (
+      {/* Tab Content */}
+      {activeTab === 'approval' && (
+        <ApprovalQueueTab onCountChange={setPendingApprovalCount} />
+      )}
+
+      {activeTab === 'transactions' && (
+        <TransactionsTab onCountChange={setUnmatchedTransactionCount} />
+      )}
+
+      {activeTab === 'settings' && (
+        <ExpenseSettingsTab />
+      )}
+
+      {activeTab === 'bills' && (loading ? (
         <div style={{ textAlign: 'center', padding: '48px', color: '#71717a' }}>Loading...</div>
       ) : (
         <>
@@ -643,7 +793,7 @@ export default function ExpensesPage() {
             )}
           </div>
         </>
-      )}
+      ))}
 
       {/* Add Bill Modal */}
       {showAddBillModal && (

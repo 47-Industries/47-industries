@@ -2765,3 +2765,157 @@ model TeamMemberPayment {
   @@index([type])
   @@index([paymentNumber])
 }
+
+// ============================================
+// EXPENSE MANAGEMENT - PROPOSED BILLS & EMAIL ACCOUNTS
+// ============================================
+
+// ProposedBill - Bills awaiting manual approval
+model ProposedBill {
+  id                     String    @id @default(cuid())
+  
+  // Source information
+  source                 String    // "GMAIL", "ZOHO"
+  sourceAccountId        String?   // Reference to EmailAccount.id
+  emailId                String    @unique // Email message ID
+  emailSubject           String?
+  emailFrom              String
+  emailDate              DateTime?
+  emailBody              String?   @db.Text
+  
+  // Parsed bill data
+  vendor                 String?
+  vendorType             String?   // UTILITY, CREDIT_CARD, RENT, SUBSCRIPTION, OTHER
+  amount                 Decimal?  @db.Decimal(10, 2)
+  dueDate                DateTime?
+  isPaid                 Boolean   @default(false)
+  paymentMethod          String?
+  
+  // AI parsing metadata
+  confidence             Int       @default(0) // 0-100
+  parseRawOutput         Json?     // Store raw AI output for debugging
+  
+  // Matching
+  matchedRecurringBillId String?
+  
+  // Approval status
+  status                 String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy             String?   // User ID who reviewed
+  reviewedAt             DateTime?
+  rejectionReason        String?
+  
+  // If approved, link to created BillInstance
+  createdBillInstanceId  String?
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  
+  @@index([status, createdAt])
+  @@index([source])
+  @@index([vendor])
+  @@index([matchedRecurringBillId])
+}
+
+// EmailAccount - Configurable email accounts for bill scanning
+model EmailAccount {
+  id            String    @id @default(cuid())
+  
+  // Provider info
+  provider      String    // "GMAIL", "ZOHO"
+  email         String    @unique
+  displayName   String?
+  
+  // OAuth tokens
+  accessToken   String?   @db.Text
+  refreshToken  String?   @db.Text
+  tokenExpiry   DateTime?
+  
+  // Provider-specific IDs
+  zohoAccountId String?   // For Zoho: the account ID within Zoho
+  
+  // Status
+  isActive      Boolean   @default(true)
+  scanForBills  Boolean   @default(true) // Whether to scan this account for bills
+  
+  // Sync info
+  lastSyncAt    DateTime?
+  lastSyncError String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([provider])
+  @@index([isActive, scanForBills])
+}
+
+// ============================================
+// STRIPE FINANCIAL CONNECTIONS
+// ============================================
+
+// StripeFinancialAccount - Connected bank/credit card accounts
+model StripeFinancialAccount {
+  id                String    @id @default(cuid())
+  
+  // Stripe identifiers
+  stripeAccountId   String    @unique // Financial Connections account ID
+  stripeSessionId   String?   // The session that created this connection
+  
+  // Account info
+  institutionName   String    // "Chase", "Bank of America"
+  accountName       String?   // User's account name/nickname
+  accountType       String    // "checking", "savings", "credit"
+  accountLast4      String?   // Last 4 digits
+  
+  // Status
+  status            String    @default("ACTIVE") // ACTIVE, INACTIVE, DISCONNECTED
+  
+  // Sync info
+  lastSyncAt        DateTime?
+  lastSyncError     String?   @db.Text
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  transactions      StripeTransaction[]
+  
+  @@index([status])
+  @@index([institutionName])
+}
+
+// StripeTransaction - Imported transactions from Stripe Financial Connections
+model StripeTransaction {
+  id                    String    @id @default(cuid())
+  
+  // Link to financial account
+  financialAccountId    String
+  financialAccount      StripeFinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+  
+  // Stripe transaction data
+  stripeTransactionId   String    @unique
+  amount                Decimal   @db.Decimal(12, 2) // Positive = credit, Negative = debit
+  description           String?
+  merchantName          String?
+  category              String?   // Stripe's category (entertainment, food_and_drink, etc.)
+  
+  // Transaction timing
+  transactedAt          DateTime
+  postedAt              DateTime?
+  
+  // Status
+  status                String    // pending, posted
+  
+  // Bill matching
+  matchedBillInstanceId String?   // If matched to a BillInstance
+  matchConfidence       Int?      // 0-100 confidence of match
+  matchedAt             DateTime?
+  matchedBy             String?   // User ID who confirmed match
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@index([financialAccountId])
+  @@index([transactedAt])
+  @@index([matchedBillInstanceId])
+  @@index([merchantName])
+}
