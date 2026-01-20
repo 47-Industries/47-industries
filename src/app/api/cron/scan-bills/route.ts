@@ -149,10 +149,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Sync bank transactions from Stripe Financial Connections
+    const transactionResults = await syncBankTransactions()
+
     // Generate any fixed recurring bills for current period
     await generateFixedBills()
 
-    console.log('[SCAN] Scan complete:', results)
+    console.log('[SCAN] Scan complete:', results, 'Transactions:', transactionResults)
 
     return NextResponse.json({
       success: true,
@@ -160,7 +163,8 @@ export async function GET(request: NextRequest) {
       daysBack,
       mode,
       emailsFound: totalEmails,
-      results
+      results,
+      transactions: transactionResults
     })
   } catch (error: any) {
     console.error('[CRON] Fatal error:', error.message)
@@ -243,6 +247,192 @@ async function generateFixedBills() {
       )
     }
   }
+}
+
+// Sync bank transactions from Stripe Financial Connections
+async function syncBankTransactions(): Promise<{
+  synced: number
+  autoMatched: number
+  errors: string[]
+}> {
+  const results = {
+    synced: 0,
+    autoMatched: 0,
+    errors: [] as string[]
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return results
+  }
+
+  try {
+    const Stripe = (await import('stripe')).default
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+
+    // Get all active financial accounts
+    const accounts = await prisma.stripeFinancialAccount.findMany({
+      where: { status: 'ACTIVE' }
+    })
+
+    if (accounts.length === 0) {
+      return results
+    }
+
+    // Get recurring bills for auto-matching
+    const recurringBills = await prisma.recurringBill.findMany({
+      where: { active: true }
+    })
+
+    for (const account of accounts) {
+      try {
+        // Subscribe and refresh
+        try {
+          await stripe.financialConnections.accounts.subscribe(account.stripeAccountId, {
+            features: ['transactions']
+          })
+          await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
+            features: ['transactions']
+          })
+        } catch (e) {
+          // Continue - might already be subscribed
+        }
+
+        // Fetch transactions
+        const transactions = await stripe.financialConnections.transactions.list({
+          account: account.stripeAccountId,
+          limit: 100
+        })
+
+        for (const txn of transactions.data) {
+          // Check if already synced
+          const existing = await prisma.stripeTransaction.findUnique({
+            where: { stripeTransactionId: txn.id }
+          })
+
+          if (existing) continue
+
+          // Try to auto-match to a recurring bill
+          const matchedRecurring = findMatchingRecurringBill(recurringBills, txn.description || '', Math.abs(txn.amount) / 100)
+
+          // Create the transaction record
+          const newTxn = await prisma.stripeTransaction.create({
+            data: {
+              financialAccountId: account.id,
+              stripeTransactionId: txn.id,
+              amount: txn.amount / 100,
+              description: txn.description || null,
+              merchantName: null,
+              category: null,
+              transactedAt: new Date(txn.transacted_at * 1000),
+              postedAt: txn.posted_at ? new Date(txn.posted_at * 1000) : null,
+              status: txn.status,
+              matchedRecurringBillId: matchedRecurring?.id || null,
+              matchConfidence: matchedRecurring ? 80 : null
+            }
+          })
+
+          results.synced++
+
+          // Auto-approve if matched to a recurring bill with autoApprove enabled
+          if (matchedRecurring?.autoApprove) {
+            await autoApproveTransaction(newTxn.id, matchedRecurring)
+            results.autoMatched++
+          }
+        }
+
+        // Update last sync time
+        await prisma.stripeFinancialAccount.update({
+          where: { id: account.id },
+          data: { lastSyncAt: new Date() }
+        })
+      } catch (err: any) {
+        results.errors.push(`${account.institutionName}: ${err.message}`)
+      }
+    }
+  } catch (error: any) {
+    results.errors.push(`Sync error: ${error.message}`)
+  }
+
+  return results
+}
+
+// Find a recurring bill that matches the transaction
+function findMatchingRecurringBill(
+  recurringBills: any[],
+  description: string,
+  amount: number
+): any | null {
+  const descLower = description.toLowerCase()
+
+  for (const bill of recurringBills) {
+    const vendorLower = bill.vendor.toLowerCase()
+
+    // Check if description contains vendor name (or vice versa)
+    const nameMatch = descLower.includes(vendorLower) || vendorLower.includes(descLower.split(' ')[0])
+
+    // Check amount match (exact or within 5%)
+    const billAmount = bill.fixedAmount ? Number(bill.fixedAmount) : 0
+    const amountMatch = billAmount > 0 && Math.abs(amount - billAmount) / billAmount < 0.05
+
+    if (nameMatch && amountMatch) {
+      return bill
+    }
+  }
+
+  return null
+}
+
+// Auto-approve a transaction by creating a BillInstance
+async function autoApproveTransaction(transactionId: string, recurringBill: any) {
+  const txn = await prisma.stripeTransaction.findUnique({
+    where: { id: transactionId },
+    include: { financialAccount: true }
+  })
+
+  if (!txn) return
+
+  // Get team members who split expenses
+  const splitters = await prisma.teamMember.findMany({
+    where: { splitsExpenses: true, active: true },
+    include: { user: true }
+  })
+
+  const splitterCount = splitters.length || 1
+  const amount = Math.abs(Number(txn.amount))
+  const perPersonAmount = amount / splitterCount
+  const period = txn.transactedAt.toISOString().slice(0, 7)
+
+  // Create bill instance
+  const billInstance = await prisma.billInstance.create({
+    data: {
+      vendor: recurringBill.vendor,
+      vendorType: recurringBill.vendorType,
+      amount,
+      dueDate: txn.transactedAt,
+      period,
+      status: 'PAID',
+      isPaid: true,
+      paidDate: txn.transactedAt,
+      paymentMethod: `Bank: ${txn.financialAccount?.institutionName || 'Unknown'}`,
+      recurringBillId: recurringBill.id,
+      stripeTransactionId: txn.stripeTransactionId,
+      billSplits: {
+        create: splitters.map(member => ({
+          teamMemberId: member.id,
+          amount: perPersonAmount,
+          status: 'PENDING'
+        }))
+      }
+    }
+  })
+
+  // Link transaction to the bill instance
+  await prisma.stripeTransaction.update({
+    where: { id: transactionId },
+    data: { matchedBillInstanceId: billInstance.id }
+  })
+
+  console.log(`[CRON] Auto-approved transaction as ${recurringBill.vendor}: $${amount}`)
 }
 
 // Also allow POST for manual testing

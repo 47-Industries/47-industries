@@ -2910,10 +2910,11 @@ model StripeTransaction {
   status                String    // pending, posted
   
   // Bill matching
-  matchedBillInstanceId String?   // If matched to a BillInstance
-  matchConfidence       Int?      // 0-100 confidence of match
-  matchedAt             DateTime?
-  matchedBy             String?   // User ID who confirmed match
+  matchedBillInstanceId  String?   // If matched to a BillInstance
+  matchedRecurringBillId String?   // Pre-matched to RecurringBill before approval
+  matchConfidence        Int?      // 0-100 confidence of match
+  matchedAt              DateTime?
+  matchedBy              String?   // User ID who confirmed match
   
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

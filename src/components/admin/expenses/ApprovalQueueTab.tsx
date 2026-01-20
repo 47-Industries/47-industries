@@ -62,6 +62,13 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Recurring expense options (per item)
+  const [recurringOptions, setRecurringOptions] = useState<Record<string, {
+    vendor: string
+    createRecurring: boolean
+    autoApprove: boolean
+  }>>({})
+
   useEffect(() => {
     fetchItems()
   }, [statusFilter])
@@ -115,6 +122,24 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     }
   }
 
+  const getRecurringOptions = (item: ApprovalItem) => {
+    return recurringOptions[item.id] || {
+      vendor: item.vendor,
+      createRecurring: false,
+      autoApprove: false
+    }
+  }
+
+  const setRecurringOption = (itemId: string, key: string, value: any) => {
+    setRecurringOptions(prev => ({
+      ...prev,
+      [itemId]: {
+        ...getRecurringOptions({ id: itemId } as ApprovalItem),
+        [key]: value
+      }
+    }))
+  }
+
   const handleApprove = async (item: ApprovalItem, enableAutoApprove: boolean = false) => {
     setProcessing(item.id)
     setError('')
@@ -122,6 +147,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     try {
       let res: Response
+      const opts = getRecurringOptions(item)
 
       if (item.type === 'email') {
         const billId = item.id.replace('email-', '')
@@ -135,12 +161,21 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/approve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify({
+            vendor: opts.vendor,
+            createRecurring: opts.createRecurring,
+            autoApprove: opts.autoApprove
+          })
         })
       }
 
       if (res.ok) {
-        setSuccess('Expense approved')
+        const data = await res.json()
+        if (data.recurringCreated) {
+          setSuccess('Expense approved and recurring expense created')
+        } else {
+          setSuccess('Expense approved')
+        }
         fetchItems()
       } else {
         const data = await res.json()
@@ -503,21 +538,79 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                       </div>
                     </div>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                      <div>
-                        <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Bank Account</div>
-                        <div style={{ fontSize: '13px' }}>{item.source}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Transaction ID</div>
-                        <div style={{ fontSize: '13px', fontFamily: 'monospace' }}>
-                          {(item.original as BankTransaction).stripeTransactionId.slice(0, 20)}...
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Bank Account</div>
+                          <div style={{ fontSize: '13px' }}>{item.source}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Transaction ID</div>
+                          <div style={{ fontSize: '13px', fontFamily: 'monospace' }}>
+                            {(item.original as BankTransaction).stripeTransactionId.slice(0, 20)}...
+                          </div>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Description</div>
+                          <div style={{ fontSize: '13px' }}>{(item.original as BankTransaction).description || '-'}</div>
                         </div>
                       </div>
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Description</div>
-                        <div style={{ fontSize: '13px' }}>{(item.original as BankTransaction).description || '-'}</div>
-                      </div>
+
+                      {/* Recurring Expense Options for Bank Transactions */}
+                      {item.status === 'PENDING' && (
+                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #27272a' }}>
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Vendor Name</div>
+                            <input
+                              type="text"
+                              value={getRecurringOptions(item).vendor}
+                              onChange={(e) => setRecurringOption(item.id, 'vendor', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                border: '1px solid #3f3f46',
+                                background: '#0a0a0a',
+                                color: '#fff',
+                                fontSize: '13px'
+                              }}
+                              placeholder="Enter vendor name..."
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={getRecurringOptions(item).createRecurring}
+                                onChange={(e) => setRecurringOption(item.id, 'createRecurring', e.target.checked)}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                              />
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 500 }}>Create as Recurring Expense</div>
+                                <div style={{ fontSize: '12px', color: '#71717a' }}>Track this as a recurring company expense</div>
+                              </div>
+                            </label>
+
+                            {getRecurringOptions(item).createRecurring && (
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginLeft: '26px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={getRecurringOptions(item).autoApprove}
+                                  onChange={(e) => setRecurringOption(item.id, 'autoApprove', e.target.checked)}
+                                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                />
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve future transactions</div>
+                                  <div style={{ fontSize: '12px', color: '#71717a' }}>
+                                    Future transactions matching this vendor/amount will be automatically approved
+                                  </div>
+                                </div>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

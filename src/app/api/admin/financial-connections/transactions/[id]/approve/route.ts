@@ -47,10 +47,54 @@ export async function POST(
     const amount = Math.abs(transaction.amount.toNumber())
     const vendor = body.vendor || transaction.merchantName || transaction.description || 'Bank Transaction'
     const vendorType = body.vendorType || 'OTHER'
+    const createRecurring = body.createRecurring === true
+    const autoApprove = body.autoApprove === true
+    const frequency = body.frequency || 'MONTHLY'
 
     // Determine period from transaction date
     const txnDate = new Date(transaction.transactedAt)
     const period = txnDate.toISOString().slice(0, 7)
+
+    let recurringBillId: string | null = null
+
+    // Create or update recurring bill if requested
+    if (createRecurring) {
+      // Check if a similar recurring bill already exists
+      const existingRecurring = await prisma.recurringBill.findFirst({
+        where: {
+          vendor: { contains: vendor.split(' ')[0] }, // Fuzzy match on first word
+          active: true
+        }
+      })
+
+      if (existingRecurring) {
+        // Update existing recurring bill
+        await prisma.recurringBill.update({
+          where: { id: existingRecurring.id },
+          data: {
+            fixedAmount: amount,
+            autoApprove: autoApprove || existingRecurring.autoApprove
+          }
+        })
+        recurringBillId = existingRecurring.id
+      } else {
+        // Create new recurring bill
+        const recurring = await prisma.recurringBill.create({
+          data: {
+            name: vendor,
+            vendor,
+            vendorType,
+            frequency,
+            amountType: 'FIXED',
+            fixedAmount: amount,
+            dueDay: txnDate.getDate(),
+            active: true,
+            autoApprove
+          }
+        })
+        recurringBillId = recurring.id
+      }
+    }
 
     // Create bill instance
     const billInstance = await prisma.billInstance.create({
@@ -63,7 +107,8 @@ export async function POST(
         status: 'PAID', // Bank transactions are already paid
         paidDate: txnDate,
         paidVia: `${transaction.financialAccount.institutionName} ****${transaction.financialAccount.accountLast4 || ''}`,
-        stripeTransactionId: transaction.stripeTransactionId
+        stripeTransactionId: transaction.stripeTransactionId,
+        recurringBillId
       }
     })
 
@@ -92,7 +137,9 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      billInstanceId: billInstance.id
+      billInstanceId: billInstance.id,
+      recurringBillId,
+      recurringCreated: createRecurring && recurringBillId !== null
     })
   } catch (error: any) {
     console.error('[TRANSACTIONS] Error approving:', error.message)
