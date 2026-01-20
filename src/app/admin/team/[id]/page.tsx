@@ -627,6 +627,14 @@ export default function TeamMemberDetailPage() {
                 <label className="text-sm text-zinc-500">Employee Number</label>
                 <p className="text-white font-mono">{teamMember.employeeNumber}</p>
               </div>
+              <div>
+                <label className="text-sm text-zinc-500">Splits Company Expenses</label>
+                <p>
+                  <span className={`px-2 py-1 rounded text-sm ${teamMember.splitsExpenses ? 'bg-green-500/10 text-green-400' : 'bg-zinc-500/10 text-zinc-400'}`}>
+                    {teamMember.splitsExpenses ? 'Yes' : 'No'}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
 
