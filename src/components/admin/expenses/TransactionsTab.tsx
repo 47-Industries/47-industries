@@ -1,6 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { loadStripe } from '@stripe/stripe-js'
+
+// Initialize Stripe
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null
 
 interface Transaction {
   id: string
@@ -101,19 +107,49 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
 
   const handleConnect = async () => {
     setConnecting(true)
+    setError('')
+
     try {
+      // Get Stripe instance
+      const stripe = await stripePromise
+      if (!stripe) {
+        setError('Stripe not configured. Add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.')
+        return
+      }
+
+      // Create a Financial Connections session
       const res = await fetch('/api/admin/financial-connections/session', { method: 'POST' })
-      if (res.ok) {
-        const data = await res.json()
-        // In a real implementation, you would open Stripe's Financial Connections modal here
-        // For now, we'll just show a message
-        alert('Stripe Financial Connections integration requires Stripe.js. Session created: ' + data.sessionId)
-      } else {
+      if (!res.ok) {
         const data = await res.json()
         setError(data.error || 'Failed to create session')
+        return
       }
-    } catch (err) {
-      setError('Failed to connect bank')
+
+      const { clientSecret } = await res.json()
+
+      // Open the Financial Connections modal
+      const result = await stripe.collectFinancialConnectionsAccounts({
+        clientSecret
+      })
+
+      if (result.error) {
+        setError(result.error.message || 'Failed to connect account')
+        return
+      }
+
+      // Save the connected accounts
+      if (result.financialConnectionsSession?.accounts?.length) {
+        for (const account of result.financialConnectionsSession.accounts) {
+          await fetch('/api/admin/financial-connections/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId: account.id })
+          })
+        }
+        fetchData()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect bank')
     } finally {
       setConnecting(false)
     }
