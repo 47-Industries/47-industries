@@ -24,10 +24,11 @@ export async function POST() {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
     // Create a Financial Connections session
+    // Note: Financial Connections must be enabled in Stripe Dashboard > Settings > Financial Connections
     const fcSession = await stripe.financialConnections.sessions.create({
       account_holder: {
-        type: 'account',
-        account: undefined // Uses the platform account
+        type: 'customer',
+        customer: await getOrCreateStripeCustomer(stripe, session.user.email || '')
       },
       permissions: ['transactions', 'balances'],
       filters: {
@@ -40,7 +41,38 @@ export async function POST() {
       sessionId: fcSession.id
     })
   } catch (error: any) {
-    console.error('[FINANCIAL_CONNECTIONS] Error creating session:', error.message)
-    return NextResponse.json({ error: 'Failed to create Financial Connections session' }, { status: 500 })
+    console.error('[FINANCIAL_CONNECTIONS] Error creating session:', error.message, error)
+
+    // Provide helpful error messages
+    if (error.message?.includes('Financial Connections')) {
+      return NextResponse.json({
+        error: 'Stripe Financial Connections is not enabled. Enable it in Stripe Dashboard > Settings > Financial Connections'
+      }, { status: 500 })
+    }
+
+    return NextResponse.json({ error: error.message || 'Failed to create Financial Connections session' }, { status: 500 })
   }
+}
+
+// Helper to get or create a Stripe customer for the business
+async function getOrCreateStripeCustomer(stripe: Stripe, email: string): Promise<string> {
+  // Search for existing customer
+  const customers = await stripe.customers.list({
+    email: email,
+    limit: 1
+  })
+
+  if (customers.data.length > 0) {
+    return customers.data[0].id
+  }
+
+  // Create new customer for financial connections
+  const customer = await stripe.customers.create({
+    email: email,
+    metadata: {
+      type: 'financial_connections_business'
+    }
+  })
+
+  return customer.id
 }

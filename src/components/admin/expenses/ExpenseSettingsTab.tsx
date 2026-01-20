@@ -18,6 +18,7 @@ export default function ExpenseSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([])
   const [syncing, setSyncing] = useState<string | null>(null)
+  const [addingZoho, setAddingZoho] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -101,6 +102,28 @@ export default function ExpenseSettingsTab() {
     }
   }
 
+  const handleAddZoho = async () => {
+    setAddingZoho(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch('/api/admin/email-accounts/sync-zoho', { method: 'POST' })
+      const data = await res.json()
+
+      if (res.ok) {
+        setSuccess(data.message || 'Zoho account added for bill scanning')
+        fetchEmailAccounts()
+      } else {
+        setError(data.error || 'Failed to add Zoho account')
+      }
+    } catch (err) {
+      setError('Failed to add Zoho account')
+    } finally {
+      setAddingZoho(false)
+    }
+  }
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'Never'
     return new Date(dateStr).toLocaleString('en-US', {
@@ -133,6 +156,30 @@ export default function ExpenseSettingsTab() {
             <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Email Accounts</h3>
             <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>Configure email accounts for bill scanning</p>
           </div>
+          {emailAccounts.length > 0 && (
+            <button
+              onClick={handleAddZoho}
+              disabled={addingZoho}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#3b82f6',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '13px',
+                opacity: addingZoho ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+              </svg>
+              {addingZoho ? 'Adding...' : 'Add Zoho'}
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -145,8 +192,31 @@ export default function ExpenseSettingsTab() {
             </svg>
             <div style={{ color: '#71717a', marginBottom: '8px' }}>No email accounts configured</div>
             <div style={{ fontSize: '13px', color: '#52525b', marginBottom: '16px' }}>
-              Email accounts can be added via OAuth. Check with your administrator.
+              Add your connected Zoho account to automatically scan for bills.
             </div>
+            <button
+              onClick={handleAddZoho}
+              disabled={addingZoho}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#3b82f6',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500,
+                opacity: addingZoho ? 0.5 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+              </svg>
+              {addingZoho ? 'Adding...' : 'Add Zoho Account'}
+            </button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
