@@ -157,28 +157,45 @@ export default function ExpenseSettingsTab() {
             <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>Configure email accounts for bill scanning</p>
           </div>
           {emailAccounts.length > 0 && (
-            <button
-              onClick={handleAddZoho}
-              disabled={addingZoho}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#3b82f6',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '13px',
-                opacity: addingZoho ? 0.5 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
-              </svg>
-              {addingZoho ? 'Adding...' : 'Add Zoho'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleAddZoho}
+                disabled={addingZoho}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  opacity: addingZoho ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {addingZoho ? 'Adding...' : '+ Zoho'}
+              </button>
+              <a
+                href="/api/auth/gmail"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                + Gmail
+              </a>
+            </div>
           )}
         </div>
 
@@ -192,31 +209,56 @@ export default function ExpenseSettingsTab() {
             </svg>
             <div style={{ color: '#71717a', marginBottom: '8px' }}>No email accounts configured</div>
             <div style={{ fontSize: '13px', color: '#52525b', marginBottom: '16px' }}>
-              Add your connected Zoho account to automatically scan for bills.
+              Connect your email accounts to automatically scan for bills.
             </div>
-            <button
-              onClick={handleAddZoho}
-              disabled={addingZoho}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#3b82f6',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500,
-                opacity: addingZoho ? 0.5 : 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
-              </svg>
-              {addingZoho ? 'Adding...' : 'Add Zoho Account'}
-            </button>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={handleAddZoho}
+                disabled={addingZoho}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  opacity: addingZoho ? 0.5 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <path d="M22 6l-10 7L2 6"/>
+                </svg>
+                {addingZoho ? 'Adding...' : 'Add Zoho'}
+              </button>
+              <a
+                href="/api/auth/gmail"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+                Add Gmail
+              </a>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
