@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') || '0')
 
   try {
-    const [proposedBills, total] = await Promise.all([
+    // Get email-based proposed bills
+    const [proposedBills, proposedTotal] = await Promise.all([
       prisma.proposedBill.findMany({
         where: status === 'ALL' ? {} : { status },
         orderBy: { createdAt: 'desc' },
@@ -34,15 +35,45 @@ export async function GET(request: NextRequest) {
       })
     ])
 
-    // Get pending count for badge
-    const pendingCount = await prisma.proposedBill.count({
-      where: { status: 'PENDING' }
-    })
+    // Get unmatched bank transactions (only for PENDING or ALL status)
+    let bankTransactions: any[] = []
+    let bankTotal = 0
+    if (status === 'PENDING' || status === 'ALL') {
+      const [txns, txnCount] = await Promise.all([
+        prisma.stripeTransaction.findMany({
+          where: { matchedBillInstanceId: null },
+          orderBy: { transactedAt: 'desc' },
+          take: limit,
+          include: {
+            financialAccount: {
+              select: {
+                institutionName: true,
+                accountLast4: true
+              }
+            }
+          }
+        }),
+        prisma.stripeTransaction.count({
+          where: { matchedBillInstanceId: null }
+        })
+      ])
+      bankTransactions = txns
+      bankTotal = txnCount
+    }
+
+    // Get pending counts for badge
+    const [pendingEmailCount, pendingBankCount] = await Promise.all([
+      prisma.proposedBill.count({ where: { status: 'PENDING' } }),
+      prisma.stripeTransaction.count({ where: { matchedBillInstanceId: null } })
+    ])
 
     return NextResponse.json({
       proposedBills,
-      total,
-      pendingCount,
+      bankTransactions,
+      total: proposedTotal + bankTotal,
+      pendingCount: pendingEmailCount + pendingBankCount,
+      pendingEmailCount,
+      pendingBankCount,
       limit,
       offset
     })

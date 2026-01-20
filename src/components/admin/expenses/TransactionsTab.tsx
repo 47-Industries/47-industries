@@ -48,7 +48,9 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
   const [matchedFilter, setMatchedFilter] = useState<'all' | 'matched' | 'unmatched'>('all')
   const [syncing, setSyncing] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const [approving, setApproving] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -170,6 +172,32 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
     }
   }
 
+  const handleApproveAsExpense = async (transactionId: string) => {
+    setApproving(transactionId)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch(`/api/admin/financial-connections/transactions/${transactionId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+
+      if (res.ok) {
+        setSuccess('Transaction added as company expense')
+        fetchData()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to approve')
+      }
+    } catch (err) {
+      setError('Failed to approve transaction')
+    } finally {
+      setApproving(null)
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
   }
@@ -184,6 +212,12 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
           {error}
           <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>x</button>
+        </div>
+      )}
+      {success && (
+        <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
+          {success}
+          <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer' }}>x</button>
         </div>
       )}
 
@@ -332,16 +366,16 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
           </div>
         ) : (
           <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px 100px', gap: '12px', padding: '12px 16px', background: '#0a0a0a', fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 120px 140px', gap: '12px', padding: '12px 16px', background: '#0a0a0a', fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>
               <div>Description</div>
               <div>Amount</div>
               <div>Date</div>
               <div>Account</div>
-              <div>Matched</div>
+              <div>Actions</div>
             </div>
 
             {transactions.map(txn => (
-              <div key={txn.id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 100px 120px 100px', gap: '12px', padding: '14px 16px', borderTop: '1px solid #27272a', alignItems: 'center' }}>
+              <div key={txn.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 120px 140px', gap: '12px', padding: '14px 16px', borderTop: '1px solid #27272a', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 500, marginBottom: '2px' }}>{txn.merchantName || txn.description || 'Transaction'}</div>
                   <div style={{ fontSize: '12px', color: '#71717a' }}>{txn.description}</div>
@@ -357,26 +391,32 @@ export default function TransactionsTab({ onCountChange }: TransactionsTabProps)
                 <div>
                   {txn.matchedBillInstanceId ? (
                     <span style={{
-                      padding: '2px 8px',
+                      padding: '4px 10px',
                       borderRadius: '4px',
                       background: 'rgba(16,185,129,0.1)',
                       color: '#10b981',
                       fontSize: '11px',
                       fontWeight: 500
                     }}>
-                      Matched
+                      Approved
                     </span>
                   ) : (
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(245,158,11,0.1)',
-                      color: '#f59e0b',
-                      fontSize: '11px',
-                      fontWeight: 500
-                    }}>
-                      Unmatched
-                    </span>
+                    <button
+                      onClick={() => handleApproveAsExpense(txn.id)}
+                      disabled={approving === txn.id}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        background: '#3b82f6',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        opacity: approving === txn.id ? 0.5 : 1
+                      }}
+                    >
+                      {approving === txn.id ? 'Adding...' : 'Add as Expense'}
+                    </button>
                   )}
                 </div>
               </div>
