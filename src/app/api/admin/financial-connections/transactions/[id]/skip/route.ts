@@ -39,11 +39,12 @@ export async function POST(
 
     // Create skip rule if requested
     if (body.createRule) {
-      const { ruleType, ruleName, reason, scopeToAccount } = body
+      const { ruleType, ruleName, reason, scopeToAccount, transactionType, amountMode, amountMin, amountMax, displayName } = body
 
       let ruleData: any = {
         ruleType,
-        name: ruleName || generateRuleName(transaction, ruleType, scopeToAccount),
+        name: ruleName || generateRuleName(transaction, ruleType, scopeToAccount, transactionType),
+        displayName: displayName || null, // Clean name for matched transactions
         reason: reason || 'Personal expense',
         createdBy: session.user.id
       }
@@ -53,16 +54,29 @@ export async function POST(
         ruleData.financialAccountId = transaction.financialAccountId
       }
 
+      // Add transaction type filter (INCOME = positive, EXPENSE = negative)
+      if (transactionType) {
+        ruleData.transactionType = transactionType
+      }
+
       if (ruleType === 'VENDOR') {
         // Skip by vendor name only (any amount)
         const vendorPattern = extractVendorPattern(transaction.description || '')
         ruleData.vendorPattern = vendorPattern
       } else if (ruleType === 'VENDOR_AMOUNT') {
-        // Skip by vendor + specific amount
+        // Skip by vendor + amount
         const vendorPattern = extractVendorPattern(transaction.description || '')
         ruleData.vendorPattern = vendorPattern
-        ruleData.amount = Math.abs(Number(transaction.amount))
-        ruleData.amountVariance = 5
+
+        if (amountMode === 'RANGE' && amountMin !== null && amountMax !== null) {
+          // Use custom range
+          ruleData.amountMin = amountMin
+          ruleData.amountMax = amountMax
+        } else {
+          // Use exact amount with variance
+          ruleData.amount = Math.abs(Number(transaction.amount))
+          ruleData.amountVariance = 5
+        }
       } else if (ruleType === 'DESCRIPTION_PATTERN') {
         ruleData.descriptionPattern = body.descriptionPattern || extractDescriptionPattern(transaction.description || '')
       }
@@ -75,12 +89,16 @@ export async function POST(
       additionalSkipped = await applyRuleToOtherTransactions(rule, transaction.id)
     }
 
+    // Get displayName from body (for one-off skips or rule-based)
+    const txnDisplayName = body.displayName || null
+
     // Mark this transaction as skipped
     await prisma.stripeTransaction.update({
       where: { id },
       data: {
         approvalStatus: 'SKIPPED',
         skippedByRuleId: ruleId,
+        displayName: txnDisplayName,
         matchedBy: session.user.id,
         matchedAt: new Date()
       }
@@ -99,24 +117,35 @@ export async function POST(
 }
 
 // Generate a user-friendly rule name
-function generateRuleName(transaction: any, ruleType: string, scopeToAccount: boolean = false): string {
+function generateRuleName(
+  transaction: any,
+  ruleType: string,
+  scopeToAccount: boolean = false,
+  transactionType?: string
+): string {
   const accountSuffix = scopeToAccount
     ? ` (${transaction.financialAccount?.accountLast4 || 'account'})`
     : ''
 
+  const typeSuffix = transactionType === 'INCOME'
+    ? ' [Income]'
+    : transactionType === 'EXPENSE'
+      ? ' [Expense]'
+      : ''
+
   if (ruleType === 'VENDOR') {
     const vendor = extractVendorPattern(transaction.description || '')
-    return `${vendor}${accountSuffix}`
+    return `${vendor}${typeSuffix}${accountSuffix}`
   }
   if (ruleType === 'VENDOR_AMOUNT') {
     const vendor = extractVendorPattern(transaction.description || '')
     const amount = Math.abs(Number(transaction.amount))
-    return `${vendor} $${amount.toFixed(2)}${accountSuffix}`
+    return `${vendor} $${amount.toFixed(2)}${typeSuffix}${accountSuffix}`
   }
   if (ruleType === 'DESCRIPTION_PATTERN') {
-    return `${extractDescriptionPattern(transaction.description || '')}${accountSuffix}`
+    return `${extractDescriptionPattern(transaction.description || '')}${typeSuffix}${accountSuffix}`
   }
-  return `Skip rule${accountSuffix}`
+  return `Skip rule${typeSuffix}${accountSuffix}`
 }
 
 // Extract vendor name from description (first meaningful words)
@@ -163,25 +192,55 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
     whereClause.financialAccountId = rule.financialAccountId
   }
 
+  // Add transaction type filter (INCOME = positive, EXPENSE = negative)
+  if (rule.transactionType === 'INCOME') {
+    whereClause.amount = { gt: 0 }
+  } else if (rule.transactionType === 'EXPENSE') {
+    whereClause.amount = { lt: 0 }
+  }
+
   if (rule.ruleType === 'VENDOR') {
     // Vendor only - match description contains vendor pattern
     whereClause.description = { contains: rule.vendorPattern }
   } else if (rule.ruleType === 'VENDOR_AMOUNT') {
-    const amount = Number(rule.amount)
-    const variance = rule.amountVariance || 5
-    const minAmount = amount * (1 - variance / 100)
-    const maxAmount = amount * (1 + variance / 100)
+    // Build amount filter
+    let amountConditions: any[] = []
+
+    if (rule.amountMin !== null && rule.amountMax !== null) {
+      // Range mode - use min/max
+      const minAmt = Number(rule.amountMin)
+      const maxAmt = Number(rule.amountMax)
+      amountConditions = [
+        { amount: { gte: minAmt, lte: maxAmt } },
+        { amount: { gte: -maxAmt, lte: -minAmt } }
+      ]
+    } else if (rule.amount) {
+      // Exact mode - use amount with variance
+      const amount = Number(rule.amount)
+      const variance = rule.amountVariance || 5
+      const minAmount = amount * (1 - variance / 100)
+      const maxAmount = amount * (1 + variance / 100)
+      amountConditions = [
+        { amount: { gte: minAmount, lte: maxAmount } },
+        { amount: { gte: -maxAmount, lte: -minAmount } }
+      ]
+    }
+
+    // Apply transaction type filter to amount conditions
+    if (rule.transactionType === 'INCOME') {
+      amountConditions = amountConditions.filter(c => c.amount.gte >= 0 || c.amount.gt !== undefined)
+    } else if (rule.transactionType === 'EXPENSE') {
+      amountConditions = amountConditions.filter(c => c.amount.lte <= 0 || c.amount.lt !== undefined)
+    }
 
     // Match vendor AND amount
     whereClause.AND = [
       { description: { contains: rule.vendorPattern } },
-      {
-        OR: [
-          { amount: { gte: minAmount, lte: maxAmount } },
-          { amount: { gte: -maxAmount, lte: -minAmount } }
-        ]
-      }
+      ...(amountConditions.length > 0 ? [{ OR: amountConditions }] : [])
     ]
+
+    // Remove top-level amount filter since it's in AND clause now
+    delete whereClause.amount
   } else if (rule.ruleType === 'DESCRIPTION_PATTERN') {
     whereClause.description = { contains: rule.descriptionPattern }
   }
@@ -190,7 +249,8 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
     where: whereClause,
     data: {
       approvalStatus: 'SKIPPED',
-      skippedByRuleId: rule.id
+      skippedByRuleId: rule.id,
+      displayName: rule.displayName || undefined
     }
   })
 

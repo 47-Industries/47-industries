@@ -2891,16 +2891,17 @@ model StripeFinancialAccount {
 // StripeTransaction - Imported transactions from Stripe Financial Connections
 model StripeTransaction {
   id                    String    @id @default(cuid())
-  
+
   // Link to financial account
   financialAccountId    String
   financialAccount      StripeFinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
-  
+
   // Stripe transaction data
   stripeTransactionId   String    @unique
   amount                Decimal   @db.Decimal(12, 2) // Positive = credit, Negative = debit
   description           String?
   merchantName          String?
+  displayName           String?   // User-set clean name (e.g., "Publix Payroll" instead of raw description)
   category              String?   // Stripe's category (entertainment, food_and_drink, etc.)
   
   // Transaction timing
@@ -2940,16 +2941,20 @@ model TransactionSkipRule {
   financialAccountId  String?
   financialAccount    StripeFinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
 
-  // For VENDOR_AMOUNT rules - skip transactions matching vendor AND amount
+  // For VENDOR/VENDOR_AMOUNT rules
   vendorPattern       String?   // Substring match on description/merchantName
-  amount              Decimal?  @db.Decimal(12, 2)
+  amount              Decimal?  @db.Decimal(12, 2) // Exact amount (with variance)
   amountVariance      Int?      @default(5) // Percentage variance allowed (e.g., 5 = 5%)
+  amountMin           Decimal?  @db.Decimal(12, 2) // Min amount (for range)
+  amountMax           Decimal?  @db.Decimal(12, 2) // Max amount (for range)
+  transactionType     String?   // "INCOME" (positive), "EXPENSE" (negative), or null for both
 
   // For DESCRIPTION_PATTERN rules - skip transactions containing this text
   descriptionPattern  String?   // Substring match on description
 
   // Rule metadata
   name                String    // User-friendly name (e.g., "Personal Checking", "Publix Payroll")
+  displayName         String?   // Clean name to apply to matched transactions (e.g., "Publix Payroll")
   reason              String?   // Why skipped (e.g., "Personal expense", "Payroll deposit")
 
   isActive            Boolean   @default(true)

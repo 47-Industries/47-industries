@@ -39,6 +39,7 @@ interface ApprovalItem {
   type: 'email' | 'bank'
   vendor: string
   description: string
+  displayName: string | null // Clean name set by user
   amount: number | null
   date: string
   source: string
@@ -73,6 +74,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [skipModalItem, setSkipModalItem] = useState<ApprovalItem | null>(null)
   const [skipRuleType, setSkipRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
   const [skipOnlyThisAccount, setSkipOnlyThisAccount] = useState(false)
+  const [skipTransactionType, setSkipTransactionType] = useState<'BOTH' | 'INCOME' | 'EXPENSE'>('BOTH')
+  const [skipAmountMode, setSkipAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
+  const [skipAmountMin, setSkipAmountMin] = useState('')
+  const [skipAmountMax, setSkipAmountMax] = useState('')
+  const [skipDisplayName, setSkipDisplayName] = useState('')
 
   useEffect(() => {
     fetchItems()
@@ -91,6 +97,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
           type: 'email' as const,
           vendor: bill.vendor || 'Unknown Vendor',
           description: bill.emailSubject || bill.emailFrom,
+          displayName: null, // Email bills don't have displayName yet
           amount: bill.amount,
           date: bill.emailDate || bill.createdAt,
           source: bill.source,
@@ -103,8 +110,9 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: any) => ({
           id: `bank-${txn.id}`,
           type: 'bank' as const,
-          vendor: txn.merchantName || txn.description || 'Bank Transaction',
+          vendor: txn.displayName || txn.merchantName || txn.description || 'Bank Transaction',
           description: txn.description || '',
+          displayName: txn.displayName || null,
           amount: Math.abs(txn.amount),
           date: txn.transactedAt,
           source: `${txn.financialAccount.institutionName}${txn.financialAccount.accountLast4 ? ` ****${txn.financialAccount.accountLast4}` : ''}`,
@@ -219,6 +227,13 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setSkipModalItem(item)
     setSkipRuleType('NONE')
     setSkipOnlyThisAccount(false)
+    // Determine if income or expense based on amount (positive = income for bank)
+    const isIncome = (item.original as any).amount > 0
+    setSkipTransactionType(isIncome ? 'INCOME' : 'EXPENSE')
+    setSkipAmountMode('EXACT')
+    setSkipAmountMin('')
+    setSkipAmountMax('')
+    setSkipDisplayName('') // Reset display name
   }
 
   const handleSkip = async (createRule: boolean = false) => {
@@ -234,7 +249,12 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         body: JSON.stringify({
           createRule: createRule && skipRuleType !== 'NONE',
           ruleType: skipRuleType,
-          scopeToAccount: skipOnlyThisAccount
+          scopeToAccount: skipOnlyThisAccount,
+          transactionType: skipTransactionType !== 'BOTH' ? skipTransactionType : null,
+          amountMode: skipAmountMode,
+          amountMin: skipAmountMode === 'RANGE' && skipAmountMin ? parseFloat(skipAmountMin) : null,
+          amountMax: skipAmountMode === 'RANGE' && skipAmountMax ? parseFloat(skipAmountMax) : null,
+          displayName: skipDisplayName.trim() || null
         })
       })
       if (res.ok) {
@@ -495,7 +515,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     <span style={{ fontWeight: 500 }}>{item.vendor}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: '#71717a', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.description}
+                    {item.displayName && item.description !== item.displayName ? (
+                      <span title={item.description}>{item.description}</span>
+                    ) : (
+                      item.description
+                    )}
                   </div>
                 </div>
 
@@ -738,9 +762,35 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             onClick={e => e.stopPropagation()}
           >
             <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600 }}>Skip Transaction</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#a1a1aa' }}>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#a1a1aa' }}>
               {skipModalItem.description}
             </p>
+
+            {/* Display Name (Rename) */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '8px' }}>
+                Display Name (optional)
+              </div>
+              <input
+                type="text"
+                value={skipDisplayName}
+                onChange={e => setSkipDisplayName(e.target.value)}
+                placeholder="e.g., Publix Payroll"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <div style={{ fontSize: '11px', color: '#71717a', marginTop: '6px' }}>
+                Set a clean name for this transaction (and matching ones if creating a rule)
+              </div>
+            </div>
 
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '12px' }}>
@@ -805,21 +855,120 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                 </label>
               </div>
 
-              {/* Account scope option - only show when a rule type is selected */}
+              {/* Advanced options - only show when a rule type is selected */}
               {skipRuleType !== 'NONE' && (
-                <div style={{ marginTop: '12px', padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={skipOnlyThisAccount}
-                      onChange={(e) => setSkipOnlyThisAccount(e.target.checked)}
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Only from this account</div>
-                      <div style={{ fontSize: '12px', color: '#71717a' }}>Limit rule to {skipModalItem.source} only</div>
+                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Transaction type filter */}
+                  <div style={{ padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                    <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>Transaction Type</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {(['BOTH', 'INCOME', 'EXPENSE'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setSkipTransactionType(type)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: skipTransactionType === type ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                            background: skipTransactionType === type ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {type === 'BOTH' ? 'Both' : type === 'INCOME' ? 'Income (+)' : 'Expense (-)'}
+                        </button>
+                      ))}
                     </div>
-                  </label>
+                  </div>
+
+                  {/* Amount range (for VENDOR_AMOUNT) */}
+                  {skipRuleType === 'VENDOR_AMOUNT' && (
+                    <div style={{ padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>Amount Matching</div>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                        <button
+                          onClick={() => setSkipAmountMode('EXACT')}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: skipAmountMode === 'EXACT' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                            background: skipAmountMode === 'EXACT' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          ~{formatCurrency(skipModalItem.amount)} (±5%)
+                        </button>
+                        <button
+                          onClick={() => setSkipAmountMode('RANGE')}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: skipAmountMode === 'RANGE' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                            background: skipAmountMode === 'RANGE' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Custom Range
+                        </button>
+                      </div>
+                      {skipAmountMode === 'RANGE' && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            value={skipAmountMin}
+                            onChange={(e) => setSkipAmountMin(e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #3f3f46',
+                              background: '#18181b',
+                              color: '#fff',
+                              fontSize: '12px'
+                            }}
+                          />
+                          <span style={{ color: '#71717a' }}>to</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            value={skipAmountMax}
+                            onChange={(e) => setSkipAmountMax(e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #3f3f46',
+                              background: '#18181b',
+                              color: '#fff',
+                              fontSize: '12px'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Account scope */}
+                  <div style={{ padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={skipOnlyThisAccount}
+                        onChange={(e) => setSkipOnlyThisAccount(e.target.checked)}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 500 }}>Only from this account</div>
+                        <div style={{ fontSize: '12px', color: '#71717a' }}>Limit rule to {skipModalItem.source} only</div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>

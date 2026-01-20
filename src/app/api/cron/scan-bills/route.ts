@@ -312,10 +312,11 @@ async function syncBankTransactions(): Promise<{
           if (existing) continue
 
           // Check if this transaction should be auto-skipped by a rule
+          // Pass raw amount (preserving sign) for income/expense filtering
           const skipRule = await findMatchingSkipRule(
             account.id,
             txn.description || '',
-            Math.abs(txn.amount) / 100
+            txn.amount / 100 // Raw amount with sign
           )
 
           if (skipRule) {
@@ -327,6 +328,7 @@ async function syncBankTransactions(): Promise<{
                 amount: txn.amount / 100,
                 description: txn.description || null,
                 merchantName: null,
+                displayName: skipRule.displayName || null, // Apply clean name from rule
                 category: null,
                 transactedAt: new Date(txn.transacted_at * 1000),
                 postedAt: txn.posted_at ? new Date(txn.posted_at * 1000) : null,
@@ -392,21 +394,30 @@ async function syncBankTransactions(): Promise<{
 }
 
 // Find a skip rule that matches the transaction
+// rawAmount is the actual amount (positive = income, negative = expense)
 async function findMatchingSkipRule(
   accountId: string,
   description: string,
-  amount: number
+  rawAmount: number
 ): Promise<any | null> {
   const rules = await prisma.transactionSkipRule.findMany({
     where: { isActive: true }
   })
 
   const descLower = description.toLowerCase()
+  const absAmount = Math.abs(rawAmount)
+  const isIncome = rawAmount > 0
 
   for (const rule of rules) {
     // If rule is scoped to an account, check account matches
     if (rule.financialAccountId && rule.financialAccountId !== accountId) {
       continue // Rule doesn't apply to this account
+    }
+
+    // Check transaction type filter (INCOME = positive, EXPENSE = negative)
+    if (rule.transactionType) {
+      if (rule.transactionType === 'INCOME' && !isIncome) continue
+      if (rule.transactionType === 'EXPENSE' && isIncome) continue
     }
 
     // Check VENDOR rule (vendor pattern only, any amount)
@@ -417,13 +428,25 @@ async function findMatchingSkipRule(
     }
 
     // Check VENDOR_AMOUNT rule
-    if (rule.ruleType === 'VENDOR_AMOUNT' && rule.vendorPattern && rule.amount) {
+    if (rule.ruleType === 'VENDOR_AMOUNT' && rule.vendorPattern) {
       const vendorMatch = descLower.includes(rule.vendorPattern.toLowerCase())
-      const ruleAmount = Number(rule.amount)
-      const variance = rule.amountVariance || 5
-      const minAmount = ruleAmount * (1 - variance / 100)
-      const maxAmount = ruleAmount * (1 + variance / 100)
-      const amountMatch = amount >= minAmount && amount <= maxAmount
+      if (!vendorMatch) continue
+
+      let amountMatch = false
+
+      // Check range mode first (amountMin/amountMax)
+      if (rule.amountMin !== null && rule.amountMax !== null) {
+        const minAmt = Number(rule.amountMin)
+        const maxAmt = Number(rule.amountMax)
+        amountMatch = absAmount >= minAmt && absAmount <= maxAmt
+      } else if (rule.amount) {
+        // Exact mode with variance
+        const ruleAmount = Number(rule.amount)
+        const variance = rule.amountVariance || 5
+        const minAmount = ruleAmount * (1 - variance / 100)
+        const maxAmount = ruleAmount * (1 + variance / 100)
+        amountMatch = absAmount >= minAmount && absAmount <= maxAmount
+      }
 
       if (vendorMatch && amountMatch) {
         return rule
