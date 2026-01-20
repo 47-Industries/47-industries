@@ -71,7 +71,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
   // Skip modal state
   const [skipModalItem, setSkipModalItem] = useState<ApprovalItem | null>(null)
-  const [skipRuleType, setSkipRuleType] = useState<'NONE' | 'ACCOUNT' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
+  const [skipRuleType, setSkipRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
+  const [skipOnlyThisAccount, setSkipOnlyThisAccount] = useState(false)
 
   useEffect(() => {
     fetchItems()
@@ -217,6 +218,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const openSkipModal = (item: ApprovalItem) => {
     setSkipModalItem(item)
     setSkipRuleType('NONE')
+    setSkipOnlyThisAccount(false)
   }
 
   const handleSkip = async (createRule: boolean = false) => {
@@ -231,7 +233,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           createRule: createRule && skipRuleType !== 'NONE',
-          ruleType: skipRuleType
+          ruleType: skipRuleType,
+          scopeToAccount: skipOnlyThisAccount
         })
       })
       if (res.ok) {
@@ -741,7 +744,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '12px' }}>
-                How should future transactions like this be handled?
+                Skip future transactions like this?
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -754,22 +757,22 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     style={{ marginTop: '3px' }}
                   />
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip just this transaction</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>No rule created - future similar transactions will still appear</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip just this one</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>No rule - similar transactions will still show up</div>
                   </div>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'ACCOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'ACCOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
                   <input
                     type="radio"
                     name="skipRule"
-                    checked={skipRuleType === 'ACCOUNT'}
-                    onChange={() => setSkipRuleType('ACCOUNT')}
+                    checked={skipRuleType === 'VENDOR'}
+                    onChange={() => setSkipRuleType('VENDOR')}
                     style={{ marginTop: '3px' }}
                   />
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip all from this account (Personal account)</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>All transactions from {skipModalItem.source} will be skipped</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor (any amount)</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>All "{skipModalItem.vendor.split(' ').slice(0, 2).join(' ')}" transactions</div>
                   </div>
                 </label>
 
@@ -782,8 +785,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     style={{ marginTop: '3px' }}
                   />
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip this vendor + amount combo</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>e.g., "{skipModalItem.vendor}" at ~{formatCurrency(skipModalItem.amount)} will be skipped</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor + amount</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>"{skipModalItem.vendor.split(' ').slice(0, 2).join(' ')}" at ~{formatCurrency(skipModalItem.amount)}</div>
                   </div>
                 </label>
 
@@ -796,11 +799,29 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     style={{ marginTop: '3px' }}
                   />
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by description pattern</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>Any transaction containing similar text will be skipped</div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by text pattern</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>Anything containing "{skipModalItem.description?.split(' ')[0] || skipModalItem.vendor.split(' ')[0]}"</div>
                   </div>
                 </label>
               </div>
+
+              {/* Account scope option - only show when a rule type is selected */}
+              {skipRuleType !== 'NONE' && (
+                <div style={{ marginTop: '12px', padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={skipOnlyThisAccount}
+                      onChange={(e) => setSkipOnlyThisAccount(e.target.checked)}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Only from this account</div>
+                      <div style={{ fontSize: '12px', color: '#71717a' }}>Limit rule to {skipModalItem.source} only</div>
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

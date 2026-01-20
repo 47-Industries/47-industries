@@ -39,19 +39,26 @@ export async function POST(
 
     // Create skip rule if requested
     if (body.createRule) {
-      const { ruleType, ruleName, reason } = body
+      const { ruleType, ruleName, reason, scopeToAccount } = body
 
       let ruleData: any = {
         ruleType,
-        name: ruleName || generateRuleName(transaction, ruleType),
+        name: ruleName || generateRuleName(transaction, ruleType, scopeToAccount),
         reason: reason || 'Personal expense',
         createdBy: session.user.id
       }
 
-      if (ruleType === 'ACCOUNT') {
+      // If scoped to account, add the account filter
+      if (scopeToAccount) {
         ruleData.financialAccountId = transaction.financialAccountId
+      }
+
+      if (ruleType === 'VENDOR') {
+        // Skip by vendor name only (any amount)
+        const vendorPattern = extractVendorPattern(transaction.description || '')
+        ruleData.vendorPattern = vendorPattern
       } else if (ruleType === 'VENDOR_AMOUNT') {
-        // Extract vendor from description (first few words before numbers/special chars)
+        // Skip by vendor + specific amount
         const vendorPattern = extractVendorPattern(transaction.description || '')
         ruleData.vendorPattern = vendorPattern
         ruleData.amount = Math.abs(Number(transaction.amount))
@@ -92,16 +99,24 @@ export async function POST(
 }
 
 // Generate a user-friendly rule name
-function generateRuleName(transaction: any, ruleType: string): string {
-  if (ruleType === 'ACCOUNT') {
-    return `${transaction.financialAccount?.institutionName || 'Bank'} ****${transaction.financialAccount?.accountLast4 || ''}`
+function generateRuleName(transaction: any, ruleType: string, scopeToAccount: boolean = false): string {
+  const accountSuffix = scopeToAccount
+    ? ` (${transaction.financialAccount?.accountLast4 || 'account'})`
+    : ''
+
+  if (ruleType === 'VENDOR') {
+    const vendor = extractVendorPattern(transaction.description || '')
+    return `${vendor}${accountSuffix}`
   }
   if (ruleType === 'VENDOR_AMOUNT') {
     const vendor = extractVendorPattern(transaction.description || '')
     const amount = Math.abs(Number(transaction.amount))
-    return `${vendor} $${amount.toFixed(2)}`
+    return `${vendor} $${amount.toFixed(2)}${accountSuffix}`
   }
-  return extractDescriptionPattern(transaction.description || '')
+  if (ruleType === 'DESCRIPTION_PATTERN') {
+    return `${extractDescriptionPattern(transaction.description || '')}${accountSuffix}`
+  }
+  return `Skip rule${accountSuffix}`
 }
 
 // Extract vendor name from description (first meaningful words)
@@ -143,23 +158,29 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
     id: { not: excludeId }
   }
 
-  if (rule.ruleType === 'ACCOUNT') {
+  // If rule is scoped to an account, add account filter
+  if (rule.financialAccountId) {
     whereClause.financialAccountId = rule.financialAccountId
+  }
+
+  if (rule.ruleType === 'VENDOR') {
+    // Vendor only - match description contains vendor pattern
+    whereClause.description = { contains: rule.vendorPattern }
   } else if (rule.ruleType === 'VENDOR_AMOUNT') {
     const amount = Number(rule.amount)
     const variance = rule.amountVariance || 5
     const minAmount = amount * (1 - variance / 100)
     const maxAmount = amount * (1 + variance / 100)
 
-    whereClause.description = { contains: rule.vendorPattern }
-    // Handle both positive and negative amounts
-    whereClause.OR = [
-      { amount: { gte: minAmount, lte: maxAmount } },
-      { amount: { gte: -maxAmount, lte: -minAmount } }
-    ]
-    delete whereClause.description // Move to AND
+    // Match vendor AND amount
     whereClause.AND = [
-      { description: { contains: rule.vendorPattern } }
+      { description: { contains: rule.vendorPattern } },
+      {
+        OR: [
+          { amount: { gte: minAmount, lte: maxAmount } },
+          { amount: { gte: -maxAmount, lte: -minAmount } }
+        ]
+      }
     ]
   } else if (rule.ruleType === 'DESCRIPTION_PATTERN') {
     whereClause.description = { contains: rule.descriptionPattern }

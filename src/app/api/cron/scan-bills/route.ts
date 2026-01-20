@@ -404,9 +404,16 @@ async function findMatchingSkipRule(
   const descLower = description.toLowerCase()
 
   for (const rule of rules) {
-    // Check ACCOUNT rule
-    if (rule.ruleType === 'ACCOUNT' && rule.financialAccountId === accountId) {
-      return rule
+    // If rule is scoped to an account, check account matches
+    if (rule.financialAccountId && rule.financialAccountId !== accountId) {
+      continue // Rule doesn't apply to this account
+    }
+
+    // Check VENDOR rule (vendor pattern only, any amount)
+    if (rule.ruleType === 'VENDOR' && rule.vendorPattern) {
+      if (descLower.includes(rule.vendorPattern.toLowerCase())) {
+        return rule
+      }
     }
 
     // Check VENDOR_AMOUNT rule
