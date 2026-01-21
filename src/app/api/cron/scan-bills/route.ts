@@ -300,6 +300,7 @@ async function syncBankTransactions(): Promise<{
         // Fetch all transactions with pagination
         let hasMore = true
         let startingAfter: string | undefined = undefined
+        let pageCount = 0
 
         while (hasMore) {
           const transactions = await stripe.financialConnections.transactions.list({
@@ -307,6 +308,9 @@ async function syncBankTransactions(): Promise<{
             limit: 100,
             ...(startingAfter && { starting_after: startingAfter })
           })
+
+          pageCount++
+          console.log(`[SYNC] ${account.institutionName}: Page ${pageCount}, got ${transactions.data.length} transactions, has_more: ${transactions.has_more}`)
 
           for (const txn of transactions.data) {
           // Check if already synced
