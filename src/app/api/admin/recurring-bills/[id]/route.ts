@@ -69,7 +69,8 @@ export async function PATCH(
       emailPatterns,
       paymentMethod,
       vendorType,
-      active
+      active,
+      autoApprove
     } = body
 
     const updateData: any = {}
@@ -83,6 +84,7 @@ export async function PATCH(
     if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod
     if (vendorType !== undefined) updateData.vendorType = vendorType
     if (active !== undefined) updateData.active = active
+    if (autoApprove !== undefined) updateData.autoApprove = autoApprove
 
     const recurringBill = await prisma.recurringBill.update({
       where: { id },
