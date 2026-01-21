@@ -44,20 +44,6 @@ interface BillInstance {
   recurringBill?: { id: string; name: string; amountType: string }
 }
 
-interface RecurringBill {
-  id: string
-  name: string
-  vendor: string
-  amountType: 'FIXED' | 'VARIABLE'
-  fixedAmount: number | null
-  frequency: string
-  dueDay: number
-  emailPatterns: string[]
-  paymentMethod: string | null
-  vendorType: string
-  active: boolean
-}
-
 const VENDOR_TYPES = [
   { value: 'RENT', label: 'Rent' },
   { value: 'UTILITY', label: 'Utility' },
@@ -81,25 +67,21 @@ export default function ExpensesPage() {
   const [unmatchedTransactionCount, setUnmatchedTransactionCount] = useState(0)
 
   const [bills, setBills] = useState<BillInstance[]>([])
-  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
   const [splitters, setSplitters] = useState<Splitter[]>([])
   const [currentPeriod, setCurrentPeriod] = useState(() => new Date().toISOString().slice(0, 7))
 
   // Modal state
   const [showAddBillModal, setShowAddBillModal] = useState(false)
-  const [showRecurringModal, setShowRecurringModal] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
-  const [showHistoryModal, setShowHistoryModal] = useState(false)
-  const [editingRecurring, setEditingRecurring] = useState<RecurringBill | null>(null)
+  const [showBillDetailModal, setShowBillDetailModal] = useState(false)
+  const [editingBill, setEditingBill] = useState<BillInstance | null>(null)
   const [editingBillAmount, setEditingBillAmount] = useState<string | null>(null)
   const [tempAmount, setTempAmount] = useState('')
   const [formData, setFormData] = useState<any>({})
+  const [billFormData, setBillFormData] = useState<any>({})
   const [submitting, setSubmitting] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanResults, setScanResults] = useState<any>(null)
-  const [historyBill, setHistoryBill] = useState<RecurringBill | null>(null)
-  const [billHistory, setBillHistory] = useState<BillInstance[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
 
   // Check permission on mount
   useEffect(() => {
@@ -162,20 +144,11 @@ export default function ExpensesPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [billsRes, recurringRes] = await Promise.all([
-        fetch(`/api/admin/expenses-summary-v2?period=${currentPeriod}`),
-        fetch('/api/admin/recurring-bills')
-      ])
-
+      const billsRes = await fetch(`/api/admin/expenses-summary-v2?period=${currentPeriod}`)
       if (billsRes.ok) {
         const data = await billsRes.json()
         setBills(data.bills?.all || [])
         setSplitters(data.splitters || [])
-      }
-
-      if (recurringRes.ok) {
-        const data = await recurringRes.json()
-        setRecurringBills(data.recurringBills || [])
       }
     } catch (err) {
       setError('Failed to fetch data')
@@ -211,15 +184,27 @@ export default function ExpensesPage() {
     return Math.ceil((new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   }
 
-  const handleMarkSplitterPaid = async (billId: string, teamMemberId: string) => {
+  const handleToggleSplitStatus = async (billId: string, teamMemberId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'PAID' ? 'PENDING' : 'PAID'
     try {
       const res = await fetch(`/api/admin/bill-instances/${billId}/bill-splits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamMemberId, status: 'PAID' })
+        body: JSON.stringify({ teamMemberId, status: newStatus })
       })
       if (res.ok) {
-        setSuccess('Payment marked as paid')
+        setSuccess(newStatus === 'PAID' ? 'Marked as paid' : 'Marked as unpaid')
+        // Update the editing bill if modal is open
+        if (editingBill && editingBill.id === billId) {
+          setEditingBill({
+            ...editingBill,
+            billSplits: editingBill.billSplits.map(split =>
+              split.teamMember.id === teamMemberId
+                ? { ...split, status: newStatus, paidDate: newStatus === 'PAID' ? new Date().toISOString() : null }
+                : split
+            )
+          })
+        }
         fetchData()
       }
     } catch (err) {
@@ -273,6 +258,53 @@ export default function ExpensesPage() {
     }
   }
 
+  const openBillDetailModal = (bill: BillInstance) => {
+    setEditingBill(bill)
+    setBillFormData({
+      vendor: bill.vendor,
+      vendorType: bill.vendorType,
+      amount: bill.amount.toString(),
+      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().slice(0, 10) : '',
+      status: bill.status,
+      period: bill.period || '',
+      paidVia: bill.paidVia || ''
+    })
+    setShowBillDetailModal(true)
+  }
+
+  const handleSaveBillDetails = async () => {
+    if (!editingBill) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/bill-instances/${editingBill.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor: billFormData.vendor,
+          vendorType: billFormData.vendorType,
+          amount: parseFloat(billFormData.amount),
+          dueDate: billFormData.dueDate || null,
+          status: billFormData.status,
+          paidDate: billFormData.status === 'PAID' ? (editingBill.paidDate || new Date().toISOString()) : null,
+          paidVia: billFormData.paidVia || null
+        })
+      })
+      if (res.ok) {
+        setSuccess('Bill updated')
+        setShowBillDetailModal(false)
+        setEditingBill(null)
+        setBillFormData({})
+        fetchData()
+      } else {
+        setError('Failed to update bill')
+      }
+    } catch (err) {
+      setError('Failed to update bill')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleCreateBill = async () => {
     if (!formData.vendor || !formData.amount) {
       setError('Vendor and amount required')
@@ -303,73 +335,6 @@ export default function ExpensesPage() {
     }
   }
 
-  const handleSaveRecurring = async () => {
-    if (!formData.name || !formData.vendor || !formData.dueDay) {
-      setError('Name, vendor, and due day required')
-      return
-    }
-    setSubmitting(true)
-    try {
-      const data = {
-        name: formData.name,
-        vendor: formData.vendor,
-        amountType: formData.amountType || 'VARIABLE',
-        fixedAmount: formData.amountType === 'FIXED' ? parseFloat(formData.fixedAmount) : null,
-        frequency: formData.frequency || 'MONTHLY',
-        dueDay: parseInt(formData.dueDay),
-        emailPatterns: formData.emailPatterns ? formData.emailPatterns.split(',').map((p: string) => p.trim().toLowerCase()) : [],
-        paymentMethod: formData.paymentMethod || null,
-        vendorType: formData.vendorType || 'OTHER'
-      }
-
-      const url = editingRecurring ? `/api/admin/recurring-bills/${editingRecurring.id}` : '/api/admin/recurring-bills'
-      const res = await fetch(url, {
-        method: editingRecurring ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (res.ok) {
-        setShowRecurringModal(false)
-        setEditingRecurring(null)
-        setFormData({})
-        setSuccess(editingRecurring ? 'Updated' : 'Created')
-        fetchData()
-      }
-    } catch (err) {
-      setError('Failed to save')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDeleteRecurring = async (id: string) => {
-    if (!confirm('Delete this recurring bill?')) return
-    try {
-      await fetch(`/api/admin/recurring-bills/${id}`, { method: 'DELETE' })
-      setSuccess('Deleted')
-      fetchData()
-    } catch (err) {
-      setError('Failed to delete')
-    }
-  }
-
-  const openHistoryModal = async (recurring: RecurringBill) => {
-    setHistoryBill(recurring)
-    setShowHistoryModal(true)
-    setLoadingHistory(true)
-    try {
-      const res = await fetch(`/api/admin/recurring-bills/${recurring.id}/history`)
-      if (res.ok) {
-        const data = await res.json()
-        setBillHistory(data.instances || [])
-      }
-    } catch (err) {
-      setError('Failed to load history')
-    } finally {
-      setLoadingHistory(false)
-    }
-  }
-
   const handleScanEmails = async (daysBack: number) => {
     setScanning(true)
     setScanResults(null)
@@ -388,27 +353,6 @@ export default function ExpensesPage() {
     } finally {
       setScanning(false)
     }
-  }
-
-  const openRecurringModal = (recurring?: RecurringBill) => {
-    if (recurring) {
-      setEditingRecurring(recurring)
-      setFormData({
-        name: recurring.name,
-        vendor: recurring.vendor,
-        amountType: recurring.amountType,
-        fixedAmount: recurring.fixedAmount?.toString() || '',
-        frequency: recurring.frequency,
-        dueDay: recurring.dueDay.toString(),
-        emailPatterns: (recurring.emailPatterns || []).join(', '),
-        paymentMethod: recurring.paymentMethod || '',
-        vendorType: recurring.vendorType
-      })
-    } else {
-      setEditingRecurring(null)
-      setFormData({ amountType: 'VARIABLE', frequency: 'MONTHLY', vendorType: 'OTHER' })
-    }
-    setShowRecurringModal(true)
   }
 
   // Calculate totals
@@ -621,8 +565,19 @@ export default function ExpensesPage() {
                     <div key={bill.id} style={{ borderBottom: '1px solid #27272a', padding: '16px 20px' }}>
                       {/* Bill Header */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '16px', fontWeight: 600 }}>{bill.vendor}</div>
+                        <div
+                          onClick={() => openBillDetailModal(bill)}
+                          style={{ cursor: 'pointer' }}
+                          title="Click to edit bill details"
+                        >
+                          <div style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {bill.vendor}
+                            {bill.recurringBill && (
+                              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(59,130,246,0.2)', color: '#3b82f6' }}>
+                                Recurring
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: '12px', color: '#71717a' }}>
                             {VENDOR_TYPES.find(t => t.value === bill.vendorType)?.label || bill.vendorType}
                             {bill.dueDate && (
@@ -677,18 +632,18 @@ export default function ExpensesPage() {
                         {bill.billSplits?.map(split => (
                           <button
                             key={split.id}
-                            onClick={() => split.status !== 'PAID' && handleMarkSplitterPaid(bill.id, split.teamMember.id)}
-                            disabled={split.status === 'PAID'}
+                            onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',
                               padding: '6px 12px', borderRadius: '20px',
                               border: split.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
                               background: split.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
                               color: split.status === 'PAID' ? '#10b981' : '#fff',
-                              cursor: split.status === 'PAID' ? 'default' : 'pointer',
-                              fontSize: '13px'
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              transition: 'all 0.15s'
                             }}
-                            title={split.status === 'PAID' ? 'Paid' : 'Click to mark as paid'}
+                            title={split.status === 'PAID' ? 'Click to mark as unpaid' : 'Click to mark as paid'}
                           >
                             {split.teamMember.profileImageUrl ? (
                               <img
@@ -740,55 +695,6 @@ export default function ExpensesPage() {
                     </div>
                   )
                 })}
-              </div>
-            )}
-          </div>
-
-          {/* Recurring Bills Section */}
-          <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '16px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #27272a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Recurring Bills</h2>
-                <p style={{ fontSize: '12px', color: '#71717a', margin: '4px 0 0 0' }}>These generate monthly instances automatically</p>
-              </div>
-              <button onClick={() => openRecurringModal()} style={{
-                padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#27272a', color: '#fff', cursor: 'pointer', fontSize: '13px'
-              }}>+ Add Recurring</button>
-            </div>
-
-            {recurringBills.length === 0 ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: '#71717a' }}>No recurring bills defined</div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1px', background: '#27272a' }}>
-                {recurringBills.map(r => (
-                  <div key={r.id} style={{ background: '#18181b', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 600 }}>{r.name}</div>
-                      <div style={{ fontWeight: 600, color: r.amountType === 'FIXED' ? '#fff' : '#f59e0b' }}>
-                        {r.amountType === 'FIXED' ? formatCurrency(r.fixedAmount || 0) : 'Variable'}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>
-                      {r.vendor} • Due {r.dueDay}th • {r.frequency}
-                    </div>
-                    {r.emailPatterns?.length > 0 && (
-                      <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '8px' }}>
-                        Patterns: {r.emailPatterns.join(', ')}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={() => openHistoryModal(r)} style={{
-                        padding: '4px 10px', borderRadius: '4px', border: '1px solid #3b82f6', background: 'transparent', color: '#3b82f6', cursor: 'pointer', fontSize: '12px'
-                      }}>History</button>
-                      <button onClick={() => openRecurringModal(r)} style={{
-                        padding: '4px 10px', borderRadius: '4px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer', fontSize: '12px'
-                      }}>Edit</button>
-                      <button onClick={() => handleDeleteRecurring(r.id)} style={{
-                        padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '12px'
-                      }}>Delete</button>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -918,191 +824,185 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Bill History Modal */}
-      {showHistoryModal && historyBill && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
-          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '550px', border: '1px solid #27272a', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>{historyBill.name} History</h2>
-              <p style={{ fontSize: '13px', color: '#71717a' }}>
-                {historyBill.vendor} • {historyBill.amountType === 'FIXED' ? formatCurrency(historyBill.fixedAmount || 0) + '/mo' : 'Variable'} • Due {historyBill.dueDay}th
-              </p>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
-              {loadingHistory ? (
-                <div style={{ textAlign: 'center', padding: '32px', color: '#71717a' }}>Loading history...</div>
-              ) : billHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px', color: '#71717a' }}>No bill history yet</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {billHistory.map((instance, idx) => {
-                    const isLatest = idx === 0
-                    const prevInstance = billHistory[idx + 1]
-                    const amountChange = prevInstance ? Number(instance.amount) - Number(prevInstance.amount) : 0
-                    const changePercent = prevInstance && Number(prevInstance.amount) > 0
-                      ? ((amountChange / Number(prevInstance.amount)) * 100).toFixed(1)
-                      : null
-
-                    return (
-                      <div key={instance.id} style={{
-                        background: isLatest ? 'rgba(59,130,246,0.1)' : '#0a0a0a',
-                        border: isLatest ? '1px solid rgba(59,130,246,0.3)' : '1px solid #27272a',
-                        borderRadius: '8px', padding: '12px 16px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 600 }}>
-                              {instance.period?.includes('Q')
-                                ? instance.period
-                                : new Date(instance.period + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                            </span>
-                            {isLatest && (
-                              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#3b82f6', color: '#fff' }}>Current</span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '18px', fontWeight: 700 }}>
-                              {Number(instance.amount) > 0 ? formatCurrency(Number(instance.amount)) : 'Pending'}
-                            </span>
-                            {changePercent && Number(changePercent) !== 0 && (
-                              <span style={{
-                                fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
-                                background: amountChange > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
-                                color: amountChange > 0 ? '#ef4444' : '#10b981'
-                              }}>
-                                {amountChange > 0 ? '+' : ''}{changePercent}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#71717a' }}>
-                          <span>Due: {instance.dueDate ? formatDate(instance.dueDate) : '-'}</span>
-                          <span style={{
-                            color: instance.status === 'PAID' ? '#10b981' : '#f59e0b'
-                          }}>
-                            {instance.status === 'PAID' ? `Paid ${instance.paidDate ? formatDate(instance.paidDate) : ''}` : 'Pending'}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Stats summary */}
-            {billHistory.length > 1 && (
-              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', fontSize: '13px' }}>
-                  <div>
-                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Average</div>
-                    <div style={{ fontWeight: 600 }}>
-                      {formatCurrency(billHistory.reduce((sum, b) => sum + Number(b.amount), 0) / billHistory.length)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Highest</div>
-                    <div style={{ fontWeight: 600, color: '#ef4444' }}>
-                      {formatCurrency(Math.max(...billHistory.map(b => Number(b.amount))))}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#71717a', fontSize: '11px', marginBottom: '2px' }}>Lowest</div>
-                    <div style={{ fontWeight: 600, color: '#10b981' }}>
-                      {formatCurrency(Math.min(...billHistory.filter(b => Number(b.amount) > 0).map(b => Number(b.amount))) || 0)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <button onClick={() => { setShowHistoryModal(false); setHistoryBill(null); setBillHistory([]) }} style={{
-              padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, alignSelf: 'flex-end'
-            }}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* Recurring Bill Modal */}
-      {showRecurringModal && (
+      {/* Bill Detail/Edit Modal */}
+      {showBillDetailModal && editingBill && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px', overflowY: 'auto' }}>
-          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '450px', border: '1px solid #27272a', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '20px' }}>{editingRecurring ? 'Edit' : 'Add'} Recurring Bill</h2>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Name</label>
-              <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="e.g., Electric Bill" />
+          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '500px', border: '1px solid #27272a', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Edit Bill</h2>
+                {editingBill.recurringBill && (
+                  <p style={{ fontSize: '12px', color: '#3b82f6', margin: '4px 0 0 0' }}>
+                    Linked to: {editingBill.recurringBill.name}
+                  </p>
+                )}
+              </div>
+              <span style={{
+                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                background: billFormData.status === 'PAID' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
+                color: billFormData.status === 'PAID' ? '#10b981' : '#f59e0b'
+              }}>
+                {billFormData.status}
+              </span>
             </div>
+
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Vendor</label>
-              <input type="text" value={formData.vendor || ''} onChange={e => setFormData({ ...formData, vendor: e.target.value })}
+              <input
+                type="text"
+                value={billFormData.vendor || ''}
+                onChange={e => setBillFormData({ ...billFormData, vendor: e.target.value })}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="e.g., Duke Energy" />
+              />
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Type</label>
-                <select value={formData.vendorType || 'OTHER'} onChange={e => setFormData({ ...formData, vendorType: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}>
+                <select
+                  value={billFormData.vendorType || 'OTHER'}
+                  onChange={e => setBillFormData({ ...billFormData, vendorType: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                >
                   {VENDOR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Frequency</label>
-                <select value={formData.frequency || 'MONTHLY'} onChange={e => setFormData({ ...formData, frequency: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}>
-                  <option value="MONTHLY">Monthly</option>
-                  <option value="QUARTERLY">Quarterly</option>
-                  <option value="ANNUAL">Annual</option>
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Amount Type</label>
-                <select value={formData.amountType || 'VARIABLE'} onChange={e => setFormData({ ...formData, amountType: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}>
-                  <option value="FIXED">Fixed</option>
-                  <option value="VARIABLE">Variable</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Due Day</label>
-                <input type="number" value={formData.dueDay || ''} onChange={e => setFormData({ ...formData, dueDay: e.target.value })}
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Amount</label>
+                <input
+                  type="number"
+                  value={billFormData.amount || ''}
+                  onChange={e => setBillFormData({ ...billFormData, amount: e.target.value })}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                  placeholder="15" min="1" max="28" />
+                  step="0.01"
+                />
               </div>
-            </div>
-            {formData.amountType === 'FIXED' && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Fixed Amount</label>
-                <input type="number" value={formData.fixedAmount || ''} onChange={e => setFormData({ ...formData, fixedAmount: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                  placeholder="0.00" step="0.01" />
-              </div>
-            )}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Payment Method</label>
-              <input type="text" value={formData.paymentMethod || ''} onChange={e => setFormData({ ...formData, paymentMethod: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="e.g., Autopay, Zelle" />
-            </div>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Email Patterns (comma-separated)</label>
-              <input type="text" value={formData.emailPatterns || ''} onChange={e => setFormData({ ...formData, emailPatterns: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="e.g., duke, energy" />
-              <p style={{ fontSize: '11px', color: '#52525b', marginTop: '4px' }}>Used to auto-match emails for amount detection</p>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowRecurringModal(false); setEditingRecurring(null) }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSaveRecurring} disabled={submitting} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, opacity: submitting ? 0.5 : 1 }}>
-                {submitting ? 'Saving...' : 'Save'}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Due Date</label>
+                <input
+                  type="date"
+                  value={billFormData.dueDate || ''}
+                  onChange={e => setBillFormData({ ...billFormData, dueDate: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Status</label>
+                <select
+                  value={billFormData.status || 'PENDING'}
+                  onChange={e => setBillFormData({ ...billFormData, status: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                >
+                  <option value="PENDING">Pending</option>
+                  <option value="PAID">Paid</option>
+                </select>
+              </div>
+            </div>
+
+            {billFormData.status === 'PAID' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Paid Via</label>
+                <input
+                  type="text"
+                  value={billFormData.paidVia || ''}
+                  onChange={e => setBillFormData({ ...billFormData, paidVia: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                  placeholder="e.g., Bank of America ****1234"
+                />
+              </div>
+            )}
+
+            {/* Bill Splits Section */}
+            {editingBill.billSplits && editingBill.billSplits.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>Split Payments</label>
+                <div style={{ background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                  {editingBill.billSplits.map(split => (
+                    <div key={split.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 12px', borderBottom: '1px solid #27272a'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {split.teamMember.profileImageUrl ? (
+                          <img
+                            src={split.teamMember.profileImageUrl}
+                            alt={split.teamMember.name}
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '50%',
+                            background: split.status === 'PAID' ? '#10b981' : '#3b82f6',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '11px', fontWeight: 600
+                          }}>
+                            {(split.teamMember.name || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 500 }}>{split.teamMember.name || split.teamMember.email}</div>
+                          <div style={{ fontSize: '12px', color: '#71717a' }}>{formatCurrency(Number(split.amount))}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleToggleSplitStatus(editingBill.id, split.teamMember.id, split.status)}
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                          border: 'none', cursor: 'pointer',
+                          background: split.status === 'PAID' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
+                          color: split.status === 'PAID' ? '#10b981' : '#f59e0b'
+                        }}
+                      >
+                        {split.status === 'PAID' ? 'Paid' : 'Pending'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: '11px', color: '#52525b', marginTop: '6px' }}>Click status to toggle paid/unpaid</p>
+              </div>
+            )}
+
+            {/* Transaction Info */}
+            {editingBill.paidVia && editingBill.status === 'PAID' && (
+              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '4px' }}>Payment Source</div>
+                <div style={{ fontSize: '14px', color: '#10b981' }}>{editingBill.paidVia}</div>
+                {editingBill.paidDate && (
+                  <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>
+                    Paid on {formatDate(editingBill.paidDate)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '20px' }}>
+              <button
+                onClick={() => {
+                  setShowBillDetailModal(false)
+                  handleDeleteBill(editingBill.id)
+                }}
+                style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#ef4444', cursor: 'pointer' }}
+              >
+                Delete Bill
               </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => { setShowBillDetailModal(false); setEditingBill(null); setBillFormData({}) }}
+                  style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveBillDetails}
+                  disabled={submitting}
+                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, opacity: submitting ? 0.5 : 1 }}
+                >
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
