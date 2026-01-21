@@ -32,6 +32,7 @@ export async function POST(
     const createAutoApproveRule = body.createAutoApproveRule === true
     const ruleType = body.ruleType || 'VENDOR'
     const vendorPattern = body.vendorPattern
+    const patternOverride = body.patternOverride || null // For DESCRIPTION_PATTERN
     const displayName = body.displayName || null
     const amountMode = body.amountMode || 'EXACT'
     const amountMin = body.amountMin
@@ -146,7 +147,8 @@ export async function POST(
     let additionalApproved = 0
 
     // Create auto-approve rule and apply to other pending emails
-    if (createAutoApproveRule && vendorPattern) {
+    const patternToUse = ruleType === 'DESCRIPTION_PATTERN' ? patternOverride : vendorPattern
+    if (createAutoApproveRule && patternToUse) {
       try {
         // Find other pending proposed bills with matching pattern
         const matchingPending = await prisma.proposedBill.findMany({
@@ -154,9 +156,9 @@ export async function POST(
             status: 'PENDING',
             id: { not: id },
             OR: [
-              { vendor: { contains: vendorPattern } },
-              { emailFrom: { contains: vendorPattern } },
-              { emailSubject: { contains: vendorPattern } }
+              { vendor: { contains: patternToUse, mode: 'insensitive' } },
+              { emailFrom: { contains: patternToUse, mode: 'insensitive' } },
+              { emailSubject: { contains: patternToUse, mode: 'insensitive' } }
             ]
           }
         })

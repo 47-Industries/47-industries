@@ -57,6 +57,7 @@ export async function POST(
     const createAutoApproveRule = body.createAutoApproveRule === true
     const ruleType = body.ruleType || 'VENDOR'
     const vendorPattern = body.vendorPattern || vendor
+    const patternOverride = body.patternOverride || null // For DESCRIPTION_PATTERN
     const displayName = body.displayName || null
     const amountMode = body.amountMode || 'EXACT'
     const amountMin = body.amountMin
@@ -185,6 +186,10 @@ export async function POST(
               { amount: { gte: -maxAmt, lte: -minAmt } }
             ]
           }
+        } else if (ruleType === 'DESCRIPTION_PATTERN') {
+          // Match on raw description text pattern
+          const patternToMatch = patternOverride || vendorPattern
+          whereClause.description = { contains: patternToMatch, mode: 'insensitive' }
         }
 
         // Find matching transactions

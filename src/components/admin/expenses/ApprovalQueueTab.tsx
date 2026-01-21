@@ -94,11 +94,12 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [approveVendorType, setApproveVendorType] = useState('OTHER')
   const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
   const [approveAutoApprove, setApproveAutoApprove] = useState(false)
-  const [approveRuleType, setApproveRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT'>('NONE')
+  const [approveRuleType, setApproveRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
   const [approveAmountMode, setApproveAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
   const [approveAmountMin, setApproveAmountMin] = useState('')
   const [approveAmountMax, setApproveAmountMax] = useState('')
   const [approveVendorPattern, setApproveVendorPattern] = useState('') // Pattern to match for auto-approve
+  const [approvePatternOverride, setApprovePatternOverride] = useState('') // Custom text pattern for DESCRIPTION_PATTERN
   const [approveDisplayName, setApproveDisplayName] = useState('') // Display name for future matches
   const [approveAutoRename, setApproveAutoRename] = useState(false) // Whether to auto-rename matches
 
@@ -352,6 +353,9 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     const desc = item.description || item.vendor
     const pattern = desc.split(' ').slice(0, 3).join(' ').replace(/\d{4,}/g, '').trim()
     setApproveVendorPattern(pattern)
+    // Extract first word for text pattern default
+    const firstWord = desc.split(' ')[0]
+    setApprovePatternOverride(firstWord)
     setApproveDisplayName('') // Empty = no auto-rename
     setApproveAutoRename(false)
   }
@@ -365,6 +369,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     try {
       let res: Response
+
+      // Determine the pattern to use based on rule type
+      const patternToUse = approveRuleType === 'DESCRIPTION_PATTERN'
+        ? approvePatternOverride.trim()
+        : approveVendorPattern.trim()
 
       if (approveModalItem.type === 'email') {
         // Email bills now get the same full options as bank transactions
@@ -382,7 +391,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             amountMode: approveAmountMode,
             amountMin: approveAmountMode === 'RANGE' && approveAmountMin ? parseFloat(approveAmountMin) : null,
             amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null,
-            vendorPattern: approveVendorPattern.trim() || null,
+            vendorPattern: patternToUse || null,
+            patternOverride: approveRuleType === 'DESCRIPTION_PATTERN' ? approvePatternOverride.trim() : null,
             displayName: approveAutoRename && approveDisplayName.trim() ? approveDisplayName.trim() : null
           })
         })
@@ -402,7 +412,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             amountMin: approveAmountMode === 'RANGE' && approveAmountMin ? parseFloat(approveAmountMin) : null,
             amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null,
             // Separate pattern and display name
-            vendorPattern: approveVendorPattern.trim() || null,
+            vendorPattern: patternToUse || null,
+            patternOverride: approveRuleType === 'DESCRIPTION_PATTERN' ? approvePatternOverride.trim() : null,
             displayName: approveAutoRename && approveDisplayName.trim() ? approveDisplayName.trim() : null,
             autoRename: approveAutoRename
           })
@@ -1766,6 +1777,48 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                           />
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  onClick={() => setApproveRuleType('DESCRIPTION_PATTERN')}
+                  style={{ padding: '10px', background: approveRuleType === 'DESCRIPTION_PATTERN' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'DESCRIPTION_PATTERN' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="approveRule"
+                      checked={approveRuleType === 'DESCRIPTION_PATTERN'}
+                      onChange={() => setApproveRuleType('DESCRIPTION_PATTERN')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by text pattern</div>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: approveRuleType === 'DESCRIPTION_PATTERN' ? '8px' : 0 }}>Anything containing this text</div>
+                    </div>
+                  </label>
+                  {approveRuleType === 'DESCRIPTION_PATTERN' && (
+                    <div style={{ marginTop: '8px', marginLeft: '24px' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={approvePatternOverride}
+                        onChange={e => setApprovePatternOverride(e.target.value)}
+                        placeholder="Text pattern to match..."
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <div style={{ fontSize: '11px', color: '#71717a', marginTop: '4px' }}>
+                        Case-insensitive. Matches if description contains this text.
+                      </div>
                     </div>
                   )}
                 </div>
