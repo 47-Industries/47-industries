@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface ProposedBill {
   id: string
@@ -54,6 +54,7 @@ interface ApprovalQueueTabProps {
 
 export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProps) {
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [items, setItems] = useState<ApprovalItem[]>([])
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'APPROVED' | 'SKIPPED' | 'ALL'>('PENDING')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'email' | 'bank'>('all')
@@ -62,6 +63,10 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [offset, setOffset] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const PAGE_SIZE = 100
 
   // Recurring expense options (per item)
   const [recurringOptions, setRecurringOptions] = useState<Record<string, {
@@ -80,58 +85,113 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [skipAmountMax, setSkipAmountMax] = useState('')
   const [skipDisplayName, setSkipDisplayName] = useState('')
 
+  // Quick mode (Shift held)
+  const [quickMode, setQuickMode] = useState(false)
+
+  // Track Shift key for quick mode
   useEffect(() => {
-    fetchItems()
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setQuickMode(true)
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setQuickMode(false)
+    }
+    const handleBlur = () => setQuickMode(false)
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Reset and fetch when status filter changes
+    setOffset(0)
+    setItems([])
+    fetchItems(0, true)
   }, [statusFilter])
 
-  const fetchItems = async () => {
-    setLoading(true)
+  const transformItems = (data: any): ApprovalItem[] => {
+    // Transform email bills
+    const emailItems: ApprovalItem[] = (data.proposedBills || []).map((bill: ProposedBill) => ({
+      id: `email-${bill.id}`,
+      type: 'email' as const,
+      vendor: bill.vendor || 'Unknown Vendor',
+      description: bill.emailSubject || bill.emailFrom,
+      displayName: null,
+      amount: bill.amount,
+      date: bill.emailDate || bill.createdAt,
+      source: bill.source,
+      confidence: bill.confidence,
+      status: bill.status,
+      original: bill
+    }))
+
+    // Transform bank transactions
+    const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: any) => ({
+      id: `bank-${txn.id}`,
+      type: 'bank' as const,
+      vendor: txn.displayName || txn.merchantName || txn.description || 'Bank Transaction',
+      description: txn.description || '',
+      displayName: txn.displayName || null,
+      amount: Math.abs(txn.amount),
+      date: txn.transactedAt,
+      source: `${txn.financialAccount.institutionName}${txn.financialAccount.accountLast4 ? ` ****${txn.financialAccount.accountLast4}` : ''}`,
+      status: txn.approvalStatus || 'PENDING',
+      original: txn
+    }))
+
+    // Combine and sort by date
+    return [...emailItems, ...bankItems].sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+  }
+
+  const fetchItems = async (fetchOffset: number = 0, isInitial: boolean = false) => {
+    if (isInitial) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
+    }
+
     try {
-      const res = await fetch(`/api/admin/proposed-bills?status=${statusFilter}`)
+      const res = await fetch(`/api/admin/proposed-bills?status=${statusFilter}&limit=${PAGE_SIZE}&offset=${fetchOffset}`)
       if (res.ok) {
         const data = await res.json()
+        const newItems = transformItems(data)
 
-        // Transform email bills
-        const emailItems: ApprovalItem[] = (data.proposedBills || []).map((bill: ProposedBill) => ({
-          id: `email-${bill.id}`,
-          type: 'email' as const,
-          vendor: bill.vendor || 'Unknown Vendor',
-          description: bill.emailSubject || bill.emailFrom,
-          displayName: null, // Email bills don't have displayName yet
-          amount: bill.amount,
-          date: bill.emailDate || bill.createdAt,
-          source: bill.source,
-          confidence: bill.confidence,
-          status: bill.status,
-          original: bill
-        }))
+        if (isInitial) {
+          setItems(newItems)
+        } else {
+          // Append new items, avoiding duplicates
+          setItems(prev => {
+            const existingIds = new Set(prev.map(i => i.id))
+            const uniqueNew = newItems.filter(i => !existingIds.has(i.id))
+            return [...prev, ...uniqueNew]
+          })
+        }
 
-        // Transform bank transactions
-        const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: any) => ({
-          id: `bank-${txn.id}`,
-          type: 'bank' as const,
-          vendor: txn.displayName || txn.merchantName || txn.description || 'Bank Transaction',
-          description: txn.description || '',
-          displayName: txn.displayName || null,
-          amount: Math.abs(txn.amount),
-          date: txn.transactedAt,
-          source: `${txn.financialAccount.institutionName}${txn.financialAccount.accountLast4 ? ` ****${txn.financialAccount.accountLast4}` : ''}`,
-          status: txn.approvalStatus || 'PENDING',
-          original: txn
-        }))
-
-        // Combine and sort by date
-        const allItems = [...emailItems, ...bankItems].sort((a, b) =>
-          new Date(b.date).getTime() - new Date(a.date).getTime()
-        )
-
-        setItems(allItems)
+        setTotalCount(data.total || 0)
+        setHasMore(newItems.length === PAGE_SIZE && (fetchOffset + newItems.length) < (data.total || 0))
+        setOffset(fetchOffset + newItems.length)
         onCountChange(data.pendingCount || 0)
       }
     } catch (err) {
       setError('Failed to fetch items')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchItems(offset, false)
     }
   }
 
@@ -189,7 +249,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         } else {
           setSuccess('Expense approved')
         }
-        fetchItems()
+        fetchItems(0, true)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to approve')
@@ -211,7 +271,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         body: JSON.stringify({ reason })
       })
       if (res.ok) {
-        fetchItems()
+        fetchItems(0, true)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to reject')
@@ -234,6 +294,36 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setSkipAmountMin('')
     setSkipAmountMax('')
     setSkipDisplayName('') // Reset display name
+  }
+
+  // Quick skip - instantly skips without modal (no rule created)
+  const handleQuickSkip = async (item: ApprovalItem) => {
+    if (item.type !== 'bank') return
+
+    setProcessing(item.id)
+    setError('')
+    try {
+      const txnId = item.id.replace('bank-', '')
+      const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          createRule: false,
+          ruleType: 'NONE'
+        })
+      })
+      if (res.ok) {
+        setSuccess('Transaction skipped')
+        fetchItems(0, true)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to skip')
+      }
+    } catch (err) {
+      setError('Failed to skip')
+    } finally {
+      setProcessing(null)
+    }
   }
 
   const handleSkip = async (createRule: boolean = false) => {
@@ -265,7 +355,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
           setSuccess('Transaction skipped')
         }
         setSkipModalItem(null)
-        fetchItems()
+        fetchItems(0, true)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to skip')
@@ -316,7 +406,40 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     setSelectedIds(new Set())
     setSuccess(`Approved ${approved} items${failed > 0 ? `, ${failed} failed` : ''}`)
-    fetchItems()
+    fetchItems(0, true)
+    setProcessing(null)
+  }
+
+  const handleBulkSkip = async () => {
+    if (selectedIds.size === 0) return
+    setProcessing('bulk')
+    setError('')
+
+    let skipped = 0
+    let failed = 0
+
+    for (const id of selectedIds) {
+      const item = items.find(i => i.id === id)
+      if (!item || item.type !== 'bank') continue
+
+      try {
+        const txnId = id.replace('bank-', '')
+        const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ createRule: false, ruleType: 'NONE' })
+        })
+
+        if (res.ok) skipped++
+        else failed++
+      } catch {
+        failed++
+      }
+    }
+
+    setSelectedIds(new Set())
+    setSuccess(`Skipped ${skipped} transactions${failed > 0 ? `, ${failed} failed` : ''}`)
+    fetchItems(0, true)
     setProcessing(null)
   }
 
@@ -366,6 +489,28 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
   return (
     <div>
+      {/* Quick Mode Indicator */}
+      {quickMode && (
+        <div style={{
+          background: 'rgba(251,191,36,0.15)',
+          border: '1px solid rgba(251,191,36,0.4)',
+          color: '#fbbf24',
+          padding: '10px 16px',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '13px',
+          fontWeight: 500
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+          Quick Mode Active - Click Skip or Approve to instantly process (no confirmations)
+        </div>
+      )}
+
       {error && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
           {error}
@@ -426,22 +571,40 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         </div>
 
         {statusFilter === 'PENDING' && selectedIds.size > 0 && (
-          <button
-            onClick={handleBulkApprove}
-            disabled={processing === 'bulk'}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              background: '#10b981',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '13px',
-              opacity: processing === 'bulk' ? 0.5 : 1
-            }}
-          >
-            Approve {selectedIds.size} Selected
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleBulkApprove}
+              disabled={processing === 'bulk'}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#10b981',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '13px',
+                opacity: processing === 'bulk' ? 0.5 : 1
+              }}
+            >
+              Approve {selectedIds.size} Selected
+            </button>
+            <button
+              onClick={handleBulkSkip}
+              disabled={processing === 'bulk'}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #71717a',
+                background: 'transparent',
+                color: '#a1a1aa',
+                cursor: 'pointer',
+                fontSize: '13px',
+                opacity: processing === 'bulk' ? 0.5 : 1
+              }}
+            >
+              Skip {selectedIds.size} Selected
+            </button>
+          </div>
         )}
       </div>
 
@@ -568,14 +731,14 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                       )}
                       {item.type === 'bank' && (
                         <button
-                          onClick={() => openSkipModal(item)}
+                          onClick={() => quickMode ? handleQuickSkip(item) : openSkipModal(item)}
                           disabled={processing === item.id}
                           style={{
                             padding: '6px 12px',
                             borderRadius: '4px',
-                            border: '1px solid #71717a',
-                            background: 'transparent',
-                            color: '#a1a1aa',
+                            border: quickMode ? '1px solid #fbbf24' : '1px solid #71717a',
+                            background: quickMode ? 'rgba(251,191,36,0.1)' : 'transparent',
+                            color: quickMode ? '#fbbf24' : '#a1a1aa',
                             cursor: 'pointer',
                             fontSize: '12px',
                             opacity: processing === item.id ? 0.5 : 1
@@ -733,6 +896,35 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
               )}
             </div>
           ))}
+
+          {/* Load More */}
+          {hasMore && (
+            <div style={{ padding: '16px', textAlign: 'center', borderTop: '1px solid #27272a' }}>
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: '6px',
+                  border: '1px solid #3f3f46',
+                  background: 'transparent',
+                  color: '#a1a1aa',
+                  cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  opacity: loadingMore ? 0.5 : 1
+                }}
+              >
+                {loadingMore ? 'Loading...' : `Load More (${items.length} of ${totalCount})`}
+              </button>
+            </div>
+          )}
+
+          {/* Count indicator */}
+          {!hasMore && items.length > 0 && (
+            <div style={{ padding: '12px 16px', textAlign: 'center', borderTop: '1px solid #27272a', color: '#71717a', fontSize: '12px' }}>
+              Showing all {items.length} items
+            </div>
+          )}
         </div>
       )}
 
