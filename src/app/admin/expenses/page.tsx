@@ -96,6 +96,8 @@ export default function ExpensesPage() {
   const [formData, setFormData] = useState<any>({})
   const [billFormData, setBillFormData] = useState<any>({})
   const [submitting, setSubmitting] = useState(false)
+  const [showCreateRecurring, setShowCreateRecurring] = useState(false)
+  const [recurringFormData, setRecurringFormData] = useState<any>({})
   const [scanning, setScanning] = useState(false)
   const [scanResults, setScanResults] = useState<any>(null)
 
@@ -281,6 +283,73 @@ export default function ExpensesPage() {
     }
   }
 
+  const handleCreateRecurringFromBill = async () => {
+    if (!editingBill || !recurringFormData.name) {
+      setError('Name is required')
+      return
+    }
+    setSubmitting(true)
+    try {
+      // Create the recurring bill
+      const createRes = await fetch('/api/admin/recurring-bills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: recurringFormData.name,
+          vendor: recurringFormData.vendor || editingBill.vendor,
+          vendorType: recurringFormData.vendorType || editingBill.vendorType,
+          amountType: recurringFormData.amountType || 'VARIABLE',
+          fixedAmount: recurringFormData.amountType === 'FIXED' ? parseFloat(recurringFormData.fixedAmount) : null,
+          frequency: recurringFormData.frequency || 'MONTHLY',
+          dueDay: parseInt(recurringFormData.dueDay) || new Date(editingBill.dueDate || Date.now()).getDate(),
+          emailPatterns: recurringFormData.emailPatterns ? recurringFormData.emailPatterns.split(',').map((p: string) => p.trim().toLowerCase()) : [],
+          autoApprove: recurringFormData.autoApprove || false
+        })
+      })
+
+      if (!createRes.ok) {
+        setError('Failed to create recurring bill')
+        return
+      }
+
+      const createData = await createRes.json()
+      const newRecurringId = createData.recurringBill?.id
+
+      if (newRecurringId) {
+        // Link current bill to the new recurring
+        await handleLinkToRecurring(editingBill.id, newRecurringId)
+
+        // Apply to pending transactions if requested
+        if (recurringFormData.applyToPending) {
+          const applyRes = await fetch('/api/admin/recurring-bills/apply-pending', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recurringBillId: newRecurringId,
+              vendorPattern: recurringFormData.vendor || editingBill.vendor
+            })
+          })
+          if (applyRes.ok) {
+            const applyData = await applyRes.json()
+            setSuccess(`Recurring bill created. Applied to ${applyData.applied || 0} pending items.`)
+          } else {
+            setSuccess('Recurring bill created and linked')
+          }
+        } else {
+          setSuccess('Recurring bill created and linked')
+        }
+
+        setShowCreateRecurring(false)
+        setRecurringFormData({})
+        fetchData()
+      }
+    } catch (err) {
+      setError('Failed to create recurring bill')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleLinkToRecurring = async (billId: string, recurringBillId: string | null) => {
     try {
       const res = await fetch(`/api/admin/bill-instances/${billId}`, {
@@ -321,6 +390,8 @@ export default function ExpensesPage() {
       period: bill.period || '',
       paidVia: bill.paidVia || ''
     })
+    setShowCreateRecurring(false)
+    setRecurringFormData({})
     setShowBillDetailModal(true)
   }
 
@@ -1080,30 +1151,167 @@ export default function ExpensesPage() {
                     )
                   })()}
                 </div>
+              ) : showCreateRecurring ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ fontWeight: 500 }}>Create Recurring Template</span>
+                    <button onClick={() => { setShowCreateRecurring(false); setRecurringFormData({}) }} style={{ background: 'none', border: 'none', color: '#71717a', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Name</label>
+                      <input
+                        type="text"
+                        value={recurringFormData.name || ''}
+                        onChange={e => setRecurringFormData({ ...recurringFormData, name: e.target.value })}
+                        placeholder={editingBill.vendor}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Frequency</label>
+                        <select
+                          value={recurringFormData.frequency || 'MONTHLY'}
+                          onChange={e => setRecurringFormData({ ...recurringFormData, frequency: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                        >
+                          <option value="MONTHLY">Monthly</option>
+                          <option value="QUARTERLY">Quarterly</option>
+                          <option value="ANNUAL">Annual</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Due Day</label>
+                        <input
+                          type="number"
+                          value={recurringFormData.dueDay || (editingBill.dueDate ? new Date(editingBill.dueDate).getDate() : '')}
+                          onChange={e => setRecurringFormData({ ...recurringFormData, dueDay: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                          min="1" max="28"
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Amount Type</label>
+                        <select
+                          value={recurringFormData.amountType || 'VARIABLE'}
+                          onChange={e => setRecurringFormData({ ...recurringFormData, amountType: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                        >
+                          <option value="VARIABLE">Variable</option>
+                          <option value="FIXED">Fixed</option>
+                        </select>
+                      </div>
+                      {recurringFormData.amountType === 'FIXED' && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Fixed Amount</label>
+                          <input
+                            type="number"
+                            value={recurringFormData.fixedAmount || editingBill.amount || ''}
+                            onChange={e => setRecurringFormData({ ...recurringFormData, fixedAmount: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                            step="0.01"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Email Patterns (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={recurringFormData.emailPatterns || ''}
+                        onChange={e => setRecurringFormData({ ...recurringFormData, emailPatterns: e.target.value })}
+                        placeholder={editingBill.vendor.toLowerCase().split(' ').slice(0, 2).join(', ')}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                      <p style={{ fontSize: '10px', color: '#52525b', marginTop: '2px' }}>Keywords to match in email sender/subject</p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={recurringFormData.autoApprove || false}
+                          onChange={e => setRecurringFormData({ ...recurringFormData, autoApprove: e.target.checked })}
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <span style={{ fontSize: '12px' }}>Auto-approve matching transactions</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={recurringFormData.applyToPending || false}
+                          onChange={e => setRecurringFormData({ ...recurringFormData, applyToPending: e.target.checked })}
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <span style={{ fontSize: '12px' }}>Apply to all pending transactions matching this vendor</span>
+                      </label>
+                    </div>
+
+                    <button
+                      onClick={handleCreateRecurringFromBill}
+                      disabled={submitting || !recurringFormData.name}
+                      style={{
+                        padding: '10px 16px', borderRadius: '6px', border: 'none',
+                        background: '#3b82f6', color: '#fff', cursor: 'pointer',
+                        fontSize: '13px', fontWeight: 500,
+                        opacity: submitting || !recurringFormData.name ? 0.5 : 1
+                      }}
+                    >
+                      {submitting ? 'Creating...' : 'Create Recurring Bill'}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div>
                   <p style={{ fontSize: '12px', color: '#71717a', marginBottom: '12px' }}>
-                    Link this bill to a recurring template to enable automatic amount detection from emails and future bill generation.
+                    Link to a recurring template for automatic email matching and future bill generation.
                   </p>
-                  <select
-                    onChange={e => {
-                      if (e.target.value) {
-                        handleLinkToRecurring(editingBill.id, e.target.value)
-                      }
-                    }}
-                    value=""
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
-                  >
-                    <option value="">Select a recurring template...</option>
-                    {recurringBills.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({r.amountType === 'FIXED' ? formatCurrency(r.fixedAmount || 0) : 'Variable'}) - {r.frequency}
-                      </option>
-                    ))}
-                  </select>
-                  <p style={{ fontSize: '11px', color: '#52525b', marginTop: '6px' }}>
-                    Or create a new template in Settings &gt; Recurring Bills
-                  </p>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <select
+                      onChange={e => {
+                        if (e.target.value) {
+                          handleLinkToRecurring(editingBill.id, e.target.value)
+                        }
+                      }}
+                      value=""
+                      style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                    >
+                      <option value="">Link to existing...</option>
+                      {recurringBills.map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r.amountType === 'FIXED' ? formatCurrency(r.fixedAmount || 0) : 'Variable'})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        setShowCreateRecurring(true)
+                        setRecurringFormData({
+                          name: editingBill.vendor,
+                          vendor: editingBill.vendor,
+                          vendorType: editingBill.vendorType,
+                          amountType: 'VARIABLE',
+                          frequency: 'MONTHLY',
+                          dueDay: editingBill.dueDate ? new Date(editingBill.dueDate).getDate().toString() : '',
+                          emailPatterns: editingBill.vendor.toLowerCase().split(' ').slice(0, 2).join(', ')
+                        })
+                      }}
+                      style={{
+                        padding: '10px 16px', borderRadius: '8px', border: 'none',
+                        background: '#10b981', color: '#fff', cursor: 'pointer',
+                        fontSize: '14px', fontWeight: 500, whiteSpace: 'nowrap'
+                      }}
+                    >
+                      + Create New
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
