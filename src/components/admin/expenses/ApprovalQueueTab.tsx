@@ -93,6 +93,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [approveVendor, setApproveVendor] = useState('') // Vendor name for this bill
   const [approveVendorType, setApproveVendorType] = useState('OTHER')
   const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
+  const [approveFrequency, setApproveFrequency] = useState<'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
   const [approveAutoApprove, setApproveAutoApprove] = useState(false)
   const [approveRuleType, setApproveRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
   const [approveAmountMode, setApproveAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
@@ -344,6 +345,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setApproveVendor(item.vendor) // Default vendor name for this bill
     setApproveVendorType('OTHER')
     setApproveCreateRecurring(false)
+    setApproveFrequency('MONTHLY')
     setApproveAutoApprove(false)
     setApproveRuleType('NONE')
     setApproveAmountMode('EXACT')
@@ -385,6 +387,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendor: approveVendor,
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
+            frequency: approveFrequency,
             autoApprove: approveAutoApprove,
             createAutoApproveRule: approveRuleType !== 'NONE',
             ruleType: approveRuleType,
@@ -405,6 +408,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendor: approveVendor,
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
+            frequency: approveFrequency,
             autoApprove: approveAutoApprove,
             createAutoApproveRule: approveRuleType !== 'NONE',
             ruleType: approveRuleType,
@@ -1606,11 +1610,33 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   onChange={(e) => setApproveCreateRecurring(e.target.checked)}
                   style={{ marginTop: '3px' }}
                 />
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '13px', fontWeight: 500 }}>Create as Recurring Expense</div>
                   <div style={{ fontSize: '12px', color: '#71717a' }}>Track this as a recurring company expense</div>
                 </div>
               </label>
+
+              {approveCreateRecurring && (
+                <div style={{ marginTop: '10px', marginLeft: '26px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '12px', color: '#a1a1aa' }}>Frequency:</label>
+                  <select
+                    value={approveFrequency}
+                    onChange={(e) => setApproveFrequency(e.target.value as 'MONTHLY' | 'QUARTERLY' | 'ANNUAL')}
+                    style={{
+                      padding: '6px 10px',
+                      background: '#18181b',
+                      border: '1px solid #3f3f46',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <option value="MONTHLY">Monthly</option>
+                    <option value="QUARTERLY">Quarterly (every 3 months)</option>
+                    <option value="ANNUAL">Annual (yearly)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Auto-approve future similar transactions */}
