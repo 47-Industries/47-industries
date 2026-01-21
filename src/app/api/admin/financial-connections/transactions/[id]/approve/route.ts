@@ -90,6 +90,8 @@ export async function POST(
         recurringBillId = existingRecurring.id
       } else {
         // Create new recurring bill
+        // Extract patterns from vendor name for email matching
+        const patterns = vendor.toLowerCase().split(' ').filter((w: string) => w.length > 2).slice(0, 3)
         const recurring = await prisma.recurringBill.create({
           data: {
             name: vendor,
@@ -100,7 +102,8 @@ export async function POST(
             fixedAmount: amount,
             dueDay: txnDate.getDate(),
             active: true,
-            autoApprove
+            autoApprove,
+            emailPatterns: patterns // Required field
           }
         })
         recurringBillId = recurring.id
