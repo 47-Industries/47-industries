@@ -66,6 +66,7 @@ export default function ExpenseSettingsTab() {
   const [billHistory, setBillHistory] = useState<BillInstance[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [fixingOrphans, setFixingOrphans] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -213,7 +214,7 @@ export default function ExpenseSettingsTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           monthsBack: 6,
-          monthsForward: 2
+          monthsForward: 3
         })
       })
       const data = await res.json()
@@ -230,6 +231,32 @@ export default function ExpenseSettingsTab() {
       setError('Failed to generate bills')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleFixOrphans = async () => {
+    setFixingOrphans(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/admin/bill-instances/fix-orphans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        if (data.linked > 0) {
+          setSuccess(`Linked ${data.linked} orphan bill(s) to recurring templates`)
+        } else {
+          setSuccess('No orphan bills found - all bills are already linked')
+        }
+      } else {
+        setError(data.error || 'Failed to fix orphan bills')
+      }
+    } catch (err) {
+      setError('Failed to fix orphan bills')
+    } finally {
+      setFixingOrphans(false)
     }
   }
 
@@ -667,6 +694,29 @@ export default function ExpenseSettingsTab() {
                 <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
               {generating ? 'Generating...' : 'Generate Bills'}
+            </button>
+            <button
+              onClick={handleFixOrphans}
+              disabled={fixingOrphans || recurringBills.length === 0}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #3f3f46',
+                background: 'transparent',
+                color: '#fff',
+                cursor: fixingOrphans || recurringBills.length === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                opacity: fixingOrphans || recurringBills.length === 0 ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>
+                <path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+              {fixingOrphans ? 'Fixing...' : 'Link Orphan Bills'}
             </button>
             <button onClick={() => openRecurringModal()} style={{
               padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: '13px'

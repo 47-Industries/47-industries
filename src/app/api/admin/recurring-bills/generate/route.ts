@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     const periods = body.periods || null
     // Optional: number of months to look back (default 6)
     const monthsBack = body.monthsBack || 6
-    // Optional: number of months forward (default 2)
-    const monthsForward = body.monthsForward || 2
+    // Optional: number of months forward (default 3)
+    const monthsForward = body.monthsForward || 3
 
     // Get recurring bills to process
     const recurringBills = await prisma.recurringBill.findMany({

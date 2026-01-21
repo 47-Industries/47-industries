@@ -64,14 +64,35 @@ export async function POST(
 
     let recurringBillId: string | null = proposed.matchedRecurringBillId
 
-    // Create or update recurring bill if requested
-    if (createRecurring) {
+    // ALWAYS try to find a matching recurring bill template if not already linked
+    if (!recurringBillId) {
+      const vendorFirstWord = finalVendor.split(' ')[0].toLowerCase()
       const existingRecurring = await prisma.recurringBill.findFirst({
         where: {
-          vendor: { contains: finalVendor.split(' ')[0] },
-          active: true
+          active: true,
+          OR: [
+            { vendor: { contains: vendorFirstWord, mode: 'insensitive' } },
+            { name: { contains: vendorFirstWord, mode: 'insensitive' } }
+          ]
         }
       })
+
+      if (existingRecurring) {
+        recurringBillId = existingRecurring.id
+        console.log(`[APPROVE] Auto-linked email bill to recurring template: ${existingRecurring.name}`)
+      }
+    }
+
+    // Create or update recurring bill if requested
+    if (createRecurring) {
+      const existingRecurring = recurringBillId
+        ? await prisma.recurringBill.findUnique({ where: { id: recurringBillId } })
+        : await prisma.recurringBill.findFirst({
+            where: {
+              vendor: { contains: finalVendor.split(' ')[0], mode: 'insensitive' },
+              active: true
+            }
+          })
 
       if (existingRecurring) {
         await prisma.recurringBill.update({
