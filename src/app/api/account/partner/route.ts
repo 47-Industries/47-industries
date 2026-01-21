@@ -80,9 +80,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       partner: {
         ...partner,
-        totalEarned: totalEarned._sum.amount || 0,
-        pendingAmount: pendingAmount._sum.amount || 0,
-        totalPaid: totalPaid._sum.amount || 0,
+        totalEarned: Number(totalEarned._sum.amount || 0),
+        pendingAmount: Number(pendingAmount._sum.amount || 0),
+        totalPaid: Number(totalPaid._sum.amount || 0),
         leadStats: leadStats.reduce((acc, curr) => {
           acc[curr.status] = curr._count
           return acc
