@@ -210,8 +210,11 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
   }
 
   if (rule.ruleType === 'VENDOR') {
-    // Vendor only - match description contains vendor pattern
-    whereClause.description = { contains: rule.vendorPattern }
+    // Vendor only - case-insensitive match on description or merchant name
+    whereClause.OR = [
+      { description: { contains: rule.vendorPattern, mode: 'insensitive' } },
+      { merchantName: { contains: rule.vendorPattern, mode: 'insensitive' } }
+    ]
   } else if (rule.ruleType === 'VENDOR_AMOUNT') {
     // Build amount filter
     let amountConditions: any[] = []
@@ -243,17 +246,28 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
       amountConditions = amountConditions.filter(c => c.amount.lte <= 0 || c.amount.lt !== undefined)
     }
 
-    // Match vendor AND amount
+    // Match vendor AND amount - case-insensitive
     whereClause.AND = [
-      { description: { contains: rule.vendorPattern } },
+      {
+        OR: [
+          { description: { contains: rule.vendorPattern, mode: 'insensitive' } },
+          { merchantName: { contains: rule.vendorPattern, mode: 'insensitive' } }
+        ]
+      },
       ...(amountConditions.length > 0 ? [{ OR: amountConditions }] : [])
     ]
 
     // Remove top-level amount filter since it's in AND clause now
     delete whereClause.amount
   } else if (rule.ruleType === 'DESCRIPTION_PATTERN') {
-    whereClause.description = { contains: rule.descriptionPattern }
+    // Case-insensitive pattern match
+    whereClause.OR = [
+      { description: { contains: rule.descriptionPattern, mode: 'insensitive' } },
+      { merchantName: { contains: rule.descriptionPattern, mode: 'insensitive' } }
+    ]
   }
+
+  console.log('[SKIP RULE] Applying to pending:', JSON.stringify(whereClause))
 
   const result = await prisma.stripeTransaction.updateMany({
     where: whereClause,

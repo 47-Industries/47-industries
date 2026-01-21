@@ -168,12 +168,16 @@ export async function POST(
         }
 
         if (ruleType === 'VENDOR') {
-          whereClause.description = { contains: vendorPattern }
+          // Case-insensitive match on description or merchant name
+          whereClause.OR = [
+            { description: { contains: vendorPattern, mode: 'insensitive' } },
+            { merchantName: { contains: vendorPattern, mode: 'insensitive' } }
+          ]
         } else if (ruleType === 'VENDOR_AMOUNT') {
-          whereClause.description = { contains: vendorPattern }
-
+          // Build amount conditions
+          let amountConditions: any[]
           if (amountMode === 'RANGE' && amountMin !== null && amountMax !== null) {
-            whereClause.OR = [
+            amountConditions = [
               { amount: { gte: amountMin, lte: amountMax } },
               { amount: { gte: -amountMax, lte: -amountMin } }
             ]
@@ -181,16 +185,32 @@ export async function POST(
             // 5% variance on exact amount
             const minAmt = amount * 0.95
             const maxAmt = amount * 1.05
-            whereClause.OR = [
+            amountConditions = [
               { amount: { gte: minAmt, lte: maxAmt } },
               { amount: { gte: -maxAmt, lte: -minAmt } }
             ]
           }
+
+          // Must match pattern AND amount
+          whereClause.AND = [
+            {
+              OR: [
+                { description: { contains: vendorPattern, mode: 'insensitive' } },
+                { merchantName: { contains: vendorPattern, mode: 'insensitive' } }
+              ]
+            },
+            { OR: amountConditions }
+          ]
         } else if (ruleType === 'DESCRIPTION_PATTERN') {
           // Match on raw description text pattern
           const patternToMatch = patternOverride || vendorPattern
-          whereClause.description = { contains: patternToMatch, mode: 'insensitive' }
+          whereClause.OR = [
+            { description: { contains: patternToMatch, mode: 'insensitive' } },
+            { merchantName: { contains: patternToMatch, mode: 'insensitive' } }
+          ]
         }
+
+        console.log('[APPROVE] Auto-approve query:', JSON.stringify(whereClause))
 
         // Find matching transactions
         const matchingTxns = await prisma.stripeTransaction.findMany({
