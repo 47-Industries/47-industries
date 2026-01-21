@@ -84,6 +84,20 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [skipAmountMin, setSkipAmountMin] = useState('')
   const [skipAmountMax, setSkipAmountMax] = useState('')
   const [skipDisplayName, setSkipDisplayName] = useState('')
+  const [skipVendorOverride, setSkipVendorOverride] = useState('') // Custom vendor name for rules
+  const [skipAmountOverride, setSkipAmountOverride] = useState('') // Custom exact amount for rules
+  const [skipPatternOverride, setSkipPatternOverride] = useState('') // Custom text pattern
+
+  // Approve modal state
+  const [approveModalItem, setApproveModalItem] = useState<ApprovalItem | null>(null)
+  const [approveVendor, setApproveVendor] = useState('')
+  const [approveVendorType, setApproveVendorType] = useState('OTHER')
+  const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
+  const [approveAutoApprove, setApproveAutoApprove] = useState(false)
+  const [approveRuleType, setApproveRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT'>('NONE')
+  const [approveAmountMode, setApproveAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
+  const [approveAmountMin, setApproveAmountMin] = useState('')
+  const [approveAmountMax, setApproveAmountMax] = useState('')
 
   // Quick mode (Shift held)
   const [quickMode, setQuickMode] = useState(false)
@@ -294,6 +308,84 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setSkipAmountMin('')
     setSkipAmountMax('')
     setSkipDisplayName('') // Reset display name
+    // Initialize override fields with current values
+    setSkipVendorOverride(item.vendor)
+    setSkipAmountOverride(item.amount?.toString() || '')
+    // Extract first word of description for default pattern
+    const firstWord = (item.description || item.vendor).split(' ')[0]
+    setSkipPatternOverride(firstWord)
+  }
+
+  const openApproveModal = (item: ApprovalItem) => {
+    setApproveModalItem(item)
+    setApproveVendor(item.vendor)
+    setApproveVendorType('OTHER')
+    setApproveCreateRecurring(false)
+    setApproveAutoApprove(false)
+    setApproveRuleType('NONE')
+    setApproveAmountMode('EXACT')
+    setApproveAmountMin('')
+    setApproveAmountMax('')
+  }
+
+  const handleApproveFromModal = async () => {
+    if (!approveModalItem) return
+
+    setProcessing(approveModalItem.id)
+    setError('')
+    setSuccess('')
+
+    try {
+      let res: Response
+
+      if (approveModalItem.type === 'email') {
+        const billId = approveModalItem.id.replace('email-', '')
+        res = await fetch(`/api/admin/proposed-bills/${billId}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enableAutoApprove: approveAutoApprove && approveRuleType !== 'NONE'
+          })
+        })
+      } else {
+        const txnId = approveModalItem.id.replace('bank-', '')
+        res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vendor: approveVendor,
+            vendorType: approveVendorType,
+            createRecurring: approveCreateRecurring,
+            autoApprove: approveAutoApprove,
+            createAutoApproveRule: approveRuleType !== 'NONE',
+            ruleType: approveRuleType,
+            amountMode: approveAmountMode,
+            amountMin: approveAmountMode === 'RANGE' && approveAmountMin ? parseFloat(approveAmountMin) : null,
+            amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null
+          })
+        })
+      }
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.recurringCreated) {
+          setSuccess('Expense approved and recurring expense created')
+        } else if (data.ruleCreated) {
+          setSuccess(`Expense approved. Auto-approve rule created - ${data.additionalApproved || 0} additional transaction(s) also approved.`)
+        } else {
+          setSuccess('Expense approved')
+        }
+        setApproveModalItem(null)
+        fetchItems(0, true)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to approve')
+      }
+    } catch (err) {
+      setError('Failed to approve')
+    } finally {
+      setProcessing(null)
+    }
   }
 
   // Quick skip - instantly skips without modal (no rule created)
@@ -344,7 +436,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
           amountMode: skipAmountMode,
           amountMin: skipAmountMode === 'RANGE' && skipAmountMin ? parseFloat(skipAmountMin) : null,
           amountMax: skipAmountMode === 'RANGE' && skipAmountMax ? parseFloat(skipAmountMax) : null,
-          displayName: skipDisplayName.trim() || null
+          displayName: skipDisplayName.trim() || null,
+          // Override values for customizable rules
+          vendorOverride: skipVendorOverride.trim() || null,
+          amountOverride: skipAmountOverride ? parseFloat(skipAmountOverride) : null,
+          patternOverride: skipPatternOverride.trim() || null
         })
       })
       if (res.ok) {
@@ -696,14 +792,14 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   {item.status === 'PENDING' ? (
                     <>
                       <button
-                        onClick={() => handleApprove(item, false)}
+                        onClick={() => quickMode ? handleApprove(item, false) : openApproveModal(item)}
                         disabled={processing === item.id}
                         style={{
                           padding: '6px 12px',
                           borderRadius: '4px',
-                          border: 'none',
-                          background: '#10b981',
-                          color: '#fff',
+                          border: quickMode ? '1px solid #fbbf24' : 'none',
+                          background: quickMode ? 'rgba(251,191,36,0.2)' : '#10b981',
+                          color: quickMode ? '#fbbf24' : '#fff',
                           cursor: 'pointer',
                           fontSize: '12px',
                           opacity: processing === item.id ? 0.5 : 1
@@ -1004,47 +1100,139 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   </div>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
-                  <input
-                    type="radio"
-                    name="skipRule"
-                    checked={skipRuleType === 'VENDOR'}
-                    onChange={() => setSkipRuleType('VENDOR')}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor (any amount)</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>All "{skipModalItem.vendor.split(' ').slice(0, 2).join(' ')}" transactions</div>
-                  </div>
-                </label>
+                <div
+                  onClick={() => setSkipRuleType('VENDOR')}
+                  style={{ padding: '10px', background: skipRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="skipRule"
+                      checked={skipRuleType === 'VENDOR'}
+                      onChange={() => setSkipRuleType('VENDOR')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor (any amount)</div>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: skipRuleType === 'VENDOR' ? '8px' : 0 }}>All transactions matching this vendor name</div>
+                    </div>
+                  </label>
+                  {skipRuleType === 'VENDOR' && (
+                    <div style={{ marginTop: '8px', marginLeft: '24px' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={skipVendorOverride}
+                        onChange={e => setSkipVendorOverride(e.target.value)}
+                        placeholder="Vendor name to match..."
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
-                  <input
-                    type="radio"
-                    name="skipRule"
-                    checked={skipRuleType === 'VENDOR_AMOUNT'}
-                    onChange={() => setSkipRuleType('VENDOR_AMOUNT')}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor + amount</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>"{skipModalItem.vendor.split(' ').slice(0, 2).join(' ')}" at ~{formatCurrency(skipModalItem.amount)}</div>
-                  </div>
-                </label>
+                <div
+                  onClick={() => setSkipRuleType('VENDOR_AMOUNT')}
+                  style={{ padding: '10px', background: skipRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="skipRule"
+                      checked={skipRuleType === 'VENDOR_AMOUNT'}
+                      onChange={() => setSkipRuleType('VENDOR_AMOUNT')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by vendor + amount</div>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: skipRuleType === 'VENDOR_AMOUNT' ? '8px' : 0 }}>Transactions matching vendor and amount</div>
+                    </div>
+                  </label>
+                  {skipRuleType === 'VENDOR_AMOUNT' && (
+                    <div style={{ marginTop: '8px', marginLeft: '24px', display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={skipVendorOverride}
+                        onChange={e => setSkipVendorOverride(e.target.value)}
+                        placeholder="Vendor name..."
+                        style={{
+                          flex: 1,
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px'
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={skipAmountOverride}
+                        onChange={e => setSkipAmountOverride(e.target.value)}
+                        placeholder="Amount"
+                        style={{
+                          width: '100px',
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: skipRuleType === 'DESCRIPTION_PATTERN' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'DESCRIPTION_PATTERN' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
-                  <input
-                    type="radio"
-                    name="skipRule"
-                    checked={skipRuleType === 'DESCRIPTION_PATTERN'}
-                    onChange={() => setSkipRuleType('DESCRIPTION_PATTERN')}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by text pattern</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>Anything containing "{skipModalItem.description?.split(' ')[0] || skipModalItem.vendor.split(' ')[0]}"</div>
-                  </div>
-                </label>
+                <div
+                  onClick={() => setSkipRuleType('DESCRIPTION_PATTERN')}
+                  style={{ padding: '10px', background: skipRuleType === 'DESCRIPTION_PATTERN' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: skipRuleType === 'DESCRIPTION_PATTERN' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="skipRule"
+                      checked={skipRuleType === 'DESCRIPTION_PATTERN'}
+                      onChange={() => setSkipRuleType('DESCRIPTION_PATTERN')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Skip by text pattern</div>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: skipRuleType === 'DESCRIPTION_PATTERN' ? '8px' : 0 }}>Anything containing this text</div>
+                    </div>
+                  </label>
+                  {skipRuleType === 'DESCRIPTION_PATTERN' && (
+                    <div style={{ marginTop: '8px', marginLeft: '24px' }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={skipPatternOverride}
+                        onChange={e => setSkipPatternOverride(e.target.value)}
+                        placeholder="Text pattern to match..."
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <div style={{ fontSize: '11px', color: '#71717a', marginTop: '4px' }}>
+                        Case-insensitive. Matches if description contains this text.
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Advanced options - only show when a rule type is selected */}
@@ -1196,6 +1384,266 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                 }}
               >
                 {skipRuleType === 'NONE' ? 'Skip Transaction' : 'Skip + Create Rule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Modal */}
+      {approveModalItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setApproveModalItem(null)}>
+          <div
+            style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '90%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600 }}>Approve Transaction</h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#a1a1aa' }}>
+              {approveModalItem.description}
+            </p>
+            <p style={{ margin: '0 0 20px 0', fontSize: '15px', fontWeight: 600, color: '#10b981' }}>
+              {formatCurrency(approveModalItem.amount)}
+            </p>
+
+            {/* Vendor Name */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '6px' }}>Vendor Name</div>
+              <input
+                type="text"
+                value={approveVendor}
+                onChange={e => setApproveVendor(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+                placeholder="Enter vendor name..."
+              />
+            </div>
+
+            {/* Vendor Type */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '6px' }}>Category</div>
+              <select
+                value={approveVendorType}
+                onChange={e => setApproveVendorType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="OTHER">Other</option>
+                <option value="SAAS">SaaS / Software</option>
+                <option value="UTILITY">Utility</option>
+                <option value="OFFICE">Office / Supplies</option>
+                <option value="MARKETING">Marketing</option>
+                <option value="PAYROLL">Payroll</option>
+                <option value="PROFESSIONAL">Professional Services</option>
+                <option value="INSURANCE">Insurance</option>
+                <option value="TAX">Tax</option>
+              </select>
+            </div>
+
+            {/* Create Recurring */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveCreateRecurring ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveCreateRecurring ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                <input
+                  type="checkbox"
+                  checked={approveCreateRecurring}
+                  onChange={(e) => setApproveCreateRecurring(e.target.checked)}
+                  style={{ marginTop: '3px' }}
+                />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>Create as Recurring Expense</div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>Track this as a recurring company expense</div>
+                </div>
+              </label>
+            </div>
+
+            {/* Auto-approve future similar transactions */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '12px' }}>
+                Auto-approve future similar transactions?
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveRuleType === 'NONE' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'NONE' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="approveRule"
+                    checked={approveRuleType === 'NONE'}
+                    onChange={() => setApproveRuleType('NONE')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>No auto-approve</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>Future similar transactions will need manual approval</div>
+                  </div>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="approveRule"
+                    checked={approveRuleType === 'VENDOR'}
+                    onChange={() => setApproveRuleType('VENDOR')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor (any amount)</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>All "{approveVendor.split(' ').slice(0, 2).join(' ')}" transactions</div>
+                  </div>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
+                  <input
+                    type="radio"
+                    name="approveRule"
+                    checked={approveRuleType === 'VENDOR_AMOUNT'}
+                    onChange={() => setApproveRuleType('VENDOR_AMOUNT')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor + amount</div>
+                    <div style={{ fontSize: '12px', color: '#71717a' }}>"{approveVendor.split(' ').slice(0, 2).join(' ')}" at ~{formatCurrency(approveModalItem.amount)}</div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Amount range options for VENDOR_AMOUNT */}
+              {approveRuleType === 'VENDOR_AMOUNT' && (
+                <div style={{ marginTop: '12px', padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                  <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>Amount Matching</div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                    <button
+                      onClick={() => setApproveAmountMode('EXACT')}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        border: approveAmountMode === 'EXACT' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                        background: approveAmountMode === 'EXACT' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      ~{formatCurrency(approveModalItem.amount)} (5% variance)
+                    </button>
+                    <button
+                      onClick={() => setApproveAmountMode('RANGE')}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        border: approveAmountMode === 'RANGE' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                        background: approveAmountMode === 'RANGE' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Custom Range
+                    </button>
+                  </div>
+                  {approveAmountMode === 'RANGE' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        value={approveAmountMin}
+                        onChange={(e) => setApproveAmountMin(e.target.value)}
+                        style={{
+                          width: '80px',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #3f3f46',
+                          background: '#18181b',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <span style={{ color: '#71717a' }}>to</span>
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        value={approveAmountMax}
+                        onChange={(e) => setApproveAmountMax(e.target.value)}
+                        style={{
+                          width: '80px',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #3f3f46',
+                          background: '#18181b',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setApproveModalItem(null)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: '1px solid #3f3f46',
+                  background: 'transparent',
+                  color: '#a1a1aa',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApproveFromModal}
+                disabled={processing === approveModalItem.id}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#10b981',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  opacity: processing === approveModalItem.id ? 0.5 : 1
+                }}
+              >
+                {approveRuleType === 'NONE' ? 'Approve' : 'Approve + Create Rule'}
               </button>
             </div>
           </div>

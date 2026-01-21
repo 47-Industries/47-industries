@@ -39,11 +39,23 @@ export async function POST(
 
     // Create skip rule if requested
     if (body.createRule) {
-      const { ruleType, ruleName, reason, scopeToAccount, transactionType, amountMode, amountMin, amountMax, displayName } = body
+      const {
+        ruleType, ruleName, reason, scopeToAccount, transactionType,
+        amountMode, amountMin, amountMax, displayName,
+        vendorOverride, amountOverride, patternOverride
+      } = body
+
+      // Use overrides if provided, otherwise extract from transaction
+      const vendorPattern = vendorOverride?.trim() || extractVendorPattern(transaction.description || '')
+      const exactAmount = amountOverride || Math.abs(Number(transaction.amount))
+      const descPattern = patternOverride?.trim() || extractDescriptionPattern(transaction.description || '')
 
       let ruleData: any = {
         ruleType,
-        name: ruleName || generateRuleName(transaction, ruleType, scopeToAccount, transactionType),
+        name: ruleName || generateRuleNameWithOverrides(
+          ruleType, vendorPattern, exactAmount, descPattern, scopeToAccount,
+          transaction.financialAccount?.accountLast4, transactionType
+        ),
         displayName: displayName || null, // Clean name for matched transactions
         reason: reason || 'Personal expense',
         createdBy: session.user.id
@@ -61,11 +73,9 @@ export async function POST(
 
       if (ruleType === 'VENDOR') {
         // Skip by vendor name only (any amount)
-        const vendorPattern = extractVendorPattern(transaction.description || '')
         ruleData.vendorPattern = vendorPattern
       } else if (ruleType === 'VENDOR_AMOUNT') {
         // Skip by vendor + amount
-        const vendorPattern = extractVendorPattern(transaction.description || '')
         ruleData.vendorPattern = vendorPattern
 
         if (amountMode === 'RANGE' && amountMin !== null && amountMax !== null) {
@@ -73,12 +83,12 @@ export async function POST(
           ruleData.amountMin = amountMin
           ruleData.amountMax = amountMax
         } else {
-          // Use exact amount with variance
-          ruleData.amount = Math.abs(Number(transaction.amount))
+          // Use exact amount (with override if provided) with variance
+          ruleData.amount = exactAmount
           ruleData.amountVariance = 5
         }
       } else if (ruleType === 'DESCRIPTION_PATTERN') {
-        ruleData.descriptionPattern = body.descriptionPattern || extractDescriptionPattern(transaction.description || '')
+        ruleData.descriptionPattern = descPattern
       }
 
       const rule = await prisma.transactionSkipRule.create({ data: ruleData })
@@ -116,15 +126,18 @@ export async function POST(
   }
 }
 
-// Generate a user-friendly rule name
-function generateRuleName(
-  transaction: any,
+// Generate a user-friendly rule name with override values
+function generateRuleNameWithOverrides(
   ruleType: string,
+  vendorPattern: string,
+  amount: number,
+  descPattern: string,
   scopeToAccount: boolean = false,
+  accountLast4?: string,
   transactionType?: string
 ): string {
   const accountSuffix = scopeToAccount
-    ? ` (${transaction.financialAccount?.accountLast4 || 'account'})`
+    ? ` (${accountLast4 || 'account'})`
     : ''
 
   const typeSuffix = transactionType === 'INCOME'
@@ -134,16 +147,13 @@ function generateRuleName(
       : ''
 
   if (ruleType === 'VENDOR') {
-    const vendor = extractVendorPattern(transaction.description || '')
-    return `${vendor}${typeSuffix}${accountSuffix}`
+    return `${vendorPattern}${typeSuffix}${accountSuffix}`
   }
   if (ruleType === 'VENDOR_AMOUNT') {
-    const vendor = extractVendorPattern(transaction.description || '')
-    const amount = Math.abs(Number(transaction.amount))
-    return `${vendor} $${amount.toFixed(2)}${typeSuffix}${accountSuffix}`
+    return `${vendorPattern} $${amount.toFixed(2)}${typeSuffix}${accountSuffix}`
   }
   if (ruleType === 'DESCRIPTION_PATTERN') {
-    return `${extractDescriptionPattern(transaction.description || '')}${typeSuffix}${accountSuffix}`
+    return `${descPattern}${typeSuffix}${accountSuffix}`
   }
   return `Skip rule${typeSuffix}${accountSuffix}`
 }
