@@ -824,7 +824,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Contract</h2>
-              {partner.contract && (
+              {partner.contract ? (
                 <button
                   onClick={() => {
                     setContractForm({
@@ -848,6 +848,31 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   }}
                 >
                   Edit Details
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setContractForm({
+                      title: `${partner.name} Partner Agreement`,
+                      description: '',
+                      fileUrl: '',
+                      status: 'DRAFT',
+                      requiredAdminSignatures: 1,
+                      partnerSignatureRequired: true,
+                    })
+                    setShowContractModal(true)
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#3b82f6',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Create Contract
                 </button>
               )}
             </div>
