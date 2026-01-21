@@ -42,6 +42,21 @@ interface BillInstance {
   paidVia: string | null
   billSplits: BillSplit[]
   recurringBill?: { id: string; name: string; amountType: string }
+  recurringBillId?: string | null
+}
+
+interface RecurringBill {
+  id: string
+  name: string
+  vendor: string
+  amountType: 'FIXED' | 'VARIABLE'
+  fixedAmount: number | null
+  frequency: string
+  dueDay: number
+  emailPatterns: string[]
+  vendorType: string
+  active: boolean
+  autoApprove: boolean
 }
 
 const VENDOR_TYPES = [
@@ -68,6 +83,7 @@ export default function ExpensesPage() {
 
   const [bills, setBills] = useState<BillInstance[]>([])
   const [splitters, setSplitters] = useState<Splitter[]>([])
+  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
   const [currentPeriod, setCurrentPeriod] = useState(() => new Date().toISOString().slice(0, 7))
 
   // Modal state
@@ -144,11 +160,18 @@ export default function ExpensesPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const billsRes = await fetch(`/api/admin/expenses-summary-v2?period=${currentPeriod}`)
+      const [billsRes, recurringRes] = await Promise.all([
+        fetch(`/api/admin/expenses-summary-v2?period=${currentPeriod}`),
+        fetch('/api/admin/recurring-bills')
+      ])
       if (billsRes.ok) {
         const data = await billsRes.json()
         setBills(data.bills?.all || [])
         setSplitters(data.splitters || [])
+      }
+      if (recurringRes.ok) {
+        const data = await recurringRes.json()
+        setRecurringBills(data.recurringBills || [])
       }
     } catch (err) {
       setError('Failed to fetch data')
@@ -255,6 +278,35 @@ export default function ExpensesPage() {
       }
     } catch (err) {
       setError('Failed to delete bill')
+    }
+  }
+
+  const handleLinkToRecurring = async (billId: string, recurringBillId: string | null) => {
+    try {
+      const res = await fetch(`/api/admin/bill-instances/${billId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recurringBillId })
+      })
+      if (res.ok) {
+        setSuccess(recurringBillId ? 'Linked to recurring bill' : 'Unlinked from recurring bill')
+        // Update the editing bill state
+        if (editingBill && editingBill.id === billId) {
+          const linkedRecurring = recurringBillId
+            ? recurringBills.find(r => r.id === recurringBillId)
+            : null
+          setEditingBill({
+            ...editingBill,
+            recurringBillId,
+            recurringBill: linkedRecurring
+              ? { id: linkedRecurring.id, name: linkedRecurring.name, amountType: linkedRecurring.amountType }
+              : undefined
+          })
+        }
+        fetchData()
+      }
+    } catch (err) {
+      setError('Failed to update recurring link')
     }
   }
 
@@ -977,6 +1029,84 @@ export default function ExpensesPage() {
                 )}
               </div>
             )}
+
+            {/* Recurring Bill Link Section */}
+            <div style={{ marginBottom: '16px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a', padding: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>Recurring Bill Template</label>
+
+              {editingBill.recurringBill ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span style={{ fontWeight: 500 }}>{editingBill.recurringBill.name}</span>
+                      <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: editingBill.recurringBill.amountType === 'VARIABLE' ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.2)', color: editingBill.recurringBill.amountType === 'VARIABLE' ? '#f59e0b' : '#3b82f6' }}>
+                        {editingBill.recurringBill.amountType}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleLinkToRecurring(editingBill.id, null)}
+                      style={{
+                        padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.3)',
+                        background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '11px'
+                      }}
+                    >
+                      Unlink
+                    </button>
+                  </div>
+
+                  {/* Show linked recurring bill details */}
+                  {(() => {
+                    const linkedRecurring = recurringBills.find(r => r.id === editingBill.recurringBill?.id)
+                    if (!linkedRecurring) return null
+                    return (
+                      <div style={{ fontSize: '12px', color: '#71717a' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <div>Frequency: <span style={{ color: '#a1a1aa' }}>{linkedRecurring.frequency}</span></div>
+                          <div>Due day: <span style={{ color: '#a1a1aa' }}>{linkedRecurring.dueDay}</span></div>
+                          {linkedRecurring.amountType === 'FIXED' && linkedRecurring.fixedAmount && (
+                            <div>Fixed amount: <span style={{ color: '#a1a1aa' }}>{formatCurrency(linkedRecurring.fixedAmount)}</span></div>
+                          )}
+                          <div>Auto-approve: <span style={{ color: linkedRecurring.autoApprove ? '#10b981' : '#71717a' }}>{linkedRecurring.autoApprove ? 'Yes' : 'No'}</span></div>
+                        </div>
+                        {linkedRecurring.emailPatterns && linkedRecurring.emailPatterns.length > 0 && (
+                          <div style={{ marginTop: '8px' }}>
+                            Email patterns: <span style={{ color: '#a1a1aa' }}>{linkedRecurring.emailPatterns.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: '12px', color: '#71717a', marginBottom: '12px' }}>
+                    Link this bill to a recurring template to enable automatic amount detection from emails and future bill generation.
+                  </p>
+                  <select
+                    onChange={e => {
+                      if (e.target.value) {
+                        handleLinkToRecurring(editingBill.id, e.target.value)
+                      }
+                    }}
+                    value=""
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#18181b', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                  >
+                    <option value="">Select a recurring template...</option>
+                    {recurringBills.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.amountType === 'FIXED' ? formatCurrency(r.fixedAmount || 0) : 'Variable'}) - {r.frequency}
+                      </option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: '11px', color: '#52525b', marginTop: '6px' }}>
+                    Or create a new template in Settings &gt; Recurring Bills
+                  </p>
+                </div>
+              )}
+            </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', marginTop: '20px' }}>
               <button

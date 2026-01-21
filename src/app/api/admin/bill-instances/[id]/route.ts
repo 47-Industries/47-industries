@@ -74,14 +74,18 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { amount, dueDate, status, paidDate, paidVia, splitterIds, customSplits } = body
+    const { amount, dueDate, status, paidDate, paidVia, splitterIds, customSplits, vendor, vendorType, recurringBillId } = body
 
     const updateData: any = {}
     if (amount !== undefined) updateData.amount = parseFloat(amount)
-    if (dueDate !== undefined) updateData.dueDate = new Date(dueDate)
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
     if (status !== undefined) updateData.status = status
     if (paidDate !== undefined) updateData.paidDate = paidDate ? new Date(paidDate) : null
     if (paidVia !== undefined) updateData.paidVia = paidVia
+    if (vendor !== undefined) updateData.vendor = vendor
+    if (vendorType !== undefined) updateData.vendorType = vendorType
+    // Allow setting or unsetting recurringBillId (null to unlink)
+    if (recurringBillId !== undefined) updateData.recurringBillId = recurringBillId
 
     const billInstance = await prisma.billInstance.update({
       where: { id },
@@ -159,6 +163,9 @@ export async function PATCH(
     const updatedBillInstance = await prisma.billInstance.findUnique({
       where: { id },
       include: {
+        recurringBill: {
+          select: { id: true, name: true, amountType: true, frequency: true, dueDay: true, emailPatterns: true, autoApprove: true }
+        },
         billSplits: {
           include: {
             teamMember: {

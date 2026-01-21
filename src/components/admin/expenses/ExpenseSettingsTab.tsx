@@ -65,6 +65,7 @@ export default function ExpenseSettingsTab() {
   const [historyBill, setHistoryBill] = useState<RecurringBill | null>(null)
   const [billHistory, setBillHistory] = useState<BillInstance[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -199,6 +200,36 @@ export default function ExpenseSettingsTab() {
       setError('Failed to load history')
     } finally {
       setLoadingHistory(false)
+    }
+  }
+
+  const handleGenerateBills = async () => {
+    setGenerating(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/admin/recurring-bills/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          monthsBack: 6,
+          monthsForward: 2
+        })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        if (data.created > 0) {
+          setSuccess(`Generated ${data.created} bill instance(s) for recurring bills`)
+        } else {
+          setSuccess('All bill instances already exist - nothing to generate')
+        }
+      } else {
+        setError(data.error || 'Failed to generate bills')
+      }
+    } catch (err) {
+      setError('Failed to generate bills')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -610,9 +641,33 @@ export default function ExpenseSettingsTab() {
             <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Recurring Bills</h3>
             <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>Templates that generate monthly bill instances</p>
           </div>
-          <button onClick={() => openRecurringModal()} style={{
-            padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: '13px'
-          }}>+ Add Recurring Bill</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleGenerateBills}
+              disabled={generating || recurringBills.length === 0}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #3f3f46',
+                background: 'transparent',
+                color: '#fff',
+                cursor: generating || recurringBills.length === 0 ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                opacity: generating || recurringBills.length === 0 ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {generating ? 'Generating...' : 'Generate Bills'}
+            </button>
+            <button onClick={() => openRecurringModal()} style={{
+              padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontSize: '13px'
+            }}>+ Add Recurring Bill</button>
+          </div>
         </div>
 
         {recurringBills.length === 0 ? (
