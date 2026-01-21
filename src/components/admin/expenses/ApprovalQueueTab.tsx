@@ -348,12 +348,23 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
       let res: Response
 
       if (approveModalItem.type === 'email') {
+        // Email bills now get the same full options as bank transactions
         const billId = approveModalItem.id.replace('email-', '')
         res = await fetch(`/api/admin/proposed-bills/${billId}/approve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            enableAutoApprove: approveAutoApprove && approveRuleType !== 'NONE'
+            vendor: approveVendor,
+            vendorType: approveVendorType,
+            createRecurring: approveCreateRecurring,
+            autoApprove: approveAutoApprove,
+            createAutoApproveRule: approveRuleType !== 'NONE',
+            ruleType: approveRuleType,
+            amountMode: approveAmountMode,
+            amountMin: approveAmountMode === 'RANGE' && approveAmountMin ? parseFloat(approveAmountMin) : null,
+            amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null,
+            vendorPattern: approveVendorPattern.trim() || null,
+            displayName: approveAutoRename && approveDisplayName.trim() ? approveDisplayName.trim() : null
           })
         })
       } else {
@@ -403,22 +414,35 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
   // Quick skip - instantly skips without modal (no rule created)
   const handleQuickSkip = async (item: ApprovalItem) => {
-    if (item.type !== 'bank') return
-
     setProcessing(item.id)
     setError('')
     try {
-      const txnId = item.id.replace('bank-', '')
-      const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          createRule: false,
-          ruleType: 'NONE'
+      let res: Response
+
+      if (item.type === 'email') {
+        const billId = item.id.replace('email-', '')
+        res = await fetch(`/api/admin/proposed-bills/${billId}/skip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            createRule: false,
+            reason: 'Quick skipped'
+          })
         })
-      })
+      } else {
+        const txnId = item.id.replace('bank-', '')
+        res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            createRule: false,
+            ruleType: 'NONE'
+          })
+        })
+      }
+
       if (res.ok) {
-        setSuccess('Transaction skipped')
+        setSuccess('Skipped')
         fetchItems(0, true)
       } else {
         const data = await res.json()
@@ -432,36 +456,54 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   }
 
   const handleSkip = async (createRule: boolean = false) => {
-    if (!skipModalItem || skipModalItem.type !== 'bank') return
+    if (!skipModalItem) return
 
     setProcessing(skipModalItem.id)
     setError('')
     try {
-      const txnId = skipModalItem.id.replace('bank-', '')
-      const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          createRule: createRule && skipRuleType !== 'NONE',
-          ruleType: skipRuleType,
-          scopeToAccount: skipOnlyThisAccount,
-          transactionType: skipTransactionType !== 'BOTH' ? skipTransactionType : null,
-          amountMode: skipAmountMode,
-          amountMin: skipAmountMode === 'RANGE' && skipAmountMin ? parseFloat(skipAmountMin) : null,
-          amountMax: skipAmountMode === 'RANGE' && skipAmountMax ? parseFloat(skipAmountMax) : null,
-          displayName: skipDisplayName.trim() || null,
-          // Override values for customizable rules
-          vendorOverride: skipVendorOverride.trim() || null,
-          amountOverride: skipAmountOverride ? parseFloat(skipAmountOverride) : null,
-          patternOverride: skipPatternOverride.trim() || null
+      let res: Response
+
+      if (skipModalItem.type === 'email') {
+        // Skip email bill
+        const billId = skipModalItem.id.replace('email-', '')
+        res = await fetch(`/api/admin/proposed-bills/${billId}/skip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            createRule: createRule && skipRuleType !== 'NONE',
+            ruleType: skipRuleType,
+            vendorPattern: skipVendorOverride.trim() || skipModalItem.vendor,
+            reason: 'Skipped via approval queue'
+          })
         })
-      })
+      } else {
+        // Skip bank transaction
+        const txnId = skipModalItem.id.replace('bank-', '')
+        res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            createRule: createRule && skipRuleType !== 'NONE',
+            ruleType: skipRuleType,
+            scopeToAccount: skipOnlyThisAccount,
+            transactionType: skipTransactionType !== 'BOTH' ? skipTransactionType : null,
+            amountMode: skipAmountMode,
+            amountMin: skipAmountMode === 'RANGE' && skipAmountMin ? parseFloat(skipAmountMin) : null,
+            amountMax: skipAmountMode === 'RANGE' && skipAmountMax ? parseFloat(skipAmountMax) : null,
+            displayName: skipDisplayName.trim() || null,
+            vendorOverride: skipVendorOverride.trim() || null,
+            amountOverride: skipAmountOverride ? parseFloat(skipAmountOverride) : null,
+            patternOverride: skipPatternOverride.trim() || null
+          })
+        })
+      }
+
       if (res.ok) {
         const data = await res.json()
-        if (data.ruleCreated) {
-          setSuccess(`Transaction skipped. Rule created - ${data.additionalSkipped} additional transaction(s) also skipped.`)
+        if (data.ruleCreated || data.additionalSkipped > 0) {
+          setSuccess(`Skipped. Rule applied - ${data.additionalSkipped || 0} additional item(s) also skipped.`)
         } else {
-          setSuccess('Transaction skipped')
+          setSuccess('Skipped')
         }
         setSkipModalItem(null)
         fetchItems(0, true)
