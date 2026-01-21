@@ -297,13 +297,18 @@ async function syncBankTransactions(): Promise<{
           // Continue - might already be subscribed
         }
 
-        // Fetch transactions
-        const transactions = await stripe.financialConnections.transactions.list({
-          account: account.stripeAccountId,
-          limit: 100
-        })
+        // Fetch all transactions with pagination
+        let hasMore = true
+        let startingAfter: string | undefined = undefined
 
-        for (const txn of transactions.data) {
+        while (hasMore) {
+          const transactions = await stripe.financialConnections.transactions.list({
+            account: account.stripeAccountId,
+            limit: 100,
+            ...(startingAfter && { starting_after: startingAfter })
+          })
+
+          for (const txn of transactions.data) {
           // Check if already synced
           const existing = await prisma.stripeTransaction.findUnique({
             where: { stripeTransactionId: txn.id }
@@ -374,6 +379,13 @@ async function syncBankTransactions(): Promise<{
           if (matchedRecurring?.autoApprove) {
             await autoApproveTransaction(newTxn.id, matchedRecurring)
             results.autoMatched++
+          }
+          }
+
+          // Check if there are more pages
+          hasMore = transactions.has_more
+          if (hasMore && transactions.data.length > 0) {
+            startingAfter = transactions.data[transactions.data.length - 1].id
           }
         }
 
