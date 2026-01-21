@@ -109,10 +109,15 @@ export async function POST() {
   } catch (error: any) {
     console.error('[EMAIL_ACCOUNTS] Error syncing Zoho:', error.message)
 
-    // Handle token expiry
-    if (error.message?.includes('invalid_token') || error.message?.includes('expired')) {
+    // Handle token expiry or invalid token
+    const errorMsg = error.message || ''
+    if (errorMsg.includes('invalid_token') ||
+        errorMsg.includes('expired') ||
+        errorMsg.includes('INVALID_OAUTHTOKEN') ||
+        errorMsg.includes('Invalid Access') ||
+        errorMsg.includes('401')) {
       return NextResponse.json({
-        error: 'Zoho token expired. Please reconnect Zoho in Admin > Email.'
+        error: 'Zoho token expired or invalid. Redirecting to reconnect...'
       }, { status: 401 })
     }
 

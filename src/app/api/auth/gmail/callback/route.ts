@@ -5,9 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { google } from 'googleapis'
 
 // Base URL for redirects
-const BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://admin.47industries.com'
-  : 'http://localhost:3000'
+const BASE_URL = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://47industries.com' : 'http://localhost:3000')
 
 // GET /api/auth/gmail/callback - Handle OAuth callback from Google
 export async function GET(req: NextRequest) {

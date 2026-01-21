@@ -306,6 +306,10 @@ export default function ExpenseSettingsTab() {
       if (res.ok) {
         setSuccess(data.message || 'Zoho account added for bill scanning')
         fetchEmailAccounts()
+      } else if (res.status === 401 || data.error?.includes('token') || data.error?.includes('INVALID_OAUTHTOKEN') || data.error?.includes('expired') || data.error?.includes('not connected')) {
+        // Token invalid/expired/missing - redirect to OAuth
+        window.location.href = '/api/auth/zoho'
+        return
       } else {
         setError(data.error || 'Failed to add Zoho account')
       }
