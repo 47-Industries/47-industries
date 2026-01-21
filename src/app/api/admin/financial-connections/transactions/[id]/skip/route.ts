@@ -210,10 +210,10 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
   }
 
   if (rule.ruleType === 'VENDOR') {
-    // Vendor only - case-insensitive match on description or merchant name
+    // Vendor only - match on description or merchant name (MySQL is case-insensitive by default)
     whereClause.OR = [
-      { description: { contains: rule.vendorPattern, mode: 'insensitive' } },
-      { merchantName: { contains: rule.vendorPattern, mode: 'insensitive' } }
+      { description: { contains: rule.vendorPattern } },
+      { merchantName: { contains: rule.vendorPattern } }
     ]
   } else if (rule.ruleType === 'VENDOR_AMOUNT') {
     // Build amount filter
@@ -246,12 +246,12 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
       amountConditions = amountConditions.filter(c => c.amount.lte <= 0 || c.amount.lt !== undefined)
     }
 
-    // Match vendor AND amount - case-insensitive
+    // Match vendor AND amount (MySQL is case-insensitive by default)
     whereClause.AND = [
       {
         OR: [
-          { description: { contains: rule.vendorPattern, mode: 'insensitive' } },
-          { merchantName: { contains: rule.vendorPattern, mode: 'insensitive' } }
+          { description: { contains: rule.vendorPattern } },
+          { merchantName: { contains: rule.vendorPattern } }
         ]
       },
       ...(amountConditions.length > 0 ? [{ OR: amountConditions }] : [])
@@ -260,10 +260,10 @@ async function applyRuleToOtherTransactions(rule: any, excludeId: string): Promi
     // Remove top-level amount filter since it's in AND clause now
     delete whereClause.amount
   } else if (rule.ruleType === 'DESCRIPTION_PATTERN') {
-    // Case-insensitive pattern match
+    // Pattern match (MySQL is case-insensitive by default)
     whereClause.OR = [
-      { description: { contains: rule.descriptionPattern, mode: 'insensitive' } },
-      { merchantName: { contains: rule.descriptionPattern, mode: 'insensitive' } }
+      { description: { contains: rule.descriptionPattern } },
+      { merchantName: { contains: rule.descriptionPattern } }
     ]
   }
 

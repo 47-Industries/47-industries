@@ -75,8 +75,8 @@ export async function POST(
       where: {
         active: true,
         OR: [
-          { vendor: { contains: vendorFirstWord, mode: 'insensitive' } },
-          { name: { contains: vendorFirstWord, mode: 'insensitive' } }
+          { vendor: { contains: vendorFirstWord } },
+          { name: { contains: vendorFirstWord } }
         ]
       }
     })
@@ -177,10 +177,10 @@ export async function POST(
         }
 
         if (ruleType === 'VENDOR') {
-          // Case-insensitive match on description or merchant name
+          // Match on description or merchant name (MySQL is case-insensitive by default)
           whereClause.OR = [
-            { description: { contains: vendorPattern, mode: 'insensitive' } },
-            { merchantName: { contains: vendorPattern, mode: 'insensitive' } }
+            { description: { contains: vendorPattern } },
+            { merchantName: { contains: vendorPattern } }
           ]
         } else if (ruleType === 'VENDOR_AMOUNT') {
           // Build amount conditions
@@ -204,8 +204,8 @@ export async function POST(
           whereClause.AND = [
             {
               OR: [
-                { description: { contains: vendorPattern, mode: 'insensitive' } },
-                { merchantName: { contains: vendorPattern, mode: 'insensitive' } }
+                { description: { contains: vendorPattern } },
+                { merchantName: { contains: vendorPattern } }
               ]
             },
             { OR: amountConditions }
@@ -214,8 +214,8 @@ export async function POST(
           // Match on raw description text pattern
           const patternToMatch = patternOverride || vendorPattern
           whereClause.OR = [
-            { description: { contains: patternToMatch, mode: 'insensitive' } },
-            { merchantName: { contains: patternToMatch, mode: 'insensitive' } }
+            { description: { contains: patternToMatch } },
+            { merchantName: { contains: patternToMatch } }
           ]
         }
 

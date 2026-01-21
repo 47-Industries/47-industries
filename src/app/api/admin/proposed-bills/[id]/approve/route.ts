@@ -71,8 +71,8 @@ export async function POST(
         where: {
           active: true,
           OR: [
-            { vendor: { contains: vendorFirstWord, mode: 'insensitive' } },
-            { name: { contains: vendorFirstWord, mode: 'insensitive' } }
+            { vendor: { contains: vendorFirstWord } },
+            { name: { contains: vendorFirstWord } }
           ]
         }
       })
@@ -89,7 +89,7 @@ export async function POST(
         ? await prisma.recurringBill.findUnique({ where: { id: recurringBillId } })
         : await prisma.recurringBill.findFirst({
             where: {
-              vendor: { contains: finalVendor.split(' ')[0], mode: 'insensitive' },
+              vendor: { contains: finalVendor.split(' ')[0] },
               active: true
             }
           })
@@ -177,9 +177,9 @@ export async function POST(
             status: 'PENDING',
             id: { not: id },
             OR: [
-              { vendor: { contains: patternToUse, mode: 'insensitive' } },
-              { emailFrom: { contains: patternToUse, mode: 'insensitive' } },
-              { emailSubject: { contains: patternToUse, mode: 'insensitive' } }
+              { vendor: { contains: patternToUse } },
+              { emailFrom: { contains: patternToUse } },
+              { emailSubject: { contains: patternToUse } }
             ]
           }
         })

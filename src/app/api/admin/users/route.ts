@@ -40,10 +40,11 @@ export async function GET(req: NextRequest) {
     // If no valid role filter, don't add role to where clause (returns all users)
 
     if (search) {
+      // MySQL is case-insensitive by default for contains
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { username: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { username: { contains: search } },
       ]
     }
 
