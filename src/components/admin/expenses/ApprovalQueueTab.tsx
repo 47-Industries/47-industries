@@ -90,7 +90,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
   // Approve modal state
   const [approveModalItem, setApproveModalItem] = useState<ApprovalItem | null>(null)
-  const [approveVendor, setApproveVendor] = useState('')
+  const [approveVendor, setApproveVendor] = useState('') // Vendor name for this bill
   const [approveVendorType, setApproveVendorType] = useState('OTHER')
   const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
   const [approveAutoApprove, setApproveAutoApprove] = useState(false)
@@ -98,6 +98,9 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [approveAmountMode, setApproveAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
   const [approveAmountMin, setApproveAmountMin] = useState('')
   const [approveAmountMax, setApproveAmountMax] = useState('')
+  const [approveVendorPattern, setApproveVendorPattern] = useState('') // Pattern to match for auto-approve
+  const [approveDisplayName, setApproveDisplayName] = useState('') // Display name for future matches
+  const [approveAutoRename, setApproveAutoRename] = useState(false) // Whether to auto-rename matches
 
   // Quick mode (Shift held)
   const [quickMode, setQuickMode] = useState(false)
@@ -318,7 +321,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
   const openApproveModal = (item: ApprovalItem) => {
     setApproveModalItem(item)
-    setApproveVendor(item.vendor)
+    setApproveVendor(item.vendor) // Default vendor name for this bill
     setApproveVendorType('OTHER')
     setApproveCreateRecurring(false)
     setApproveAutoApprove(false)
@@ -326,6 +329,12 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setApproveAmountMode('EXACT')
     setApproveAmountMin('')
     setApproveAmountMax('')
+    // Extract pattern from description for matching
+    const desc = item.description || item.vendor
+    const pattern = desc.split(' ').slice(0, 3).join(' ').replace(/\d{4,}/g, '').trim()
+    setApproveVendorPattern(pattern)
+    setApproveDisplayName('') // Empty = no auto-rename
+    setApproveAutoRename(false)
   }
 
   const handleApproveFromModal = async () => {
@@ -361,7 +370,11 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             ruleType: approveRuleType,
             amountMode: approveAmountMode,
             amountMin: approveAmountMode === 'RANGE' && approveAmountMin ? parseFloat(approveAmountMin) : null,
-            amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null
+            amountMax: approveAmountMode === 'RANGE' && approveAmountMax ? parseFloat(approveAmountMax) : null,
+            // Separate pattern and display name
+            vendorPattern: approveVendorPattern.trim() || null,
+            displayName: approveAutoRename && approveDisplayName.trim() ? approveDisplayName.trim() : null,
+            autoRename: approveAutoRename
           })
         })
       }
@@ -1511,104 +1524,189 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   </div>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
-                  <input
-                    type="radio"
-                    name="approveRule"
-                    checked={approveRuleType === 'VENDOR'}
-                    onChange={() => setApproveRuleType('VENDOR')}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor (any amount)</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>All "{approveVendor.split(' ').slice(0, 2).join(' ')}" transactions</div>
-                  </div>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', padding: '10px', background: approveRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a' }}>
-                  <input
-                    type="radio"
-                    name="approveRule"
-                    checked={approveRuleType === 'VENDOR_AMOUNT'}
-                    onChange={() => setApproveRuleType('VENDOR_AMOUNT')}
-                    style={{ marginTop: '3px' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor + amount</div>
-                    <div style={{ fontSize: '12px', color: '#71717a' }}>"{approveVendor.split(' ').slice(0, 2).join(' ')}" at ~{formatCurrency(approveModalItem.amount)}</div>
-                  </div>
-                </label>
-              </div>
-
-              {/* Amount range options for VENDOR_AMOUNT */}
-              {approveRuleType === 'VENDOR_AMOUNT' && (
-                <div style={{ marginTop: '12px', padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
-                  <div style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>Amount Matching</div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                    <button
-                      onClick={() => setApproveAmountMode('EXACT')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        border: approveAmountMode === 'EXACT' ? '1px solid #3b82f6' : '1px solid #3f3f46',
-                        background: approveAmountMode === 'EXACT' ? 'rgba(59,130,246,0.1)' : 'transparent',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      ~{formatCurrency(approveModalItem.amount)} (5% variance)
-                    </button>
-                    <button
-                      onClick={() => setApproveAmountMode('RANGE')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        border: approveAmountMode === 'RANGE' ? '1px solid #3b82f6' : '1px solid #3f3f46',
-                        background: approveAmountMode === 'RANGE' ? 'rgba(59,130,246,0.1)' : 'transparent',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      Custom Range
-                    </button>
-                  </div>
-                  {approveAmountMode === 'RANGE' && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div
+                  onClick={() => setApproveRuleType('VENDOR')}
+                  style={{ padding: '10px', background: approveRuleType === 'VENDOR' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="approveRule"
+                      checked={approveRuleType === 'VENDOR'}
+                      onChange={() => setApproveRuleType('VENDOR')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor (any amount)</div>
+                      <div style={{ fontSize: '12px', color: '#71717a' }}>Transactions containing this text</div>
+                    </div>
+                  </label>
+                  {approveRuleType === 'VENDOR' && (
+                    <div style={{ marginTop: '10px', marginLeft: '24px' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Text to match (filter by):</div>
                       <input
-                        type="number"
-                        placeholder="Min"
-                        value={approveAmountMin}
-                        onChange={(e) => setApproveAmountMin(e.target.value)}
+                        type="text"
+                        value={approveVendorPattern}
+                        onChange={e => setApproveVendorPattern(e.target.value)}
+                        placeholder="Text pattern to match..."
                         style={{
-                          width: '80px',
-                          padding: '6px 8px',
-                          borderRadius: '4px',
-                          border: '1px solid #3f3f46',
+                          width: '100%',
+                          padding: '8px 10px',
                           background: '#18181b',
-                          color: '#fff',
-                          fontSize: '12px'
-                        }}
-                      />
-                      <span style={{ color: '#71717a' }}>to</span>
-                      <input
-                        type="number"
-                        placeholder="Max"
-                        value={approveAmountMax}
-                        onChange={(e) => setApproveAmountMax(e.target.value)}
-                        style={{
-                          width: '80px',
-                          padding: '6px 8px',
-                          borderRadius: '4px',
                           border: '1px solid #3f3f46',
-                          background: '#18181b',
+                          borderRadius: '4px',
                           color: '#fff',
-                          fontSize: '12px'
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
                         }}
                       />
                     </div>
                   )}
+                </div>
+
+                <div
+                  onClick={() => setApproveRuleType('VENDOR_AMOUNT')}
+                  style={{ padding: '10px', background: approveRuleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.1)' : '#0a0a0a', borderRadius: '8px', border: approveRuleType === 'VENDOR_AMOUNT' ? '1px solid #3b82f6' : '1px solid #27272a', cursor: 'pointer' }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="approveRule"
+                      checked={approveRuleType === 'VENDOR_AMOUNT'}
+                      onChange={() => setApproveRuleType('VENDOR_AMOUNT')}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-approve by vendor + amount</div>
+                      <div style={{ fontSize: '12px', color: '#71717a' }}>Transactions matching text and amount</div>
+                    </div>
+                  </label>
+                  {approveRuleType === 'VENDOR_AMOUNT' && (
+                    <div style={{ marginTop: '10px', marginLeft: '24px' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Text to match (filter by):</div>
+                      <input
+                        type="text"
+                        value={approveVendorPattern}
+                        onChange={e => setApproveVendorPattern(e.target.value)}
+                        placeholder="Text pattern to match..."
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px',
+                          boxSizing: 'border-box',
+                          marginBottom: '10px'
+                        }}
+                      />
+                      <div style={{ fontSize: '11px', color: '#71717a', marginBottom: '4px' }}>Amount matching:</div>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <button
+                          onClick={() => setApproveAmountMode('EXACT')}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: approveAmountMode === 'EXACT' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                            background: approveAmountMode === 'EXACT' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          ~{formatCurrency(approveModalItem.amount)} (5%)
+                        </button>
+                        <button
+                          onClick={() => setApproveAmountMode('RANGE')}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            border: approveAmountMode === 'RANGE' ? '1px solid #3b82f6' : '1px solid #3f3f46',
+                            background: approveAmountMode === 'RANGE' ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Custom Range
+                        </button>
+                      </div>
+                      {approveAmountMode === 'RANGE' && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            value={approveAmountMin}
+                            onChange={(e) => setApproveAmountMin(e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #3f3f46',
+                              background: '#18181b',
+                              color: '#fff',
+                              fontSize: '12px'
+                            }}
+                          />
+                          <span style={{ color: '#71717a' }}>to</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            value={approveAmountMax}
+                            onChange={(e) => setApproveAmountMax(e.target.value)}
+                            style={{
+                              width: '80px',
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #3f3f46',
+                              background: '#18181b',
+                              color: '#fff',
+                              fontSize: '12px'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-rename option - only show when a rule is selected */}
+              {approveRuleType !== 'NONE' && (
+                <div style={{ marginTop: '12px', padding: '12px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={approveAutoRename}
+                      onChange={(e) => setApproveAutoRename(e.target.checked)}
+                      style={{ marginTop: '3px' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Auto-rename matching transactions</div>
+                      <div style={{ fontSize: '12px', color: '#71717a', marginBottom: approveAutoRename ? '8px' : 0 }}>
+                        Automatically set a display name for transactions that match this rule
+                      </div>
+                      {approveAutoRename && (
+                        <input
+                          type="text"
+                          value={approveDisplayName}
+                          onChange={e => setApproveDisplayName(e.target.value)}
+                          placeholder="Display name for matches (e.g., Publix Payroll)"
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            background: '#18181b',
+                            border: '1px solid #3f3f46',
+                            borderRadius: '4px',
+                            color: '#fff',
+                            fontSize: '13px',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      )}
+                    </div>
+                  </label>
                 </div>
               )}
             </div>
