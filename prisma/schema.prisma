@@ -1708,6 +1708,9 @@ model BillInstance {
   emailSubject    String?
   emailFrom       String?
 
+  // Bank transaction source (if approved from Stripe Financial Connections)
+  stripeTransactionId String?    @unique
+
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
