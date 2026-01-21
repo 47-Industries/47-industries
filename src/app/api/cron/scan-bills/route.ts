@@ -152,10 +152,13 @@ export async function GET(request: NextRequest) {
     // Sync bank transactions from Stripe Financial Connections
     const transactionResults = await syncBankTransactions()
 
-    // Generate any fixed recurring bills for current period
+    // Generate any fixed recurring bills for current period + 3 months ahead
     await generateFixedBills()
 
-    console.log('[SCAN] Scan complete:', results, 'Transactions:', transactionResults)
+    // Link any orphan bills to matching recurring templates
+    const orphansLinked = await linkOrphanBills()
+
+    console.log('[SCAN] Scan complete:', results, 'Transactions:', transactionResults, 'Orphans linked:', orphansLinked)
 
     return NextResponse.json({
       success: true,
@@ -164,7 +167,8 @@ export async function GET(request: NextRequest) {
       mode,
       emailsFound: totalEmails,
       results,
-      transactions: transactionResults
+      transactions: transactionResults,
+      orphansLinked
     })
   } catch (error: any) {
     console.error('[CRON] Fatal error:', error.message)
@@ -177,11 +181,11 @@ async function generateFixedBills() {
   const now = new Date()
   const currentPeriod = now.toISOString().slice(0, 7) // YYYY-MM
 
-  // Also generate for next month if we're past the 20th
+  // Generate current month + 3 months ahead (always)
   const periodsToGenerate = [currentPeriod]
-  if (now.getDate() >= 20) {
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    periodsToGenerate.push(nextMonth.toISOString().slice(0, 7))
+  for (let i = 1; i <= 3; i++) {
+    const futureMonth = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    periodsToGenerate.push(futureMonth.toISOString().slice(0, 7))
   }
 
   // Get all active recurring bills (both fixed AND variable)
@@ -590,6 +594,50 @@ async function autoApproveTransaction(transactionId: string, recurringBill: any)
   })
 
   console.log(`[CRON] Auto-approved transaction as ${recurringBill.vendor}: $${amount}`)
+}
+
+// Link orphan bills (bills without a recurring template) to matching templates
+async function linkOrphanBills(): Promise<number> {
+  // Get all active recurring bills
+  const recurringBills = await prisma.recurringBill.findMany({
+    where: { active: true }
+  })
+
+  if (recurringBills.length === 0) return 0
+
+  // Get all bill instances without a recurring bill link
+  const orphanBills = await prisma.billInstance.findMany({
+    where: { recurringBillId: null }
+  })
+
+  let linked = 0
+
+  for (const bill of orphanBills) {
+    const vendorLower = bill.vendor.toLowerCase()
+    const vendorFirstWord = vendorLower.split(' ')[0]
+
+    // Find matching recurring bill
+    const matchingRecurring = recurringBills.find(r => {
+      const rVendorLower = r.vendor.toLowerCase()
+      const rNameLower = r.name.toLowerCase()
+
+      return rVendorLower.includes(vendorFirstWord) ||
+             rNameLower.includes(vendorFirstWord) ||
+             vendorLower.includes(rVendorLower.split(' ')[0]) ||
+             vendorLower.includes(rNameLower.split(' ')[0])
+    })
+
+    if (matchingRecurring) {
+      await prisma.billInstance.update({
+        where: { id: bill.id },
+        data: { recurringBillId: matchingRecurring.id }
+      })
+      linked++
+      console.log(`[CRON] Linked orphan bill "${bill.vendor}" to recurring template "${matchingRecurring.name}"`)
+    }
+  }
+
+  return linked
 }
 
 // Also allow POST for manual testing
