@@ -29,6 +29,7 @@ export async function POST(
     const createRecurring = body.createRecurring === true
     const autoApprove = body.autoApprove === true
     const frequency = body.frequency || 'MONTHLY'
+    const dueDay = body.dueDay || null // Will be set from proposed bill date if not provided
     const createAutoApproveRule = body.createAutoApproveRule === true
     const ruleType = body.ruleType || 'VENDOR'
     const vendorPattern = body.vendorPattern
@@ -111,7 +112,7 @@ export async function POST(
             vendorType,
             frequency,
             amountType: 'VARIABLE',
-            dueDay: dueDate.getDate(),
+            dueDay: dueDay || Math.min(dueDate.getDate(), 28),
             active: true,
             autoApprove,
             emailPatterns: patterns

@@ -52,6 +52,9 @@ export async function POST(
     const createRecurring = body.createRecurring === true
     const autoApprove = body.autoApprove === true
     const frequency = body.frequency || 'MONTHLY'
+    // Use dueDay from body, or fall back to transaction date's day (capped at 28)
+    const txnDate = new Date(transaction.transactedAt)
+    const dueDay = body.dueDay || Math.min(txnDate.getDate(), 28)
 
     // Auto-approve rule parameters
     const createAutoApproveRule = body.createAutoApproveRule === true
@@ -63,8 +66,7 @@ export async function POST(
     const amountMin = body.amountMin
     const amountMax = body.amountMax
 
-    // Determine period from transaction date
-    const txnDate = new Date(transaction.transactedAt)
+    // Determine period from transaction date (txnDate already defined above)
     const period = txnDate.toISOString().slice(0, 7)
 
     let recurringBillId: string | null = null
@@ -110,7 +112,7 @@ export async function POST(
             frequency,
             amountType: 'FIXED',
             fixedAmount: amount,
-            dueDay: txnDate.getDate(),
+            dueDay,
             active: true,
             autoApprove,
             emailPatterns: patterns // Required field

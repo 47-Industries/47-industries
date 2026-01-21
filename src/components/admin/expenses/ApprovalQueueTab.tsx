@@ -93,7 +93,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [approveVendor, setApproveVendor] = useState('') // Vendor name for this bill
   const [approveVendorType, setApproveVendorType] = useState('OTHER')
   const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
-  const [approveFrequency, setApproveFrequency] = useState<'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
+  const [approveFrequency, setApproveFrequency] = useState<'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
+  const [approveDueDay, setApproveDueDay] = useState(1) // Day of month for recurring bills
   const [approveAutoApprove, setApproveAutoApprove] = useState(false)
   const [approveRuleType, setApproveRuleType] = useState<'NONE' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'>('NONE')
   const [approveAmountMode, setApproveAmountMode] = useState<'EXACT' | 'RANGE'>('EXACT')
@@ -346,6 +347,9 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setApproveVendorType('OTHER')
     setApproveCreateRecurring(false)
     setApproveFrequency('MONTHLY')
+    // Set due day from the transaction/email date
+    const itemDate = new Date(item.date)
+    setApproveDueDay(Math.min(itemDate.getDate(), 28)) // Cap at 28 to avoid month-end issues
     setApproveAutoApprove(false)
     setApproveRuleType('NONE')
     setApproveAmountMode('EXACT')
@@ -388,6 +392,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
             frequency: approveFrequency,
+            dueDay: approveDueDay,
             autoApprove: approveAutoApprove,
             createAutoApproveRule: approveRuleType !== 'NONE',
             ruleType: approveRuleType,
@@ -409,6 +414,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
             frequency: approveFrequency,
+            dueDay: approveDueDay,
             autoApprove: approveAutoApprove,
             createAutoApproveRule: approveRuleType !== 'NONE',
             ruleType: approveRuleType,
@@ -1617,24 +1623,52 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
               </label>
 
               {approveCreateRecurring && (
-                <div style={{ marginTop: '10px', marginLeft: '26px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <label style={{ fontSize: '12px', color: '#a1a1aa' }}>Frequency:</label>
-                  <select
-                    value={approveFrequency}
-                    onChange={(e) => setApproveFrequency(e.target.value as 'MONTHLY' | 'QUARTERLY' | 'ANNUAL')}
-                    style={{
-                      padding: '6px 10px',
-                      background: '#18181b',
-                      border: '1px solid #3f3f46',
-                      borderRadius: '4px',
-                      color: '#fff',
-                      fontSize: '13px'
-                    }}
-                  >
-                    <option value="MONTHLY">Monthly</option>
-                    <option value="QUARTERLY">Quarterly (every 3 months)</option>
-                    <option value="ANNUAL">Annual (yearly)</option>
-                  </select>
+                <div style={{ marginTop: '10px', marginLeft: '26px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '12px', color: '#a1a1aa', minWidth: '70px' }}>Frequency:</label>
+                    <select
+                      value={approveFrequency}
+                      onChange={(e) => setApproveFrequency(e.target.value as 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL')}
+                      style={{
+                        padding: '6px 10px',
+                        background: '#18181b',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        fontSize: '13px',
+                        flex: 1
+                      }}
+                    >
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="BI_WEEKLY">Every 2 weeks</option>
+                      <option value="MONTHLY">Monthly</option>
+                      <option value="QUARTERLY">Quarterly (every 3 months)</option>
+                      <option value="ANNUAL">Annual (yearly)</option>
+                    </select>
+                  </div>
+                  {(approveFrequency === 'MONTHLY' || approveFrequency === 'QUARTERLY' || approveFrequency === 'ANNUAL') && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <label style={{ fontSize: '12px', color: '#a1a1aa', minWidth: '70px' }}>Due day:</label>
+                      <select
+                        value={approveDueDay}
+                        onChange={(e) => setApproveDueDay(parseInt(e.target.value))}
+                        style={{
+                          padding: '6px 10px',
+                          background: '#18181b',
+                          border: '1px solid #3f3f46',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '13px',
+                          width: '80px'
+                        }}
+                      >
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                          <option key={day} value={day}>{day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}</option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: '12px', color: '#71717a' }}>of each {approveFrequency === 'MONTHLY' ? 'month' : approveFrequency === 'QUARTERLY' ? 'quarter' : 'year'}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

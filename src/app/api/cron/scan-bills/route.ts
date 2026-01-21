@@ -209,7 +209,11 @@ async function generateFixedBills() {
       let shouldCreateForPeriod = true
       let effectivePeriod = period
 
-      if (recurring.frequency === 'QUARTERLY') {
+      if (recurring.frequency === 'WEEKLY' || recurring.frequency === 'BI_WEEKLY') {
+        // Weekly/bi-weekly bills are not auto-generated via cron
+        // They should be created when transactions come in
+        shouldCreateForPeriod = false
+      } else if (recurring.frequency === 'QUARTERLY') {
         // Only create in Q1 (Jan), Q2 (Apr), Q3 (Jul), Q4 (Oct)
         const quarterStartMonths = [1, 4, 7, 10]
         if (!quarterStartMonths.includes(month)) {
