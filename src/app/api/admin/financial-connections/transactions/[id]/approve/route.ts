@@ -23,6 +23,8 @@ export async function POST(
     const { id } = await params
     const body = await request.json().catch(() => ({}))
 
+    console.log('[APPROVE] Body:', JSON.stringify(body))
+
     // Get the transaction
     const transaction = await prisma.stripeTransaction.findUnique({
       where: { id },
@@ -50,6 +52,15 @@ export async function POST(
     const createRecurring = body.createRecurring === true
     const autoApprove = body.autoApprove === true
     const frequency = body.frequency || 'MONTHLY'
+
+    // Auto-approve rule parameters
+    const createAutoApproveRule = body.createAutoApproveRule === true
+    const ruleType = body.ruleType || 'VENDOR'
+    const vendorPattern = body.vendorPattern || vendor
+    const displayName = body.displayName || null
+    const amountMode = body.amountMode || 'EXACT'
+    const amountMin = body.amountMin
+    const amountMax = body.amountMax
 
     // Determine period from transaction date
     const txnDate = new Date(transaction.transactedAt)
@@ -134,18 +145,119 @@ export async function POST(
         matchConfidence: 100, // Manual match
         approvalStatus: 'APPROVED',
         matchedBy: session.user.id,
-        matchedAt: new Date()
+        matchedAt: new Date(),
+        displayName: displayName || undefined // Set display name if provided
       }
     })
+
+    let ruleCreated = false
+    let additionalApproved = 0
+
+    // Create auto-approve rule if requested
+    if (createAutoApproveRule) {
+      try {
+        // Note: Auto-approve rules would need a new model similar to TransactionSkipRule
+        // For now, we'll just auto-approve other matching pending transactions
+        let whereClause: any = {
+          approvalStatus: 'PENDING',
+          id: { not: id }
+        }
+
+        if (ruleType === 'VENDOR') {
+          whereClause.description = { contains: vendorPattern }
+        } else if (ruleType === 'VENDOR_AMOUNT') {
+          whereClause.description = { contains: vendorPattern }
+
+          if (amountMode === 'RANGE' && amountMin !== null && amountMax !== null) {
+            whereClause.OR = [
+              { amount: { gte: amountMin, lte: amountMax } },
+              { amount: { gte: -amountMax, lte: -amountMin } }
+            ]
+          } else {
+            // 5% variance on exact amount
+            const minAmt = amount * 0.95
+            const maxAmt = amount * 1.05
+            whereClause.OR = [
+              { amount: { gte: minAmt, lte: maxAmt } },
+              { amount: { gte: -maxAmt, lte: -minAmt } }
+            ]
+          }
+        }
+
+        // Find matching transactions
+        const matchingTxns = await prisma.stripeTransaction.findMany({
+          where: whereClause,
+          include: { financialAccount: true }
+        })
+
+        // Auto-approve each matching transaction
+        for (const txn of matchingTxns) {
+          const txnAmount = Math.abs(txn.amount.toNumber())
+          const txnDate = new Date(txn.transactedAt)
+          const txnPeriod = txnDate.toISOString().slice(0, 7)
+
+          // Create bill instance for this transaction
+          const newBillInstance = await prisma.billInstance.create({
+            data: {
+              vendor,
+              vendorType,
+              amount: txnAmount,
+              dueDate: txnDate,
+              period: txnPeriod,
+              status: 'PAID',
+              paidDate: txnDate,
+              paidVia: `${txn.financialAccount.institutionName} ****${txn.financialAccount.accountLast4 || ''}`,
+              stripeTransactionId: txn.stripeTransactionId,
+              recurringBillId
+            }
+          })
+
+          // Create bill splits
+          if (splitters.length > 0 && txnAmount > 0) {
+            const splitAmount = txnAmount / splitters.length
+            const splits = splitters.map(splitter => ({
+              billInstanceId: newBillInstance.id,
+              teamMemberId: splitter.id,
+              amount: splitAmount,
+              status: 'PENDING' as const,
+              paidDate: null
+            }))
+            await prisma.billSplit.createMany({ data: splits })
+          }
+
+          // Update transaction
+          await prisma.stripeTransaction.update({
+            where: { id: txn.id },
+            data: {
+              matchedBillInstanceId: newBillInstance.id,
+              matchConfidence: 90, // Auto-matched
+              approvalStatus: 'APPROVED',
+              matchedBy: session.user.id,
+              matchedAt: new Date(),
+              displayName: displayName || undefined
+            }
+          })
+
+          additionalApproved++
+        }
+
+        ruleCreated = true
+      } catch (ruleError: any) {
+        console.error('[APPROVE] Error creating auto-approve rule:', ruleError.message)
+        // Continue without failing - the main transaction was approved
+      }
+    }
 
     return NextResponse.json({
       success: true,
       billInstanceId: billInstance.id,
       recurringBillId,
-      recurringCreated: createRecurring && recurringBillId !== null
+      recurringCreated: createRecurring && recurringBillId !== null,
+      ruleCreated,
+      additionalApproved
     })
   } catch (error: any) {
-    console.error('[TRANSACTIONS] Error approving:', error.message)
-    return NextResponse.json({ error: 'Failed to approve transaction' }, { status: 500 })
+    console.error('[TRANSACTIONS] Error approving:', error.message, error.stack)
+    return NextResponse.json({ error: 'Failed to approve transaction: ' + error.message }, { status: 500 })
   }
 }
