@@ -42,15 +42,32 @@ export async function POST(
       return NextResponse.json({ error: 'No contract found for this partner' }, { status: 404 })
     }
 
-    // Parse form data
-    const formData = await req.formData()
-    const signedPdf = formData.get('signedPdf') as File | null
-    const signerName = formData.get('signerName') as string | null
-    const signerTitle = formData.get('signerTitle') as string | null
-    const signatureDataUrl = formData.get('signatureDataUrl') as string | null
-    const signatureType = formData.get('signatureType') as string || 'admin' // 'admin' or 'partner'
+    // Parse form data OR JSON
+    let signedPdf: File | null = null
+    let signerName: string | null = null
+    let signerTitle: string | null = null
+    let signatureDataUrl: string | null = null
+    let signatureType = 'admin' // 'admin' or 'partner'
 
-    if (!signedPdf || !signerName || !signerTitle) {
+    const contentType = req.headers.get('content-type') || ''
+    if (contentType.includes('multipart/form-data')) {
+      // Legacy FormData handling
+      const formData = await req.formData()
+      signedPdf = formData.get('signedPdf') as File | null
+      signerName = formData.get('signerName') as string | null
+      signerTitle = formData.get('signerTitle') as string | null
+      signatureDataUrl = formData.get('signatureDataUrl') as string | null
+      signatureType = formData.get('signatureType') as string || 'admin'
+    } else {
+      // JSON body
+      const body = await req.json()
+      signerName = body.signerName
+      signerTitle = body.signerTitle
+      signatureDataUrl = body.signatureDataUrl
+      signatureType = body.signatureType || 'admin'
+    }
+
+    if (!signerName || !signerTitle) {
       return NextResponse.json({ error: 'Missing required fields (name and title required)' }, { status: 400 })
     }
 
@@ -58,9 +75,9 @@ export async function POST(
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.headers.get('x-real-ip') || 'unknown'
 
-    // Upload signed PDF to R2
+    // Upload signed PDF to R2 (only if a PDF file was provided - FormData mode)
     let signedFileUrl = partner.contract.fileUrl
-    if (isR2Configured) {
+    if (signedPdf && isR2Configured) {
       const buffer = Buffer.from(await signedPdf.arrayBuffer())
       const timestamp = new Date().toISOString().split('T')[0]
       const fileName = `${partner.partnerNumber}-contract-signed-${timestamp}.pdf`
@@ -71,8 +88,8 @@ export async function POST(
 
     // Upload signature image to R2 if provided
     let signatureUrl: string | null = null
-    if (signatureDataUrl && isR2Configured) {
-      const base64Data = signatureDataUrl.replace(/^data:image\/png;base64,/, '')
+    if (signatureDataUrl && isR2Configured && signatureDataUrl.startsWith('data:image/')) {
+      const base64Data = signatureDataUrl.replace(/^data:image\/\w+;base64,/, '')
       const buffer = Buffer.from(base64Data, 'base64')
       const timestamp = Date.now()
       const sanitizedName = signerName.trim().replace(/[^a-zA-Z0-9]/g, '-')
