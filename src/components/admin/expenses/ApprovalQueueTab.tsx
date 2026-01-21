@@ -126,6 +126,25 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     }
   }, [])
 
+  // Remove items from list locally (no scroll reset)
+  const removeItemsFromList = (idsToRemove: string | string[]) => {
+    const ids = Array.isArray(idsToRemove) ? idsToRemove : [idsToRemove]
+    setItems(prev => prev.filter(item => !ids.includes(item.id)))
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      ids.forEach(id => next.delete(id))
+      return next
+    })
+    // Update count
+    if (onCountChange) {
+      setTotalCount(prev => {
+        const newCount = Math.max(0, prev - ids.length)
+        onCountChange(newCount)
+        return newCount
+      })
+    }
+  }
+
   useEffect(() => {
     // Reset and fetch when status filter changes
     setOffset(0)
@@ -266,7 +285,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         } else {
           setSuccess('Expense approved')
         }
-        fetchItems(0, true)
+        removeItemsFromList(item.id)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to approve')
@@ -288,7 +307,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
         body: JSON.stringify({ reason })
       })
       if (res.ok) {
-        fetchItems(0, true)
+        removeItemsFromList(item.id)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to reject')
@@ -392,15 +411,21 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
       if (res.ok) {
         const data = await res.json()
+        const itemId = approveModalItem.id
         if (data.recurringCreated) {
           setSuccess('Expense approved and recurring expense created')
         } else if (data.ruleCreated) {
-          setSuccess(`Expense approved. Auto-approve rule created - ${data.additionalApproved || 0} additional transaction(s) also approved.`)
+          setSuccess(`Expense approved. Auto-approve rule created - ${data.additionalApproved || 0} additional item(s) also approved.`)
         } else {
           setSuccess('Expense approved')
         }
         setApproveModalItem(null)
-        fetchItems(0, true)
+        // Remove this item plus any that were auto-approved (refetch to get accurate state if rules applied)
+        if (data.additionalApproved > 0) {
+          fetchItems(0, true) // Need full refresh when bulk auto-approved
+        } else {
+          removeItemsFromList(itemId)
+        }
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to approve')
@@ -443,7 +468,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
       if (res.ok) {
         setSuccess('Skipped')
-        fetchItems(0, true)
+        removeItemsFromList(item.id)
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to skip')
@@ -500,13 +525,19 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
       if (res.ok) {
         const data = await res.json()
+        const itemId = skipModalItem.id
         if (data.ruleCreated || data.additionalSkipped > 0) {
           setSuccess(`Skipped. Rule applied - ${data.additionalSkipped || 0} additional item(s) also skipped.`)
         } else {
           setSuccess('Skipped')
         }
         setSkipModalItem(null)
-        fetchItems(0, true)
+        // Remove this item (and refetch if rule affected others)
+        if (data.additionalSkipped > 0) {
+          fetchItems(0, true) // Need full refresh when bulk skipped
+        } else {
+          removeItemsFromList(itemId)
+        }
       } else {
         const data = await res.json()
         setError(data.error || 'Failed to skip')
@@ -525,6 +556,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     let approved = 0
     let failed = 0
+    const approvedIds: string[] = []
 
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id)
@@ -548,8 +580,12 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
           })
         }
 
-        if (res.ok) approved++
-        else failed++
+        if (res.ok) {
+          approved++
+          approvedIds.push(id)
+        } else {
+          failed++
+        }
       } catch {
         failed++
       }
@@ -557,7 +593,10 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     setSelectedIds(new Set())
     setSuccess(`Approved ${approved} items${failed > 0 ? `, ${failed} failed` : ''}`)
-    fetchItems(0, true)
+    // Remove approved items locally without scroll reset
+    if (approvedIds.length > 0) {
+      removeItemsFromList(approvedIds)
+    }
     setProcessing(null)
   }
 
@@ -568,29 +607,47 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
 
     let skipped = 0
     let failed = 0
+    const skippedIds: string[] = []
 
     for (const id of selectedIds) {
       const item = items.find(i => i.id === id)
-      if (!item || item.type !== 'bank') continue
+      if (!item) continue
 
       try {
-        const txnId = id.replace('bank-', '')
-        const res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ createRule: false, ruleType: 'NONE' })
-        })
+        let res: Response
+        if (item.type === 'email') {
+          const billId = id.replace('email-', '')
+          res = await fetch(`/api/admin/proposed-bills/${billId}/skip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ createRule: false, reason: 'Bulk skipped' })
+          })
+        } else {
+          const txnId = id.replace('bank-', '')
+          res = await fetch(`/api/admin/financial-connections/transactions/${txnId}/skip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ createRule: false, ruleType: 'NONE' })
+          })
+        }
 
-        if (res.ok) skipped++
-        else failed++
+        if (res.ok) {
+          skipped++
+          skippedIds.push(id)
+        } else {
+          failed++
+        }
       } catch {
         failed++
       }
     }
 
     setSelectedIds(new Set())
-    setSuccess(`Skipped ${skipped} transactions${failed > 0 ? `, ${failed} failed` : ''}`)
-    fetchItems(0, true)
+    setSuccess(`Skipped ${skipped} items${failed > 0 ? `, ${failed} failed` : ''}`)
+    // Remove skipped items locally without scroll reset
+    if (skippedIds.length > 0) {
+      removeItemsFromList(skippedIds)
+    }
     setProcessing(null)
   }
 
