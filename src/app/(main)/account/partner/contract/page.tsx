@@ -386,7 +386,7 @@ export default function PartnerContractPage() {
                     </div>
                     <div className="flex gap-2">
                       <a
-                        href={contract.fileUrl}
+                        href={(contract.signedAt || contract.countersignedAt) ? '/api/account/partner/contract/composed-pdf' : contract.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2"
@@ -398,7 +398,7 @@ export default function PartnerContractPage() {
                         View
                       </a>
                       <a
-                        href={contract.fileUrl}
+                        href={(contract.signedAt || contract.countersignedAt) ? '/api/account/partner/contract/composed-pdf' : contract.fileUrl}
                         download
                         className="px-4 py-2 bg-surface border border-border rounded-lg hover:border-accent transition-colors flex items-center gap-2"
                       >

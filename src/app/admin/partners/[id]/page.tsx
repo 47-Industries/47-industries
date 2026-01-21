@@ -1053,7 +1053,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                       </button>
                     )}
                     <a
-                      href={partner.contract.fileUrl}
+                      href={(partner.contract.signedAt || partner.contract.countersignedAt) ? `/api/admin/partners/${partner.id}/contract/composed-pdf` : partner.contract.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -1077,7 +1077,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                       View
                     </a>
                     <a
-                      href={partner.contract.fileUrl}
+                      href={(partner.contract.signedAt || partner.contract.countersignedAt) ? `/api/admin/partners/${partner.id}/contract/composed-pdf` : partner.contract.fileUrl}
                       download
                       onClick={(e) => e.stopPropagation()}
                       style={{
