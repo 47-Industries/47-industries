@@ -614,13 +614,17 @@ export default function AccountSettingsPage() {
                         {motorevStatus.affiliate.motorevBadge?.icon ? (
                           <FontAwesomeIcon
                             icon={getMotorevBadgeIcon(motorevStatus.affiliate.motorevBadge.icon)}
-                            className="w-5 h-5"
-                            style={{ color: getMotorevBadgeColor(motorevStatus.affiliate.motorevBadge.color) }}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              color: getMotorevBadgeColor(motorevStatus.affiliate.motorevBadge.color)
+                            }}
                           />
                         ) : (
                           <FontAwesomeIcon
                             icon={faCircleCheck}
-                            className="w-5 h-5 text-green-500"
+                            style={{ width: '18px', height: '18px' }}
+                            className="text-green-500"
                           />
                         )}
                       </div>
