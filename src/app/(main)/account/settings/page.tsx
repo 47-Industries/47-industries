@@ -24,6 +24,30 @@ interface Address {
   isDefault: boolean
 }
 
+interface MotoRevStatus {
+  connected: boolean
+  hasAffiliate: boolean
+  affiliate?: {
+    id: string
+    affiliateCode: string
+    motorevEmail: string | null
+    connectedAt: string | null
+    rewardPreference: string
+    stats: {
+      totalReferrals: number
+      totalEarnings: number
+      pendingEarnings: number
+      proTimeEarnedDays: number
+    }
+    rates: {
+      shopCommission: number
+      proBonus: number
+      retentionBonus: number
+    }
+    isPartner: boolean
+  }
+}
+
 export default function AccountSettingsPage() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
@@ -33,6 +57,9 @@ export default function AccountSettingsPage() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [addresses, setAddresses] = useState<Address[]>([])
+  const [motorevStatus, setMotorevStatus] = useState<MotoRevStatus | null>(null)
+  const [motorevLoading, setMotorevLoading] = useState(false)
+  const [connectionLink, setConnectionLink] = useState<string | null>(null)
 
   // Form states
   const [name, setName] = useState('')
@@ -53,6 +80,7 @@ export default function AccountSettingsPage() {
   useEffect(() => {
     if (session?.user) {
       fetchProfile()
+      fetchMotorevStatus()
     }
   }, [session])
 
@@ -70,6 +98,72 @@ export default function AccountSettingsPage() {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function fetchMotorevStatus() {
+    try {
+      const res = await fetch('/api/account/motorev')
+      if (res.ok) {
+        const data = await res.json()
+        setMotorevStatus(data)
+      }
+    } catch (error) {
+      console.error('Error fetching MotoRev status:', error)
+    }
+  }
+
+  async function connectMotorev() {
+    setMotorevLoading(true)
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/account/motorev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate-token' }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setConnectionLink(data.deepLink)
+        // Refresh status
+        await fetchMotorevStatus()
+        setMessage({ type: 'success', text: 'Connection link generated! Open the MotoRev app to complete.' })
+      } else {
+        const error = await res.json()
+        setMessage({ type: 'error', text: error.error || 'Failed to generate connection' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred' })
+    } finally {
+      setMotorevLoading(false)
+    }
+  }
+
+  async function disconnectMotorev() {
+    if (!confirm('Are you sure you want to disconnect your MotoRev account?')) return
+
+    setMotorevLoading(true)
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/account/motorev', {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        await fetchMotorevStatus()
+        setConnectionLink(null)
+        setMessage({ type: 'success', text: 'MotoRev account disconnected' })
+      } else {
+        const error = await res.json()
+        setMessage({ type: 'error', text: error.error || 'Failed to disconnect' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'An error occurred' })
+    } finally {
+      setMotorevLoading(false)
     }
   }
 
@@ -323,6 +417,169 @@ export default function AccountSettingsPage() {
                 <p className="font-medium font-mono text-xs">{profile?.id?.slice(0, 12)}...</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* MotoRev Connection */}
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="p-6 border-b border-border bg-surface/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">MotoRev Connection</h2>
+                <p className="text-sm text-text-secondary">Link your MotoRev account to earn rewards</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            {motorevStatus?.connected ? (
+              <div className="space-y-4">
+                {/* Connected Status */}
+                <div className="flex items-center gap-2 text-green-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-medium">Connected to MotoRev</span>
+                </div>
+
+                {/* Affiliate Info */}
+                {motorevStatus.affiliate && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-text-secondary">Your Referral Code</p>
+                        <p className="font-mono font-bold text-lg">{motorevStatus.affiliate.affiliateCode}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary">MotoRev Email</p>
+                        <p className="font-medium">{motorevStatus.affiliate.motorevEmail || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary">Connected Since</p>
+                        <p className="font-medium">
+                          {motorevStatus.affiliate.connectedAt
+                            ? new Date(motorevStatus.affiliate.connectedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary">Reward Preference</p>
+                        <p className="font-medium">
+                          {motorevStatus.affiliate.rewardPreference === 'CASH' ? 'Cash Payout' : 'Pro Subscription Time'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="bg-surface/50 rounded-lg p-4">
+                      <p className="text-sm text-text-secondary mb-3">Your Earnings</p>
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                        <div>
+                          <p className="text-2xl font-bold">{motorevStatus.affiliate.stats.totalReferrals}</p>
+                          <p className="text-xs text-text-secondary">Referrals</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-green-500">
+                            ${motorevStatus.affiliate.stats.totalEarnings.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-text-secondary">Total Earned</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-yellow-500">
+                            ${motorevStatus.affiliate.stats.pendingEarnings.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-text-secondary">Pending</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-blue-500">
+                            {motorevStatus.affiliate.stats.proTimeEarnedDays}d
+                          </p>
+                          <p className="text-xs text-text-secondary">Pro Time</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Commission Rates */}
+                    <div className="text-sm text-text-secondary">
+                      <p>
+                        Your rates: {motorevStatus.affiliate.rates.shopCommission}% shop orders,
+                        ${motorevStatus.affiliate.rates.proBonus.toFixed(2)} per Pro conversion,
+                        ${motorevStatus.affiliate.rates.retentionBonus.toFixed(2)}/mo retention
+                        {motorevStatus.affiliate.isPartner && (
+                          <span className="ml-2 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs">Partner</span>
+                        )}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={disconnectMotorev}
+                      disabled={motorevLoading}
+                      className="text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                    >
+                      {motorevLoading ? 'Disconnecting...' : 'Disconnect MotoRev'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-text-secondary text-sm">
+                  Connect your MotoRev account to earn rewards when you refer new users. Get commissions on Pro subscriptions and shop orders!
+                </p>
+
+                {motorevStatus?.hasAffiliate && motorevStatus?.affiliate && (
+                  <div className="bg-surface/50 rounded-lg p-4">
+                    <p className="text-sm text-text-secondary mb-1">Your Referral Code</p>
+                    <p className="font-mono font-bold text-lg">{motorevStatus.affiliate.affiliateCode}</p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Share this code with friends to earn rewards
+                    </p>
+                  </div>
+                )}
+
+                {connectionLink && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                    <p className="text-sm text-blue-400 mb-2">Connection link generated!</p>
+                    <p className="text-xs text-text-secondary mb-3">
+                      Open this link on your device with MotoRev installed, or copy the link and open it manually.
+                    </p>
+                    <div className="flex gap-2">
+                      <a
+                        href={connectionLink}
+                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                      >
+                        Open MotoRev
+                      </a>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(connectionLink)
+                          setMessage({ type: 'success', text: 'Link copied to clipboard!' })
+                        }}
+                        className="px-4 py-2 bg-surface border border-border text-white rounded-lg hover:bg-surface-elevated transition-colors text-sm"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={connectMotorev}
+                  disabled={motorevLoading}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+                >
+                  {motorevLoading ? 'Generating...' : 'Connect MotoRev Account'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
