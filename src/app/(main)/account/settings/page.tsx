@@ -62,7 +62,7 @@ export default function AccountSettingsPage() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [motorevStatus, setMotorevStatus] = useState<MotoRevStatus | null>(null)
   const [motorevLoading, setMotorevLoading] = useState(false)
-  const [connectionLink, setConnectionLink] = useState<string | null>(null)
+  const [oauthPopup, setOauthPopup] = useState<Window | null>(null)
 
   // Form states
   const [name, setName] = useState('')
@@ -129,17 +129,67 @@ export default function AccountSettingsPage() {
 
       if (res.ok) {
         const data = await res.json()
-        setConnectionLink(data.deepLink)
-        // Refresh status
-        await fetchMotorevStatus()
-        setMessage({ type: 'success', text: 'Connection link generated! Open the MotoRev app to complete.' })
+
+        // Open OAuth popup to MotoRev
+        const popupWidth = 480
+        const popupHeight = 640
+        const left = window.screenX + (window.outerWidth - popupWidth) / 2
+        const top = window.screenY + (window.outerHeight - popupHeight) / 2
+
+        const motorevConnectUrl = `https://motorevapp.com/connect-47i.html?token=${encodeURIComponent(data.token)}&state=${encodeURIComponent(session?.user?.id || '')}&redirect_uri=${encodeURIComponent(window.location.origin + '/api/account/motorev/callback')}`
+
+        const popup = window.open(
+          motorevConnectUrl,
+          'motorev-connect',
+          `width=${popupWidth},height=${popupHeight},left=${left},top=${top},popup=yes,toolbar=no,menubar=no`
+        )
+
+        setOauthPopup(popup)
+
+        // Listen for OAuth callback message from popup
+        const handleMessage = async (event: MessageEvent) => {
+          if (event.data?.type === 'motorev-oauth-success') {
+            window.removeEventListener('message', handleMessage)
+            setOauthPopup(null)
+            setMotorevLoading(false)
+
+            // Save the connection data
+            await fetch('/api/account/motorev/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(event.data.data),
+            })
+
+            // Refresh status
+            await fetchMotorevStatus()
+            setMessage({ type: 'success', text: 'MotoRev account connected successfully!' })
+          } else if (event.data?.type === 'motorev-oauth-cancel') {
+            window.removeEventListener('message', handleMessage)
+            setOauthPopup(null)
+            setMotorevLoading(false)
+            setMessage({ type: 'error', text: 'Connection cancelled' })
+          }
+        }
+
+        window.addEventListener('message', handleMessage)
+
+        // Also check if popup was closed without completing
+        const checkPopupClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkPopupClosed)
+            window.removeEventListener('message', handleMessage)
+            setOauthPopup(null)
+            setMotorevLoading(false)
+          }
+        }, 500)
+
       } else {
         const error = await res.json()
         setMessage({ type: 'error', text: error.error || 'Failed to generate connection' })
+        setMotorevLoading(false)
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'An error occurred' })
-    } finally {
       setMotorevLoading(false)
     }
   }
@@ -424,14 +474,14 @@ export default function AccountSettingsPage() {
         </div>
 
         {/* MotoRev Connection */}
-        <div className="border border-border rounded-xl overflow-hidden">
+        <div className="border border-border rounded-xl overflow-hidden mt-8">
           <div className="p-6 border-b border-border bg-surface/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                </svg>
-              </div>
+              <img
+                src="https://motorevapp.com/images/favicon.png"
+                alt="MotoRev"
+                className="w-10 h-10 rounded-xl"
+              />
               <div>
                 <h2 className="text-lg font-semibold">MotoRev Connection</h2>
                 <p className="text-sm text-text-secondary">Link your MotoRev account to earn rewards</p>
@@ -444,24 +494,19 @@ export default function AccountSettingsPage() {
                 {/* Connected MotoRev Profile */}
                 {motorevStatus.affiliate && (
                   <a
-                    href={`motorev://profile/${motorevStatus.affiliate.motorevUserId}`}
-                    onClick={(e) => {
-                      // Try deep link first, fall back to web
-                      const webUrl = `https://motorevapp.com/rider/${motorevStatus.affiliate?.motorevUsername || motorevStatus.affiliate?.motorevUserId}`
-                      setTimeout(() => {
-                        window.location.href = webUrl
-                      }, 500)
-                    }}
-                    className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-500/10 to-red-600/10 border border-orange-500/20 rounded-xl hover:border-orange-500/40 transition-colors cursor-pointer"
+                    href={`https://motorevapp.com/rider/${motorevStatus.affiliate.motorevUsername || motorevStatus.affiliate.motorevUserId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 p-4 bg-[#0066FF]/10 border border-[#0066FF]/20 rounded-xl hover:border-[#0066FF]/40 transition-colors cursor-pointer"
                   >
                     {motorevStatus.affiliate.motorevProfilePicture ? (
                       <img
                         src={motorevStatus.affiliate.motorevProfilePicture}
                         alt="MotoRev Profile"
-                        className="w-16 h-16 rounded-full object-cover border-2 border-orange-500/50"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-[#0066FF]/50"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white text-xl font-bold">
+                      <div className="w-16 h-16 rounded-full bg-[#0066FF] flex items-center justify-center text-white text-xl font-bold">
                         {motorevStatus.affiliate.motorevUsername?.[0]?.toUpperCase() || 'M'}
                       </div>
                     )}
@@ -578,38 +623,21 @@ export default function AccountSettingsPage() {
                   </div>
                 )}
 
-                {connectionLink && (
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                    <p className="text-sm text-blue-400 mb-2">Connection link generated!</p>
-                    <p className="text-xs text-text-secondary mb-3">
-                      Open this link on your device with MotoRev installed, or copy the link and open it manually.
+                {oauthPopup && (
+                  <div className="bg-[#0066FF]/10 border border-[#0066FF]/20 rounded-lg p-4">
+                    <p className="text-sm text-[#0066FF] mb-2">Complete the connection in the popup window</p>
+                    <p className="text-xs text-text-secondary">
+                      Sign in to your MotoRev account in the popup to complete the connection.
                     </p>
-                    <div className="flex gap-2">
-                      <a
-                        href={connectionLink}
-                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
-                      >
-                        Open MotoRev
-                      </a>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(connectionLink)
-                          setMessage({ type: 'success', text: 'Link copied to clipboard!' })
-                        }}
-                        className="px-4 py-2 bg-surface border border-border text-white rounded-lg hover:bg-surface-elevated transition-colors text-sm"
-                      >
-                        Copy Link
-                      </button>
-                    </div>
                   </div>
                 )}
 
                 <button
                   onClick={connectMotorev}
                   disabled={motorevLoading}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+                  className="px-6 py-3 bg-[#0066FF] text-white rounded-lg hover:bg-[#0052CC] transition-colors disabled:opacity-50 font-medium"
                 >
-                  {motorevLoading ? 'Generating...' : 'Connect MotoRev Account'}
+                  {motorevLoading ? 'Connecting...' : 'Connect MotoRev Account'}
                 </button>
               </div>
             )}
