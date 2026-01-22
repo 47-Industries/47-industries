@@ -115,7 +115,10 @@ export default function MyAccountPage() {
     affiliate?: {
       id: string
       affiliateCode: string
+      motorevUserId: string | null
       motorevEmail: string | null
+      motorevUsername: string | null
+      motorevProfilePicture: string | null
       connectedAt: string | null
       rewardPreference: string
       stats: {
@@ -1501,12 +1504,45 @@ export default function MyAccountPage() {
 
             {motorevStatus?.connected ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-green-400">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-medium">Connected to MotoRev</span>
-                </div>
+                {/* Connected MotoRev Profile */}
+                {motorevStatus.affiliate && (
+                  <a
+                    href={`motorev://profile/${motorevStatus.affiliate.motorevUserId}`}
+                    onClick={(e) => {
+                      const webUrl = `https://motorevapp.com/rider/${motorevStatus.affiliate?.motorevUsername || motorevStatus.affiliate?.motorevUserId}`
+                      setTimeout(() => {
+                        window.location.href = webUrl
+                      }, 500)
+                    }}
+                    className="flex items-center gap-4 p-4 bg-gradient-to-r from-orange-500/10 to-red-600/10 border border-orange-500/30 rounded-xl hover:border-orange-500/50 transition-colors cursor-pointer"
+                  >
+                    {motorevStatus.affiliate.motorevProfilePicture ? (
+                      <img
+                        src={motorevStatus.affiliate.motorevProfilePicture}
+                        alt="MotoRev Profile"
+                        className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/50"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white text-lg font-bold">
+                        {motorevStatus.affiliate.motorevUsername?.[0]?.toUpperCase() || 'M'}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-bold">
+                          @{motorevStatus.affiliate.motorevUsername || 'MotoRev User'}
+                        </p>
+                        <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-zinc-400">{motorevStatus.affiliate.motorevEmail}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
 
                 {motorevStatus.affiliate && (
                   <>
@@ -1514,10 +1550,6 @@ export default function MyAccountPage() {
                       <div>
                         <p className="text-zinc-400">Referral Code</p>
                         <p className="font-mono font-bold text-lg text-white">{motorevStatus.affiliate.affiliateCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-zinc-400">MotoRev Email</p>
-                        <p className="text-white">{motorevStatus.affiliate.motorevEmail || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-zinc-400">Connected Since</p>

@@ -25,6 +25,8 @@ export async function GET() {
         affiliateCode: true,
         motorevUserId: true,
         motorevEmail: true,
+        motorevUsername: true,
+        motorevProfilePicture: true,
         connectedAt: true,
         rewardPreference: true,
         totalReferrals: true,
@@ -53,7 +55,10 @@ export async function GET() {
       affiliate: {
         id: userAffiliate.id,
         affiliateCode: userAffiliate.affiliateCode,
+        motorevUserId: userAffiliate.motorevUserId,
         motorevEmail: userAffiliate.motorevEmail,
+        motorevUsername: userAffiliate.motorevUsername,
+        motorevProfilePicture: userAffiliate.motorevProfilePicture,
         connectedAt: userAffiliate.connectedAt?.toISOString() || null,
         rewardPreference: userAffiliate.rewardPreference,
         stats: {

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { token, motorevUserId, motorevEmail } = body
+    const { token, motorevUserId, motorevEmail, motorevUsername, motorevProfilePicture } = body
 
     // Validate required fields
     if (!token || !motorevUserId) {
@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
         data: {
           motorevUserId,
           motorevEmail: motorevEmail || email,
+          motorevUsername: motorevUsername || null,
+          motorevProfilePicture: motorevProfilePicture || null,
           connectedAt: new Date(),
         },
         include: {
@@ -117,6 +119,8 @@ export async function POST(req: NextRequest) {
           userId,
           motorevUserId,
           motorevEmail: motorevEmail || email,
+          motorevUsername: motorevUsername || null,
+          motorevProfilePicture: motorevProfilePicture || null,
           connectedAt: new Date(),
           affiliateCode,
         },

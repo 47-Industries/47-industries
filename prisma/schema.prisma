@@ -3185,6 +3185,8 @@ model UserAffiliate {
   // MotoRev Connection
   motorevUserId         String?  @unique
   motorevEmail          String?
+  motorevUsername       String?
+  motorevProfilePicture String?  @db.Text
   connectedAt           DateTime?
 
   // Referral Code (MR-XXXXXX format)
