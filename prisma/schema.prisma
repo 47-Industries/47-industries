@@ -3187,6 +3187,9 @@ model UserAffiliate {
   motorevEmail          String?
   motorevUsername       String?
   motorevProfilePicture String?  @db.Text
+  motorevBadgeName      String?
+  motorevBadgeIcon      String?  // SF Symbol name (e.g., "checkmark.seal.fill")
+  motorevBadgeColor     String?  // Color name (e.g., "purple", "blue")
   connectedAt           DateTime?
 
   // Referral Code (MR-XXXXXX format)

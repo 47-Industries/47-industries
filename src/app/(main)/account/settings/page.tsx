@@ -34,6 +34,11 @@ interface MotoRevStatus {
     motorevEmail: string | null
     motorevUsername: string | null
     motorevProfilePicture: string | null
+    motorevBadge?: {
+      name: string | null
+      icon: string | null
+      color: string | null
+    } | null
     connectedAt: string | null
     rewardPreference: string
     stats: {
@@ -49,6 +54,75 @@ interface MotoRevStatus {
     }
     isPartner: boolean
   }
+}
+
+// MotoRev badge mapping - SF Symbols to SVG paths
+const MOTOREV_BADGE_ICONS: Record<string, { path: string; viewBox?: string }> = {
+  'checkmark.seal.fill': {
+    path: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  },
+  'checkmark.seal': {
+    path: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  },
+  'star.fill': {
+    path: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+  },
+  'crown.fill': {
+    path: 'M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z M5 19a1 1 0 011-1h12a1 1 0 011 1v1a1 1 0 01-1 1H6a1 1 0 01-1-1v-1z',
+    viewBox: '0 0 24 24',
+  },
+  'bolt.fill': {
+    path: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  },
+  'shield.fill': {
+    path: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  },
+  'flame.fill': {
+    path: 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z',
+  },
+  'heart.fill': {
+    path: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+  },
+  'trophy.fill': {
+    path: 'M5 3h14a1 1 0 011 1v2a5 5 0 01-5 5h-1v2h2a3 3 0 013 3v1H5v-1a3 3 0 013-3h2v-2H9a5 5 0 01-5-5V4a1 1 0 011-1z M9 19h6v2H9v-2z',
+    viewBox: '0 0 24 24',
+  },
+  'person.badge.shield.checkmark.fill': {
+    path: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+  },
+}
+
+// MotoRev badge colors
+const MOTOREV_BADGE_COLORS: Record<string, string> = {
+  purple: '#A855F7',
+  blue: '#3B82F6',
+  green: '#22C55E',
+  yellow: '#EAB308',
+  gold: '#F59E0B',
+  orange: '#F97316',
+  red: '#EF4444',
+  pink: '#EC4899',
+  cyan: '#06B6D4',
+  teal: '#14B8A6',
+  indigo: '#6366F1',
+}
+
+// Get badge color value
+function getMotorevBadgeColor(color: string | null | undefined): string {
+  if (!color) return '#3B82F6'
+  if (color.startsWith('#')) return color
+  return MOTOREV_BADGE_COLORS[color.toLowerCase()] || '#3B82F6'
+}
+
+// Get badge icon path
+function getMotorevBadgeIcon(icon: string | null | undefined): { path: string; viewBox: string } {
+  if (!icon) return { path: MOTOREV_BADGE_ICONS['checkmark.seal.fill'].path, viewBox: '0 0 24 24' }
+  const iconData = MOTOREV_BADGE_ICONS[icon]
+  if (iconData) {
+    return { path: iconData.path, viewBox: iconData.viewBox || '0 0 24 24' }
+  }
+  // Default to checkmark if icon not found
+  return { path: MOTOREV_BADGE_ICONS['checkmark.seal.fill'].path, viewBox: '0 0 24 24' }
 }
 
 export default function AccountSettingsPage() {
@@ -181,12 +255,19 @@ export default function AccountSettingsPage() {
             setOauthPopup(null)
 
             // Popup closed - check if connection was successful by refreshing status
-            // The popup may have completed but postMessage failed due to cross-origin
-            await fetchMotorevStatus()
-            const updatedStatus = await fetch('/api/account/motorev').then(r => r.json())
+            // Fetch fresh data directly and update state
+            try {
+              const res = await fetch('/api/account/motorev')
+              if (res.ok) {
+                const updatedStatus = await res.json()
+                setMotorevStatus(updatedStatus)
 
-            if (updatedStatus.connected) {
-              setMessage({ type: 'success', text: 'MotoRev account connected successfully!' })
+                if (updatedStatus.connected) {
+                  setMessage({ type: 'success', text: 'MotoRev account connected successfully!' })
+                }
+              }
+            } catch (error) {
+              console.error('Error checking MotoRev status:', error)
             }
 
             setMotorevLoading(false)
@@ -525,9 +606,20 @@ export default function AccountSettingsPage() {
                         <p className="text-lg font-bold">
                           @{motorevStatus.affiliate.motorevUsername || 'MotoRev User'}
                         </p>
-                        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                        {motorevStatus.affiliate.motorevBadge?.icon ? (
+                          <svg
+                            className="w-5 h-5"
+                            style={{ color: getMotorevBadgeColor(motorevStatus.affiliate.motorevBadge.color) }}
+                            fill="currentColor"
+                            viewBox={getMotorevBadgeIcon(motorevStatus.affiliate.motorevBadge.icon).viewBox}
+                          >
+                            <path d={getMotorevBadgeIcon(motorevStatus.affiliate.motorevBadge.icon).path} />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
                       </div>
                       <p className="text-sm text-text-secondary">{motorevStatus.affiliate.motorevEmail}</p>
                       <p className="text-xs text-text-secondary mt-1">Click to view profile in MotoRev</p>

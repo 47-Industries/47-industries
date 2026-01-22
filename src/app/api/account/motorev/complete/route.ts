@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { userId, username, email, profilePicture } = body
+    const { userId, username, email, profilePicture, badge } = body
 
     if (!userId || !email) {
       return NextResponse.json(
@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
           motorevEmail: email,
           motorevUsername: username || null,
           motorevProfilePicture: profilePicture || null,
+          motorevBadgeName: badge?.name || null,
+          motorevBadgeIcon: badge?.icon || null,
+          motorevBadgeColor: badge?.color || null,
           connectedAt: new Date(),
         },
       })
@@ -55,6 +58,9 @@ export async function POST(req: NextRequest) {
           motorevEmail: email,
           motorevUsername: username || null,
           motorevProfilePicture: profilePicture || null,
+          motorevBadgeName: badge?.name || null,
+          motorevBadgeIcon: badge?.icon || null,
+          motorevBadgeColor: badge?.color || null,
           connectedAt: new Date(),
         },
       })

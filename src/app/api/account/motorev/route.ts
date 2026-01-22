@@ -27,6 +27,9 @@ export async function GET() {
         motorevEmail: true,
         motorevUsername: true,
         motorevProfilePicture: true,
+        motorevBadgeName: true,
+        motorevBadgeIcon: true,
+        motorevBadgeColor: true,
         connectedAt: true,
         rewardPreference: true,
         totalReferrals: true,
@@ -59,6 +62,11 @@ export async function GET() {
         motorevEmail: userAffiliate.motorevEmail,
         motorevUsername: userAffiliate.motorevUsername,
         motorevProfilePicture: userAffiliate.motorevProfilePicture,
+        motorevBadge: userAffiliate.motorevBadgeIcon ? {
+          name: userAffiliate.motorevBadgeName,
+          icon: userAffiliate.motorevBadgeIcon,
+          color: userAffiliate.motorevBadgeColor,
+        } : null,
         connectedAt: userAffiliate.connectedAt?.toISOString() || null,
         rewardPreference: userAffiliate.rewardPreference,
         stats: {
