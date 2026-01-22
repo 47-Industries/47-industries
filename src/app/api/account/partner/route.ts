@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
     // Total link clicks
     const totalClicks = await prisma.affiliateLink.aggregate({
       where: { partnerId: partner.id },
-      _sum: { clicks: true },
+      _sum: { totalClicks: true },
     })
 
     return NextResponse.json({
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
           acc[key] = curr._count
           return acc
         }, {} as Record<string, number>),
-        totalClicks: Number(totalClicks._sum.clicks || 0),
+        totalClicks: Number(totalClicks._sum.totalClicks || 0),
       },
     })
   } catch (error) {
