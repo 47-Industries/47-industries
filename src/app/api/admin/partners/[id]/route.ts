@@ -133,6 +133,12 @@ export async function PUT(
         recurringRate: parseFloat(body.recurringRate),
         status: body.status,
         partnerType: body.partnerType,
+        // Affiliate settings
+        affiliateCode: body.affiliateCode || null,
+        shopCommissionRate: body.shopCommissionRate ? parseFloat(body.shopCommissionRate) : null,
+        motorevProBonus: body.motorevProBonus ? parseFloat(body.motorevProBonus) : null,
+        motorevProWindowDays: body.motorevProWindowDays ? parseInt(body.motorevProWindowDays) : null,
+        // Payment methods
         zelleEmail: body.zelleEmail || null,
         zellePhone: body.zellePhone || null,
         venmoUsername: body.venmoUsername || null,

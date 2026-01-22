@@ -87,6 +87,7 @@ interface Partner {
   affiliateCode?: string
   shopCommissionRate?: number
   motorevProBonus?: number
+  motorevProWindowDays?: number
   createdAt: string
   updatedAt: string
   user?: { id: string; email: string; name?: string }
@@ -866,6 +867,138 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Partner Details Section */}
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '12px',
+            padding: '20px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Partner Details</h2>
+              <button
+                onClick={() => setShowEditModal(true)}
+                style={{
+                  padding: '6px 14px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: 'white',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                }}
+              >
+                Edit Partner
+              </button>
+            </div>
+
+            {/* Basic Info Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Name</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.name}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Email</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.email}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Phone</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.phone || '-'}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Company</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.company || '-'}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Partner Type</p>
+                <span style={{
+                  display: 'inline-block',
+                  marginTop: '4px',
+                  padding: '4px 10px',
+                  background: partner.partnerType === 'BOTH' ? '#7c3aed20' : partner.partnerType === 'SERVICE_REFERRAL' ? '#3b82f620' : '#10b98120',
+                  color: partner.partnerType === 'BOTH' ? '#a78bfa' : partner.partnerType === 'SERVICE_REFERRAL' ? '#60a5fa' : '#34d399',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}>
+                  {partner.partnerType === 'BOTH' ? 'Full Partner' : partner.partnerType === 'SERVICE_REFERRAL' ? 'Service Referral' : 'Product Affiliate'}
+                </span>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Status</p>
+                <span style={{
+                  display: 'inline-block',
+                  marginTop: '4px',
+                  padding: '4px 10px',
+                  background: `${getStatusColor(partner.status)}20`,
+                  color: getStatusColor(partner.status),
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}>
+                  {partner.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Service Referral Commission - only show if SERVICE_REFERRAL or BOTH */}
+            {(partner.partnerType === 'SERVICE_REFERRAL' || partner.partnerType === 'BOTH') && (
+              <>
+                <div style={{ borderTop: '1px solid #27272a', paddingTop: '16px', marginBottom: '16px' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+                    Service Referral Commission
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Commission Type</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.commissionType}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>First Sale Rate</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#3b82f6', fontWeight: 600 }}>{partner.firstSaleRate}%</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Recurring Rate</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#8b5cf6', fontWeight: 600 }}>{partner.recurringRate}%</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Affiliate Settings - only show if PRODUCT_AFFILIATE or BOTH */}
+            {(partner.partnerType === 'PRODUCT_AFFILIATE' || partner.partnerType === 'BOTH') && (
+              <>
+                <div style={{ borderTop: '1px solid #27272a', paddingTop: '16px' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+                    Affiliate Settings
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Affiliate Code</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px', fontFamily: 'monospace', color: '#10b981' }}>
+                        {partner.affiliateCode || '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Shop Commission</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#10b981', fontWeight: 600 }}>{partner.shopCommissionRate || 5}%</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>MotoRev Pro Bonus</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#a78bfa', fontWeight: 600 }}>${partner.motorevProBonus || 2.5}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Pro Window</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.motorevProWindowDays || 30} days</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Contract Section */}
           <div style={{
             background: '#18181b',
@@ -1461,8 +1594,14 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
               {partner.zelleEmail && (
                 <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a' }}>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Zelle</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Zelle Email</p>
                   <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.zelleEmail}</p>
+                </div>
+              )}
+              {partner.zellePhone && (
+                <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Zelle Phone</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{partner.zellePhone}</p>
                 </div>
               )}
               {partner.venmoUsername && (
@@ -1477,8 +1616,14 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>${partner.cashAppTag}</p>
                 </div>
               )}
-              {!partner.zelleEmail && !partner.venmoUsername && !partner.cashAppTag && (
-                <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No other payment methods configured</p>
+              {partner.mailingAddress && (
+                <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '14px', border: '1px solid #27272a', gridColumn: partner.zelleEmail || partner.zellePhone || partner.venmoUsername || partner.cashAppTag ? 'span 1' : 'span 2' }}>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Mailing Address</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '14px', whiteSpace: 'pre-line' }}>{partner.mailingAddress}</p>
+                </div>
+              )}
+              {!partner.zelleEmail && !partner.zellePhone && !partner.venmoUsername && !partner.cashAppTag && !partner.mailingAddress && (
+                <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No payment methods configured</p>
               )}
             </div>
           </div>
@@ -3121,12 +3266,20 @@ function EditPartnerModal({
     email: partner.email,
     phone: partner.phone || '',
     company: partner.company || '',
+    status: partner.status,
+    partnerType: partner.partnerType,
+    commissionType: partner.commissionType,
     firstSaleRate: String(partner.firstSaleRate),
     recurringRate: String(partner.recurringRate),
-    status: partner.status,
+    affiliateCode: partner.affiliateCode || '',
+    shopCommissionRate: String(partner.shopCommissionRate || '5'),
+    motorevProBonus: String(partner.motorevProBonus || '2.5'),
+    motorevProWindowDays: String(partner.motorevProWindowDays || '30'),
     zelleEmail: partner.zelleEmail || '',
+    zellePhone: partner.zellePhone || '',
     venmoUsername: partner.venmoUsername || '',
     cashAppTag: partner.cashAppTag || '',
+    mailingAddress: partner.mailingAddress || '',
   })
   const { showToast } = useToast()
 
@@ -3141,6 +3294,9 @@ function EditPartnerModal({
           ...formData,
           firstSaleRate: parseFloat(formData.firstSaleRate),
           recurringRate: parseFloat(formData.recurringRate),
+          shopCommissionRate: parseFloat(formData.shopCommissionRate),
+          motorevProBonus: parseFloat(formData.motorevProBonus),
+          motorevProWindowDays: parseInt(formData.motorevProWindowDays),
         }),
       })
 
@@ -3155,6 +3311,15 @@ function EditPartnerModal({
     } finally {
       setSaving(false)
     }
+  }
+
+  const getPartnerTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      SERVICE_REFERRAL: '#3b82f6',
+      PRODUCT_AFFILIATE: '#10b981',
+      BOTH: '#7c3aed',
+    }
+    return colors[type] || '#6b7280'
   }
 
   return (
@@ -3174,7 +3339,7 @@ function EditPartnerModal({
         border: '1px solid #27272a',
         borderRadius: '12px',
         width: '100%',
-        maxWidth: '550px',
+        maxWidth: '650px',
         maxHeight: '90vh',
         overflow: 'auto',
       }}>
@@ -3184,23 +3349,63 @@ function EditPartnerModal({
           position: 'sticky',
           top: 0,
           background: '#18181b',
+          zIndex: 10,
         }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Edit Partner</h2>
+          <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '13px' }}>
+            {partner.partnerNumber}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px' }}>
+            {/* Partner Type */}
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+              Partner Type
+            </h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              {[
+                { value: 'BOTH', label: 'Full Partner', desc: 'Can do both' },
+                { value: 'SERVICE_REFERRAL', label: 'Service Referral', desc: 'Leads only' },
+                { value: 'PRODUCT_AFFILIATE', label: 'Product Affiliate', desc: 'Sales only' },
+              ].map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, partnerType: type.value as any })}
+                  style={{
+                    padding: '10px 16px',
+                    background: formData.partnerType === type.value ? `${getPartnerTypeColor(type.value)}20` : '#0a0a0a',
+                    border: formData.partnerType === type.value ? `2px solid ${getPartnerTypeColor(type.value)}` : '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: formData.partnerType === type.value ? getPartnerTypeColor(type.value) : '#a1a1aa',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    flex: '1',
+                    minWidth: '140px',
+                  }}
+                >
+                  {type.label}
+                  <div style={{ fontSize: '11px', fontWeight: 400, marginTop: '2px', opacity: 0.8 }}>
+                    {type.desc}
+                  </div>
+                </button>
+              ))}
+            </div>
+
             {/* Basic Info */}
             <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
               Partner Information
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>Name</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>Name *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -3213,11 +3418,12 @@ function EditPartnerModal({
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>Email</label>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>Email *</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -3284,62 +3490,190 @@ function EditPartnerModal({
               </div>
             </div>
 
-            {/* Commission Rates */}
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
-              Commission Rates
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
-                  First Sale Rate (%)
-                </label>
-                <input
-                  type="number"
-                  value={formData.firstSaleRate}
-                  onChange={(e) => setFormData({ ...formData, firstSaleRate: e.target.value })}
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
-                  Recurring Rate (%)
-                </label>
-                <input
-                  type="number"
-                  value={formData.recurringRate}
-                  onChange={(e) => setFormData({ ...formData, recurringRate: e.target.value })}
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-            </div>
+            {/* Service Referral Commission Rates - only show if SERVICE_REFERRAL or BOTH */}
+            {(formData.partnerType === 'SERVICE_REFERRAL' || formData.partnerType === 'BOTH') && (
+              <>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+                  Service Referral Commission
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      Commission Type
+                    </label>
+                    <select
+                      value={formData.commissionType}
+                      onChange={(e) => setFormData({ ...formData, commissionType: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <option value="TIERED">Tiered</option>
+                      <option value="FLAT">Flat</option>
+                      <option value="CUSTOM">Custom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      First Sale Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.firstSaleRate}
+                      onChange={(e) => setFormData({ ...formData, firstSaleRate: e.target.value })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      Recurring Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.recurringRate}
+                      onChange={(e) => setFormData({ ...formData, recurringRate: e.target.value })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Affiliate Settings - only show if PRODUCT_AFFILIATE or BOTH */}
+            {(formData.partnerType === 'PRODUCT_AFFILIATE' || formData.partnerType === 'BOTH') && (
+              <>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+                  Affiliate Settings
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      Affiliate Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.affiliateCode}
+                      onChange={(e) => setFormData({ ...formData, affiliateCode: e.target.value.toUpperCase() })}
+                      placeholder="e.g., KYLE50"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                        textTransform: 'uppercase',
+                      }}
+                    />
+                    <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                      Unique code used in affiliate URLs
+                    </p>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      Shop Commission Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.shopCommissionRate}
+                      onChange={(e) => setFormData({ ...formData, shopCommissionRate: e.target.value })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      MotoRev Pro Bonus ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.motorevProBonus}
+                      onChange={(e) => setFormData({ ...formData, motorevProBonus: e.target.value })}
+                      min="0"
+                      step="0.01"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                      Pro Window (Days)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.motorevProWindowDays}
+                      onChange={(e) => setFormData({ ...formData, motorevProWindowDays: e.target.value })}
+                      min="1"
+                      max="365"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                    <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                      Days after signup to earn Pro bonus
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Payment Methods */}
             <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
               Payment Methods
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
                   Zelle Email
@@ -3362,13 +3696,33 @@ function EditPartnerModal({
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                  Zelle Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.zellePhone}
+                  onChange={(e) => setFormData({ ...formData, zellePhone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
                   Venmo Username
                 </label>
                 <input
                   type="text"
                   value={formData.venmoUsername}
                   onChange={(e) => setFormData({ ...formData, venmoUsername: e.target.value })}
-                  placeholder="username"
+                  placeholder="@username"
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -3388,7 +3742,7 @@ function EditPartnerModal({
                   type="text"
                   value={formData.cashAppTag}
                   onChange={(e) => setFormData({ ...formData, cashAppTag: e.target.value })}
-                  placeholder="cashtag"
+                  placeholder="$cashtag"
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -3397,6 +3751,27 @@ function EditPartnerModal({
                     borderRadius: '8px',
                     color: 'white',
                     fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#a1a1aa' }}>
+                  Mailing Address (for checks)
+                </label>
+                <textarea
+                  value={formData.mailingAddress}
+                  onChange={(e) => setFormData({ ...formData, mailingAddress: e.target.value })}
+                  placeholder="123 Main St&#10;City, State ZIP"
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
                   }}
                 />
               </div>
@@ -3409,6 +3784,9 @@ function EditPartnerModal({
             display: 'flex',
             gap: '12px',
             justifyContent: 'flex-end',
+            position: 'sticky',
+            bottom: 0,
+            background: '#18181b',
           }}>
             <button
               type="button"
@@ -3437,6 +3815,7 @@ function EditPartnerModal({
                 fontSize: '14px',
                 fontWeight: 500,
                 cursor: 'pointer',
+                opacity: saving ? 0.5 : 1,
               }}
             >
               {saving ? 'Saving...' : 'Save Changes'}
