@@ -48,6 +48,25 @@ export async function GET(req: NextRequest) {
           },
           orderBy: { createdAt: 'desc' },
         },
+        // Affiliate data
+        affiliateLinks: {
+          orderBy: { createdAt: 'desc' },
+        },
+        affiliateReferrals: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: {
+            link: true,
+            commission: true,
+          },
+        },
+        affiliateCommissions: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          include: {
+            referral: true,
+          },
+        },
       },
     })
 
@@ -77,9 +96,34 @@ export async function GET(req: NextRequest) {
       _count: true,
     })
 
+    // Affiliate commission stats
+    const affiliateTotalEarned = await prisma.affiliateCommission.aggregate({
+      where: { partnerId: partner.id },
+      _sum: { amount: true },
+    })
+
+    const affiliatePendingAmount = await prisma.affiliateCommission.aggregate({
+      where: { partnerId: partner.id, status: 'PENDING' },
+      _sum: { amount: true },
+    })
+
+    // Affiliate referral stats
+    const affiliateReferralStats = await prisma.affiliateReferral.groupBy({
+      by: ['platform', 'eventType'],
+      where: { partnerId: partner.id },
+      _count: true,
+    })
+
+    // Total link clicks
+    const totalClicks = await prisma.affiliateLink.aggregate({
+      where: { partnerId: partner.id },
+      _sum: { clicks: true },
+    })
+
     return NextResponse.json({
       partner: {
         ...partner,
+        // Service referral stats
         totalEarned: Number(totalEarned._sum.amount || 0),
         pendingAmount: Number(pendingAmount._sum.amount || 0),
         totalPaid: Number(totalPaid._sum.amount || 0),
@@ -87,6 +131,15 @@ export async function GET(req: NextRequest) {
           acc[curr.status] = curr._count
           return acc
         }, {} as Record<string, number>),
+        // Affiliate stats
+        affiliateTotalEarned: Number(affiliateTotalEarned._sum.amount || 0),
+        affiliatePendingAmount: Number(affiliatePendingAmount._sum.amount || 0),
+        affiliateReferralStats: affiliateReferralStats.reduce((acc, curr) => {
+          const key = `${curr.platform}_${curr.eventType}`
+          acc[key] = curr._count
+          return acc
+        }, {} as Record<string, number>),
+        totalClicks: Number(totalClicks._sum.clicks || 0),
       },
     })
   } catch (error) {
