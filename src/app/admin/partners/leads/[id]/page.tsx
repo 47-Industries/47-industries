@@ -62,8 +62,8 @@ interface Lead {
 interface RelatedPortfolio {
   id: string
   title: string
-  type: string
-  thumbnail?: string
+  category: string
+  thumbnailUrl?: string
   slug: string
 }
 
@@ -578,9 +578,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   transition: 'border-color 0.2s',
                 }}
               >
-                {project.thumbnail && (
+                {project.thumbnailUrl && (
                   <img
-                    src={project.thumbnail}
+                    src={project.thumbnailUrl}
                     alt={project.title}
                     style={{
                       width: '100%',
@@ -592,7 +592,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   />
                 )}
                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#fff' }}>{project.title}</p>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#71717a' }}>{project.type.replace('_', ' ')}</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#71717a' }}>{project.category.replace('_', ' ')}</p>
               </Link>
             ))}
           </div>

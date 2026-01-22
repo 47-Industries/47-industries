@@ -169,44 +169,61 @@ export function validateInterests(interests: unknown): interests is LeadInterest
   return interests.every((i) => typeof i === 'string' && validInterests.includes(i))
 }
 
-// Map interest to portfolio ServiceType for filtering related portfolio items
-export function getPortfolioServiceTypeForInterest(
+// ServiceCategory enum values from Prisma schema (for portfolio filtering)
+export type ServiceCategory =
+  | 'WEB_DEVELOPMENT'
+  | 'WEB_APP'
+  | 'IOS_APP'
+  | 'ANDROID_APP'
+  | 'CROSS_PLATFORM_APP'
+  | 'AI_AUTOMATION'
+  | 'THREE_D_PRINTING'
+
+// Map interest to portfolio ServiceCategory for filtering related portfolio items
+export function getPortfolioCategoriesForInterest(
   interest: LeadInterest
-): 'WEB_DEVELOPMENT' | 'APP_DEVELOPMENT' | 'AI_SOLUTIONS' | 'OTHER' | null {
+): ServiceCategory[] {
   switch (interest) {
     case 'AI_RECEPTIONIST':
     case 'AI_LEAD_GENERATOR':
     case 'AI_AUTOMATION_OTHER':
-      return 'AI_SOLUTIONS'
+      return ['AI_AUTOMATION']
     case 'MOBILE_APP_IOS':
+      return ['IOS_APP']
     case 'MOBILE_APP_ANDROID':
+      return ['ANDROID_APP']
     case 'MOBILE_APP_BOTH':
-      return 'APP_DEVELOPMENT'
+      return ['CROSS_PLATFORM_APP', 'IOS_APP', 'ANDROID_APP']
     case 'WEB_DEVELOPMENT':
+      return ['WEB_DEVELOPMENT']
     case 'WEB_APP':
     case 'E_COMMERCE':
-      return 'WEB_DEVELOPMENT'
+      return ['WEB_APP', 'WEB_DEVELOPMENT']
     case 'BULK_3D_PRINTING':
     case 'CUSTOM_3D_PRINTING':
-      return 'OTHER'
+      return ['THREE_D_PRINTING']
     case 'CONSULTATION':
     case 'OTHER':
-      return null
+      return []
   }
 }
 
-// Get unique portfolio service types for an array of interests
-export function getPortfolioServiceTypesForInterests(
+// Get unique portfolio categories for an array of interests
+export function getPortfolioCategoriesForInterests(
   interests: LeadInterest[]
-): ('WEB_DEVELOPMENT' | 'APP_DEVELOPMENT' | 'AI_SOLUTIONS' | 'OTHER')[] {
-  const types = new Set<'WEB_DEVELOPMENT' | 'APP_DEVELOPMENT' | 'AI_SOLUTIONS' | 'OTHER'>()
+): ServiceCategory[] {
+  const categories = new Set<ServiceCategory>()
 
   for (const interest of interests) {
-    const type = getPortfolioServiceTypeForInterest(interest)
-    if (type) {
-      types.add(type)
+    const cats = getPortfolioCategoriesForInterest(interest)
+    for (const cat of cats) {
+      categories.add(cat)
     }
   }
 
-  return Array.from(types)
+  return Array.from(categories)
 }
+
+// Legacy aliases for backwards compatibility
+export const getPortfolioServiceTypeForInterest = getPortfolioCategoriesForInterest
+export const getPortfolioServiceTypesForInterests = getPortfolioCategoriesForInterests

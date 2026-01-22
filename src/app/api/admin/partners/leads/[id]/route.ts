@@ -4,7 +4,7 @@ import { verifyAdminAuth, getAdminAuthInfo } from '@/lib/auth-helper'
 import {
   validateInterests,
   getRecommendedServiceType,
-  getPortfolioServiceTypesForInterests,
+  getPortfolioCategoriesForInterests,
   LeadInterest,
 } from '@/lib/lead-utils'
 
@@ -45,18 +45,18 @@ export async function GET(
     let relatedPortfolio: any[] = []
     const interests = lead.interests as LeadInterest[] | null
     if (interests && interests.length > 0) {
-      const serviceTypes = getPortfolioServiceTypesForInterests(interests)
-      if (serviceTypes.length > 0) {
+      const categories = getPortfolioCategoriesForInterests(interests)
+      if (categories.length > 0) {
         relatedPortfolio = await prisma.serviceProject.findMany({
           where: {
-            type: { in: serviceTypes },
+            category: { in: categories },
             featured: true,
           },
           select: {
             id: true,
             title: true,
-            type: true,
-            thumbnail: true,
+            category: true,
+            thumbnailUrl: true,
             slug: true,
           },
           take: 6,
