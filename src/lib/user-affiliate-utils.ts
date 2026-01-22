@@ -151,7 +151,7 @@ export function generateConnectionToken(
     name,
   }
 
-  return jwt.sign(payload, secret, { expiresIn: '10m' })
+  return jwt.sign(payload, secret, { expiresIn: '30m' })
 }
 
 /**
