@@ -1340,7 +1340,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       </a>
                     )}
                     <div style={{ flex: 1 }} />
-                    {!project.serviceProjectId && project.status === 'COMPLETED' && (
+                    {!project.serviceProjectId && !['PROPOSAL', 'CANCELLED'].includes(project.status) && (
                       <button
                         onClick={() => handlePublishToPortfolio(project.id, project.name)}
                         disabled={publishingProject === project.id}
