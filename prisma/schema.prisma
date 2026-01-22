@@ -3195,8 +3195,7 @@ model UserAffiliate {
   // Referral Code (MR-XXXXXX format)
   affiliateCode         String   @unique
 
-  // Commission Rates (lower than Partner)
-  shopCommissionRate    Decimal  @db.Decimal(5, 2) @default(2.50)
+  // Commission Rates (MotoRev only, lower than Partner)
   motorevProBonus       Decimal  @db.Decimal(10, 2) @default(1.00)
   retentionBonus        Decimal  @db.Decimal(10, 2) @default(0.25)
 
@@ -3226,20 +3225,18 @@ model UserAffiliate {
   @@index([partnerId])
 }
 
-// UserAffiliateReferral - Tracks referral events (signups, conversions, orders)
+// UserAffiliateReferral - Tracks MotoRev referral events (signups, conversions, retention)
 model UserAffiliateReferral {
   id                  String   @id @default(cuid())
   userAffiliateId     String
   userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
 
-  platform            String   // MOTOREV, SHOP
-  eventType           String   // SIGNUP, PRO_CONVERSION, RETENTION, ORDER
+  platform            String   // MOTOREV only
+  eventType           String   // SIGNUP, PRO_CONVERSION, RETENTION
 
-  // References
+  // MotoRev References
   motorevUserId       String?
   motorevEmail        String?
-  orderId             String?
-  orderTotal          Decimal? @db.Decimal(10, 2)
 
   // Timing
   signupAt            DateTime?
@@ -3265,7 +3262,7 @@ model UserAffiliateCommission {
   referralId          String   @unique
   referral            UserAffiliateReferral @relation(fields: [referralId], references: [id], onDelete: Cascade)
 
-  type                String   // PRO_CONVERSION, RETENTION_BONUS, SHOP_ORDER
+  type                String   // PRO_CONVERSION, RETENTION_BONUS
   baseAmount          Decimal  @db.Decimal(10, 2)
   rate                Decimal? @db.Decimal(5, 2)
   amount              Decimal  @db.Decimal(10, 2)

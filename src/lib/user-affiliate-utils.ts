@@ -38,10 +38,9 @@ export function normalizeUserAffiliateCode(code: string): string {
 // ============================================
 
 /**
- * Default commission rates for user affiliates
+ * Default commission rates for user affiliates (MotoRev only)
  */
 export const USER_AFFILIATE_RATES = {
-  shopCommissionRate: 2.50,     // 2.5% of order total
   motorevProBonus: 1.00,        // $1.00 per Pro conversion
   retentionBonus: 0.25,         // $0.25 per month of retention
 }
@@ -50,10 +49,14 @@ export const USER_AFFILIATE_RATES = {
  * Partner commission rates (higher than user affiliates)
  */
 export const PARTNER_AFFILIATE_RATES = {
-  shopCommissionRate: 5.00,     // 5% of order total
   motorevProBonus: 2.50,        // $2.50 per Pro conversion
   retentionBonus: 0.50,         // $0.50 per month of retention
 }
+
+/**
+ * Pro conversion tracking
+ */
+export const MOTOREV_PRO_WINDOW_DAYS = 30 // Pro conversion must happen within 30 days of signup
 
 /**
  * MotoRev Pro pricing constants
@@ -82,16 +85,6 @@ export function cashToProDays(amount: number): number {
  */
 export function proDaysToCash(days: number): number {
   return Math.round(days * MOTOREV_PRO_PRICING.dailyRate * 100) / 100
-}
-
-/**
- * Calculate shop order commission
- * @param orderTotal - Order total in dollars
- * @param rate - Commission rate as percentage (e.g., 2.50 for 2.5%)
- * @returns Commission amount in dollars
- */
-export function calculateShopCommission(orderTotal: number, rate: number): number {
-  return Math.round(orderTotal * (rate / 100) * 100) / 100
 }
 
 /**
@@ -187,20 +180,6 @@ export function getReferralLandingUrl(code: string): string {
 }
 
 /**
- * Build shop referral URL
- * @param code - User affiliate code
- * @param productSlug - Optional product slug
- * @returns Shop URL with referral code
- */
-export function getShopReferralUrl(code: string, productSlug?: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
-  if (productSlug) {
-    return `${baseUrl}/shop/${productSlug}?ref=${code}`
-  }
-  return `${baseUrl}/shop?ref=${code}`
-}
-
-/**
  * Build MotoRev deep link for referral
  * @param code - User affiliate code
  * @returns Deep link URL
@@ -270,7 +249,6 @@ export function getRetentionMonth(
 export const COMMISSION_TYPE_LABELS: Record<string, string> = {
   PRO_CONVERSION: 'Pro Conversion',
   RETENTION_BONUS: 'Retention Bonus',
-  SHOP_ORDER: 'Shop Order',
 }
 
 /**
@@ -296,7 +274,6 @@ export const COMMISSION_STATUS_LABELS: Record<string, string> = {
  */
 export const PLATFORM_LABELS: Record<string, string> = {
   MOTOREV: 'MotoRev',
-  SHOP: 'Shop',
 }
 
 /**
