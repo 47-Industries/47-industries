@@ -71,9 +71,13 @@ interface MotoRevStatus {
       proTimeEarnedDays: number
     }
     rates: {
-      shopCommission: number
       proBonus: number
       retentionBonus: number
+    }
+    points?: {
+      total: number
+      available: number
+      redeemed: number
     }
     isPartner: boolean
   }
@@ -697,8 +701,7 @@ export default function AccountSettingsPage() {
                     {/* Commission Rates */}
                     <div className="text-sm text-text-secondary">
                       <p>
-                        Your rates: {motorevStatus.affiliate.rates.shopCommission}% shop orders,
-                        ${motorevStatus.affiliate.rates.proBonus.toFixed(2)} per Pro conversion,
+                        Your rates: ${motorevStatus.affiliate.rates.proBonus.toFixed(2)} per Pro conversion,
                         ${motorevStatus.affiliate.rates.retentionBonus.toFixed(2)}/mo retention
                         {motorevStatus.affiliate.isPartner && (
                           <span className="ml-2 px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs">Partner</span>

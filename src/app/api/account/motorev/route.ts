@@ -36,10 +36,13 @@ export async function GET() {
         totalEarnings: true,
         pendingEarnings: true,
         proTimeEarnedDays: true,
-        shopCommissionRate: true,
         motorevProBonus: true,
         retentionBonus: true,
         isPartner: true,
+        // Points system
+        totalPoints: true,
+        availablePoints: true,
+        pointsRedeemed: true,
       },
     })
 
@@ -76,9 +79,13 @@ export async function GET() {
           proTimeEarnedDays: userAffiliate.proTimeEarnedDays,
         },
         rates: {
-          shopCommission: Number(userAffiliate.shopCommissionRate),
           proBonus: Number(userAffiliate.motorevProBonus),
           retentionBonus: Number(userAffiliate.retentionBonus),
+        },
+        points: {
+          total: userAffiliate.totalPoints,
+          available: userAffiliate.availablePoints,
+          redeemed: userAffiliate.pointsRedeemed,
         },
         isPartner: userAffiliate.isPartner,
       },
