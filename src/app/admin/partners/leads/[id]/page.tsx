@@ -249,6 +249,20 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setShowEditModal(true)}
+              style={{
+                padding: '8px 16px',
+                background: '#27272a',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Edit Lead
+            </button>
             {lead.status !== 'CONVERTED' && lead.status !== 'LOST' && (
               <>
                 {lead.status !== 'QUALIFIED' && (
@@ -598,6 +612,19 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           }}
         />
       )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <EditLeadModal
+          lead={lead}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false)
+            showToast('Lead updated!', 'success')
+            fetchLead()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -862,6 +889,488 @@ function ConvertLeadModal({
               }}
             >
               {saving ? 'Converting...' : 'Convert to Client'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Edit Lead Modal
+function EditLeadModal({
+  lead,
+  onClose,
+  onSuccess,
+}: {
+  lead: Lead
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [selectedInterests, setSelectedInterests] = useState<LeadInterest[]>(lead.interests || [])
+  const [formData, setFormData] = useState({
+    businessName: lead.businessName,
+    contactName: lead.contactName,
+    email: lead.email,
+    phone: lead.phone || '',
+    website: lead.website || '',
+    description: lead.description || '',
+    status: lead.status,
+    estimatedBudget: lead.estimatedBudget || '',
+    timeline: lead.timeline || '',
+    companySize: lead.companySize || '',
+    currentSolution: lead.currentSolution || '',
+    painPoints: lead.painPoints || '',
+    notes: lead.notes || '',
+  })
+  const { showToast } = useToast()
+
+  const toggleInterest = (interest: LeadInterest) => {
+    setSelectedInterests((prev) =>
+      prev.includes(interest)
+        ? prev.filter((i) => i !== interest)
+        : [...prev, interest]
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.businessName || !formData.contactName || !formData.email) {
+      showToast('Business name, contact name, and email are required', 'warning')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const res = await fetch(`/api/admin/partners/leads/${lead.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          interests: selectedInterests.length > 0 ? selectedInterests : null,
+          estimatedBudget: formData.estimatedBudget || null,
+          timeline: formData.timeline || null,
+          companySize: formData.companySize || null,
+          currentSolution: formData.currentSolution || null,
+          painPoints: formData.painPoints || null,
+        }),
+      })
+
+      if (res.ok) {
+        onSuccess()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to update lead', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to update lead', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const statuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST']
+
+  const interestCategories: Record<string, LeadInterest[]> = {
+    'AI & Automation': ['AI_RECEPTIONIST', 'AI_LEAD_GENERATOR', 'AI_AUTOMATION_OTHER'],
+    'Web & Apps': ['WEB_DEVELOPMENT', 'WEB_APP', 'E_COMMERCE'],
+    'Mobile Apps': ['MOBILE_APP_IOS', 'MOBILE_APP_ANDROID', 'MOBILE_APP_BOTH'],
+    '3D Printing': ['BULK_3D_PRINTING', 'CUSTOM_3D_PRINTING'],
+    'Other': ['CONSULTATION', 'OTHER'],
+  }
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: '20px',
+    }}>
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #27272a',
+        borderRadius: '12px',
+        padding: '24px',
+        width: '100%',
+        maxWidth: '700px',
+        maxHeight: '90vh',
+        overflow: 'auto',
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>Edit Lead</h3>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Basic Info Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Business Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessName}
+                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Contact Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.contactName}
+                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Contact Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Website & Status */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Website
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  {statuses.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Interests */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                Interests
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {Object.entries(interestCategories).map(([category, interests]) => (
+                  <div key={category}>
+                    <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#71717a' }}>{category}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {interests.map((interest) => (
+                        <button
+                          key={interest}
+                          type="button"
+                          onClick={() => toggleInterest(interest)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: selectedInterests.includes(interest) ? '#3b82f6' : '#27272a',
+                            color: selectedInterests.includes(interest) ? 'white' : '#a1a1aa',
+                          }}
+                        >
+                          {LEAD_INTEREST_LABELS[interest]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Qualification Data */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Estimated Budget
+                </label>
+                <select
+                  value={formData.estimatedBudget}
+                  onChange={(e) => setFormData({ ...formData, estimatedBudget: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(BUDGET_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Timeline
+                </label>
+                <select
+                  value={formData.timeline}
+                  onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(TIMELINE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Company Size
+                </label>
+                <select
+                  value={formData.companySize}
+                  onChange={(e) => setFormData({ ...formData, companySize: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(COMPANY_SIZE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            {/* Current Solution */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Current Solution
+              </label>
+              <textarea
+                value={formData.currentSolution}
+                onChange={(e) => setFormData({ ...formData, currentSolution: e.target.value })}
+                rows={2}
+                placeholder="What solution are they currently using?"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            {/* Pain Points */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Pain Points
+              </label>
+              <textarea
+                value={formData.painPoints}
+                onChange={(e) => setFormData({ ...formData, painPoints: e.target.value })}
+                rows={2}
+                placeholder="What problems are they trying to solve?"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Internal Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+                placeholder="Internal notes (not visible to partner)"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#27272a',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
