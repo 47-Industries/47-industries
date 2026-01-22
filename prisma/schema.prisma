@@ -3220,8 +3220,13 @@ model UserAffiliate {
   pendingEarnings       Decimal  @db.Decimal(10, 2) @default(0)
   proTimeEarnedDays     Int      @default(0)
 
-  // Reward Preference
-  rewardPreference      String   @default("CASH")  // CASH, PRO_TIME
+  // Points System
+  totalPoints           Int      @default(0)    // Lifetime points earned
+  availablePoints       Int      @default(0)    // Current balance (unredeemed)
+  pointsRedeemed        Int      @default(0)    // Total points redeemed
+
+  // Legacy - kept for backward compatibility
+  rewardPreference      String   @default("POINTS")  // POINTS (was CASH, PRO_TIME)
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -3229,6 +3234,8 @@ model UserAffiliate {
   referrals             UserAffiliateReferral[]
   commissions           UserAffiliateCommission[]
   proTimeCredits        ProTimeCredit[]
+  pointTransactions     PointTransaction[]
+  pointRedemptions      PointRedemption[]
 
   @@index([affiliateCode])
   @@index([motorevUserId])
@@ -3254,6 +3261,7 @@ model UserAffiliateReferral {
   retentionMonth      Int?     // For retention bonuses (1, 2, 3... months)
 
   commission          UserAffiliateCommission?
+  pointTransaction    PointTransaction?
 
   createdAt           DateTime @default(now())
 
@@ -3309,4 +3317,51 @@ model ProTimeCredit {
 
   @@index([userAffiliateId])
   @@index([status])
+}
+
+// PointTransaction - Records each point earning event
+model PointTransaction {
+  id                  String   @id @default(cuid())
+  userAffiliateId     String
+  userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
+
+  type                String   // VERIFIED_SIGNUP, PRO_CONVERSION
+  points              Int      // 1 for signup, 10 for Pro conversion
+  description         String?  // Optional description
+
+  // Link to referral event
+  referralId          String?  @unique
+  referral            UserAffiliateReferral? @relation(fields: [referralId], references: [id], onDelete: SetNull)
+
+  // MotoRev user who triggered the event
+  motorevUserId       String?
+  motorevEmail        String?
+
+  createdAt           DateTime @default(now())
+
+  @@index([userAffiliateId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// PointRedemption - Records when points are auto-redeemed for Pro time
+model PointRedemption {
+  id                  String   @id @default(cuid())
+  userAffiliateId     String
+  userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
+
+  pointsRedeemed      Int      // Always 10
+  proDaysGranted      Int      // Always 7
+  status              String   @default("PENDING")  // PENDING, APPLIED, FAILED
+
+  // When the Pro time was actually applied in MotoRev
+  appliedAt           DateTime?
+  failureReason       String?  // If status is FAILED
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userAffiliateId])
+  @@index([status])
+  @@index([createdAt])
 }

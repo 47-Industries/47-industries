@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { POINTS } from '@/lib/user-affiliate-points'
 
 // GET /api/motorev/affiliate/status?motorevUserId=xxx
 // Returns the affiliate status for a MotoRev user
@@ -69,6 +70,13 @@ export async function GET(req: NextRequest) {
           retentionBonus: Number(userAffiliate.retentionBonus),
         }
 
+    // Calculate points progress
+    const availablePoints = userAffiliate.totalPoints - userAffiliate.pointsRedeemed
+    const pointsToNextReward = POINTS.REDEMPTION_THRESHOLD - (availablePoints % POINTS.REDEMPTION_THRESHOLD)
+    const progressPercent = Math.round(
+      ((availablePoints % POINTS.REDEMPTION_THRESHOLD) / POINTS.REDEMPTION_THRESHOLD) * 100
+    )
+
     return NextResponse.json({
       connected: true,
       affiliateCode: userAffiliate.affiliateCode,
@@ -85,6 +93,16 @@ export async function GET(req: NextRequest) {
         pendingEarnings: Number(userAffiliate.pendingEarnings),
         proTimeEarnedDays: userAffiliate.proTimeEarnedDays,
       },
+      // Points system data
+      points: {
+        total: userAffiliate.totalPoints,
+        available: availablePoints,
+        redeemed: userAffiliate.pointsRedeemed,
+        toNextReward: availablePoints >= POINTS.REDEMPTION_THRESHOLD ? 0 : pointsToNextReward,
+        progressPercent,
+      },
+      partnerEligible: userAffiliate.totalReferrals >= POINTS.PARTNER_CTA_THRESHOLD && !userAffiliate.isPartner,
+      shareLink: `https://motorevapp.com/signup?ref=${userAffiliate.affiliateCode}`,
       rates,
       connectedAt: userAffiliate.connectedAt,
     })

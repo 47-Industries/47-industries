@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isValidUserAffiliateCode } from '@/lib/user-affiliate-utils'
+import { awardSignupPoints } from '@/lib/user-affiliate-points'
 
 // POST /api/motorev/signup
 // Called by MotoRev when a new user signs up with a referral code
@@ -125,17 +126,43 @@ async function handleUserAffiliateSignup(
     })
   }
 
-  // Create the signup referral (no commission - only tracks the signup)
-  const referral = await prisma.userAffiliateReferral.create({
-    data: {
-      userAffiliateId: userAffiliate.id,
-      platform: 'MOTOREV',
-      eventType: 'SIGNUP',
-      motorevUserId,
-      motorevEmail: motorevEmail || null,
-      signupAt: signupDate,
-    },
+  // Create the signup referral and update referral count
+  const referral = await prisma.$transaction(async (tx) => {
+    const ref = await tx.userAffiliateReferral.create({
+      data: {
+        userAffiliateId: userAffiliate.id,
+        platform: 'MOTOREV',
+        eventType: 'SIGNUP',
+        motorevUserId,
+        motorevEmail: motorevEmail || null,
+        signupAt: signupDate,
+      },
+    })
+
+    // Increment total referrals count
+    await tx.userAffiliate.update({
+      where: { id: userAffiliate.id },
+      data: {
+        totalReferrals: { increment: 1 },
+      },
+    })
+
+    return ref
   })
+
+  // Award 1 point for verified signup
+  let pointsResult = null
+  try {
+    pointsResult = await awardSignupPoints(
+      userAffiliate.id,
+      referral.id,
+      motorevUserId,
+      motorevEmail
+    )
+  } catch (error) {
+    console.error('Error awarding signup points:', error)
+    // Don't fail the request if points fail - signup is still recorded
+  }
 
   return NextResponse.json({
     success: true,
@@ -143,7 +170,13 @@ async function handleUserAffiliateSignup(
     referralId: referral.id,
     affiliateName: userAffiliate.user.name,
     affiliateType: 'user',
-    // Note: No commission for signup - commission is awarded on Pro conversion
+    pointsAwarded: pointsResult?.transaction?.points || 0,
+    totalPoints: pointsResult?.affiliate?.availablePoints || 0,
+    redemption: pointsResult?.redemption ? {
+      id: pointsResult.redemption.id,
+      pointsRedeemed: pointsResult.redemption.pointsRedeemed,
+      proDaysGranted: pointsResult.redemption.proDaysGranted,
+    } : null,
   })
 }
 

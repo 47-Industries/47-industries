@@ -5,6 +5,7 @@ import {
   MOTOREV_PRO_WINDOW_DAYS,
   cashToProDays,
 } from '@/lib/user-affiliate-utils'
+import { awardProConversionPoints } from '@/lib/user-affiliate-points'
 
 // POST /api/motorev/pro-conversion
 // Called by MotoRev when a referred user upgrades to Pro
@@ -223,6 +224,20 @@ async function handleUserAffiliateProConversion(
     return { referral, commission }
   })
 
+  // Award 10 points for Pro conversion (new points system)
+  let pointsResult = null
+  try {
+    pointsResult = await awardProConversionPoints(
+      userAffiliate.id,
+      result.referral.id,
+      motorevUserId,
+      motorevEmail
+    )
+  } catch (error) {
+    console.error('Error awarding Pro conversion points:', error)
+    // Don't fail the request if points fail - conversion is still recorded
+  }
+
   return NextResponse.json({
     success: true,
     message: 'Pro conversion recorded successfully',
@@ -233,6 +248,14 @@ async function handleUserAffiliateProConversion(
     proTimeDays,
     affiliateName: userAffiliate.user.name,
     affiliateType: 'user',
+    // Points system response
+    pointsAwarded: pointsResult?.transaction?.points || 0,
+    totalPoints: pointsResult?.affiliate?.availablePoints || 0,
+    redemption: pointsResult?.redemption ? {
+      id: pointsResult.redemption.id,
+      pointsRedeemed: pointsResult.redemption.pointsRedeemed,
+      proDaysGranted: pointsResult.redemption.proDaysGranted,
+    } : null,
   })
 }
 

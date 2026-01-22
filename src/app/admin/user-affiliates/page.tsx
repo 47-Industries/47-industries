@@ -19,6 +19,10 @@ interface UserAffiliate {
   pendingEarnings: number
   proTimeEarnedDays: number
   rewardPreference: string
+  // Points system
+  totalPoints: number
+  availablePoints: number
+  pointsRedeemed: number
   user: {
     id: string
     name: string | null
@@ -29,6 +33,23 @@ interface UserAffiliate {
     name: string
   } | null
   createdAt: string
+}
+
+interface PointTransaction {
+  id: string
+  type: string
+  points: number
+  description: string | null
+  motorevEmail: string | null
+  createdAt: string
+  userAffiliate: {
+    id: string
+    affiliateCode: string
+    user: {
+      name: string | null
+      email: string | null
+    }
+  }
 }
 
 interface Commission {
@@ -70,9 +91,10 @@ interface Stats {
 export default function AdminUserAffiliatesPage() {
   const [affiliates, setAffiliates] = useState<UserAffiliate[]>([])
   const [commissions, setCommissions] = useState<Commission[]>([])
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'affiliates' | 'commissions'>('affiliates')
+  const [activeTab, setActiveTab] = useState<'affiliates' | 'commissions' | 'points'>('affiliates')
   const [statusFilter, setStatusFilter] = useState('all')
   const [rewardFilter, setRewardFilter] = useState('all')
   const [selectedCommissions, setSelectedCommissions] = useState<string[]>([])
@@ -93,7 +115,7 @@ export default function AdminUserAffiliatesPage() {
           setAffiliates(data.affiliates)
           setStats(data.stats)
         }
-      } else {
+      } else if (activeTab === 'commissions') {
         const params = new URLSearchParams()
         if (statusFilter !== 'all') params.append('status', statusFilter)
         if (rewardFilter !== 'all') params.append('rewardType', rewardFilter)
@@ -102,6 +124,12 @@ export default function AdminUserAffiliatesPage() {
         if (res.ok) {
           const data = await res.json()
           setCommissions(data.commissions)
+        }
+      } else if (activeTab === 'points') {
+        const res = await fetch('/api/admin/user-affiliates/points')
+        if (res.ok) {
+          const data = await res.json()
+          setPointTransactions(data.transactions)
         }
       }
     } catch (error) {
@@ -314,6 +342,20 @@ export default function AdminUserAffiliatesPage() {
         >
           Commissions
         </button>
+        <button
+          onClick={() => setActiveTab('points')}
+          style={{
+            padding: '8px 16px',
+            background: activeTab === 'points' ? '#3b82f6' : 'transparent',
+            border: 'none',
+            borderRadius: '6px',
+            color: '#fff',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'points' ? 600 : 400,
+          }}
+        >
+          Points
+        </button>
       </div>
 
       {/* Filters */}
@@ -424,6 +466,7 @@ export default function AdminUserAffiliatesPage() {
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Code</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>MotoRev</th>
                     <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Referrals</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Points</th>
                     <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Earnings</th>
                     <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Pro Time</th>
                     <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Preference</th>
@@ -466,6 +509,14 @@ export default function AdminUserAffiliatesPage() {
                       </td>
                       <td style={{ padding: '12px 16px', textAlign: 'center', fontSize: '14px', fontWeight: 600 }}>
                         {affiliate.totalReferrals}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#0066FF' }}>
+                          {affiliate.availablePoints || 0}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#71717a' }}>
+                          {affiliate.totalPoints || 0} total
+                        </div>
                       </td>
                       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                         <div style={{ fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
@@ -534,7 +585,7 @@ export default function AdminUserAffiliatesPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'commissions' ? (
         /* Commissions Table */
         <div style={{
           background: '#1a1a1a',
@@ -649,7 +700,80 @@ export default function AdminUserAffiliatesPage() {
             </div>
           )}
         </div>
-      )}
+      ) : activeTab === 'points' ? (
+        /* Points Transactions Table */
+        <div style={{
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          border: '1px solid #27272a',
+          overflow: 'hidden',
+        }}>
+          {pointTransactions.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#a1a1aa' }}>
+              No point transactions found
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#27272a' }}>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Date</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Affiliate</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Type</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Details</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 500, fontSize: '13px', color: '#a1a1aa' }}>Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pointTransactions.map((tx) => (
+                    <tr key={tx.id} style={{ borderBottom: '1px solid #27272a' }}>
+                      <td style={{ padding: '12px 16px', fontSize: '14px' }}>
+                        {formatDate(tx.createdAt)}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontSize: '14px' }}>
+                          {tx.userAffiliate.user.name || 'Unnamed'}
+                        </div>
+                        <code style={{
+                          fontSize: '11px',
+                          color: '#71717a',
+                          fontFamily: 'monospace',
+                        }}>
+                          {tx.userAffiliate.affiliateCode}
+                        </code>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '14px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          background: tx.type === 'PRO_CONVERSION' ? '#0066FF20' : tx.type === 'VERIFIED_SIGNUP' ? '#10b98120' : '#27272a',
+                          color: tx.type === 'PRO_CONVERSION' ? '#0066FF' : tx.type === 'VERIFIED_SIGNUP' ? '#10b981' : '#a1a1aa',
+                        }}>
+                          {tx.type === 'PRO_CONVERSION' ? 'Pro Conversion' : tx.type === 'VERIFIED_SIGNUP' ? 'Signup' : tx.type}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: '14px', color: '#a1a1aa' }}>
+                        {tx.motorevEmail || tx.description || '-'}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <span style={{
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          color: tx.points > 0 ? '#10b981' : '#ef4444',
+                        }}>
+                          {tx.points > 0 ? '+' : ''}{tx.points}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }

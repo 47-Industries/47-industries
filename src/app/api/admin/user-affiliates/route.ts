@@ -76,6 +76,10 @@ export async function GET(req: NextRequest) {
         pendingEarnings: Number(a.pendingEarnings),
         proTimeEarnedDays: a.proTimeEarnedDays,
         rewardPreference: a.rewardPreference,
+        // Points system
+        totalPoints: a.totalPoints,
+        availablePoints: a.availablePoints,
+        pointsRedeemed: a.pointsRedeemed,
         user: a.user,
         partner: a.partner,
         createdAt: a.createdAt.toISOString(),
