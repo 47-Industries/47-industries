@@ -83,6 +83,9 @@ model User {
   // Team member - if this user is an internal team member
   teamMember    TeamMember?
 
+  // User affiliate - if this user is a non-partner affiliate
+  userAffiliate UserAffiliate?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -2508,6 +2511,9 @@ model Partner {
   affiliateReferrals AffiliateReferral[]
   affiliateCommissions AffiliateCommission[]
 
+  // User affiliates upgraded to this partner
+  userAffiliates    UserAffiliate[]
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -3163,4 +3169,132 @@ model TransactionSkipRule {
   @@index([ruleType])
   @@index([financialAccountId])
   @@index([isActive])
+}
+
+// ============================================
+// USER AFFILIATE SYSTEM (Non-Partner Referrals)
+// ============================================
+
+// UserAffiliate - Regular users who want to earn referral rewards
+// Lower commission rates than Partners, but simpler to become one
+model UserAffiliate {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // MotoRev Connection
+  motorevUserId         String?  @unique
+  motorevEmail          String?
+  connectedAt           DateTime?
+
+  // Referral Code (MR-XXXXXX format)
+  affiliateCode         String   @unique
+
+  // Commission Rates (lower than Partner)
+  shopCommissionRate    Decimal  @db.Decimal(5, 2) @default(2.50)
+  motorevProBonus       Decimal  @db.Decimal(10, 2) @default(1.00)
+  retentionBonus        Decimal  @db.Decimal(10, 2) @default(0.25)
+
+  // Partner Upgrade
+  isPartner             Boolean  @default(false)
+  partnerId             String?
+  partner               Partner? @relation(fields: [partnerId], references: [id])
+
+  // Stats (denormalized for quick display)
+  totalReferrals        Int      @default(0)
+  totalEarnings         Decimal  @db.Decimal(10, 2) @default(0)
+  pendingEarnings       Decimal  @db.Decimal(10, 2) @default(0)
+  proTimeEarnedDays     Int      @default(0)
+
+  // Reward Preference
+  rewardPreference      String   @default("CASH")  // CASH, PRO_TIME
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  referrals             UserAffiliateReferral[]
+  commissions           UserAffiliateCommission[]
+  proTimeCredits        ProTimeCredit[]
+
+  @@index([affiliateCode])
+  @@index([motorevUserId])
+  @@index([partnerId])
+}
+
+// UserAffiliateReferral - Tracks referral events (signups, conversions, orders)
+model UserAffiliateReferral {
+  id                  String   @id @default(cuid())
+  userAffiliateId     String
+  userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
+
+  platform            String   // MOTOREV, SHOP
+  eventType           String   // SIGNUP, PRO_CONVERSION, RETENTION, ORDER
+
+  // References
+  motorevUserId       String?
+  motorevEmail        String?
+  orderId             String?
+  orderTotal          Decimal? @db.Decimal(10, 2)
+
+  // Timing
+  signupAt            DateTime?
+  convertedAt         DateTime?
+  retentionMonth      Int?     // For retention bonuses (1, 2, 3... months)
+
+  commission          UserAffiliateCommission?
+
+  createdAt           DateTime @default(now())
+
+  @@index([userAffiliateId])
+  @@index([motorevUserId])
+  @@index([eventType])
+  @@index([platform])
+}
+
+// UserAffiliateCommission - Commission records for user affiliates
+model UserAffiliateCommission {
+  id                  String   @id @default(cuid())
+  userAffiliateId     String
+  userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
+
+  referralId          String   @unique
+  referral            UserAffiliateReferral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  type                String   // PRO_CONVERSION, RETENTION_BONUS, SHOP_ORDER
+  baseAmount          Decimal  @db.Decimal(10, 2)
+  rate                Decimal? @db.Decimal(5, 2)
+  amount              Decimal  @db.Decimal(10, 2)
+
+  // Reward delivery
+  rewardType          String   // CASH, PRO_TIME
+  proTimeDays         Int?     // Days of Pro time (if PRO_TIME reward)
+
+  status              String   @default("PENDING")  // PENDING, APPROVED, PAID, APPLIED
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userAffiliateId])
+  @@index([status])
+  @@index([type])
+}
+
+// ProTimeCredit - Pro subscription time credits earned through referrals
+model ProTimeCredit {
+  id                  String   @id @default(cuid())
+  userAffiliateId     String
+  userAffiliate       UserAffiliate @relation(fields: [userAffiliateId], references: [id], onDelete: Cascade)
+
+  days                Int
+  source              String   // PRO_CONVERSION, RETENTION_BONUS
+  commissionId        String?
+
+  status              String   @default("PENDING")  // PENDING, APPLIED, EXPIRED
+  appliedAt           DateTime?
+  expiresAt           DateTime
+
+  createdAt           DateTime @default(now())
+
+  @@index([userAffiliateId])
+  @@index([status])
 }

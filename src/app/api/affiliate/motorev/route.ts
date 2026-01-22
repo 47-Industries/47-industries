@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isWithinProWindow } from '@/lib/affiliate-utils'
+import {
+  isValidUserAffiliateCode,
+  cashToProDays,
+} from '@/lib/user-affiliate-utils'
 
 // POST /api/affiliate/motorev
 // Called by MotoRev backend when a referred user converts to Pro
+// Supports both Partner codes and User Affiliate codes (MR-XXXXXX)
 // Auth: API key in X-API-Key header (shared secret)
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +50,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Find partner by affiliate code
+    const signupDate = signupAt ? new Date(signupAt) : null
+    const conversionDate = convertedAt ? new Date(convertedAt) : new Date()
+
+    // Check if this is a User Affiliate code (MR-XXXXXX format)
+    if (isValidUserAffiliateCode(referralCode)) {
+      return handleUserAffiliateConversion(
+        referralCode.toUpperCase(),
+        motorevUserId,
+        email,
+        signupDate,
+        conversionDate
+      )
+    }
+
+    // Otherwise, try to find a Partner by affiliate code
     const partner = await prisma.partner.findFirst({
       where: {
         affiliateCode: referralCode,
@@ -61,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     if (!partner) {
       return NextResponse.json(
-        { error: 'Partner not found or inactive' },
+        { error: 'Affiliate code not found or inactive' },
         { status: 404 }
       )
     }
@@ -83,8 +102,6 @@ export async function POST(req: NextRequest) {
 
     // Check if conversion is within the Pro window
     const windowDays = partner.motorevProWindowDays || 30
-    const signupDate = signupAt ? new Date(signupAt) : null
-    const conversionDate = convertedAt ? new Date(convertedAt) : new Date()
 
     if (signupDate && !isWithinProWindow(signupDate, conversionDate, windowDays)) {
       return NextResponse.json({
@@ -155,8 +172,9 @@ export async function POST(req: NextRequest) {
       message: 'Pro conversion recorded successfully',
       referralId: result.referral.id,
       commissionId: result.commission.id,
-      commissionAmount: bonusAmount,
+      commissionAmount: Number(bonusAmount),
       partnerName: partner.name,
+      affiliateType: 'partner',
     })
   } catch (error) {
     console.error('Error processing MotoRev affiliate conversion:', error)
@@ -165,4 +183,139 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Handle conversion for User Affiliate (MR-XXXXXX codes)
+async function handleUserAffiliateConversion(
+  affiliateCode: string,
+  motorevUserId: string,
+  email: string | undefined,
+  signupDate: Date | null,
+  conversionDate: Date
+) {
+  // Find the user affiliate by code
+  const userAffiliate = await prisma.userAffiliate.findUnique({
+    where: { affiliateCode },
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  })
+
+  if (!userAffiliate) {
+    return NextResponse.json(
+      { error: 'Affiliate code not found' },
+      { status: 404 }
+    )
+  }
+
+  // Check if this MotoRev user was already credited (prevent duplicates)
+  const existingReferral = await prisma.userAffiliateReferral.findFirst({
+    where: {
+      motorevUserId,
+      eventType: 'PRO_CONVERSION',
+    },
+  })
+
+  if (existingReferral) {
+    return NextResponse.json(
+      { error: 'Pro conversion already credited for this user' },
+      { status: 409 }
+    )
+  }
+
+  // Check if conversion is within the 30-day window
+  const windowDays = 30
+
+  if (signupDate && !isWithinProWindow(signupDate, conversionDate, windowDays)) {
+    return NextResponse.json({
+      success: false,
+      message: `Pro conversion is outside the ${windowDays}-day window`,
+      eligible: false,
+    })
+  }
+
+  // Determine bonus and reward type based on preference
+  const bonusAmount = Number(userAffiliate.motorevProBonus)
+  const rewardType = userAffiliate.rewardPreference
+  const proTimeDays = rewardType === 'PRO_TIME' ? cashToProDays(bonusAmount) : null
+
+  // Create referral and commission in a transaction
+  const result = await prisma.$transaction(async (tx) => {
+    // Create the referral
+    const referral = await tx.userAffiliateReferral.create({
+      data: {
+        userAffiliateId: userAffiliate.id,
+        platform: 'MOTOREV',
+        eventType: 'PRO_CONVERSION',
+        motorevUserId,
+        motorevEmail: email || null,
+        signupAt: signupDate,
+        convertedAt: conversionDate,
+      },
+    })
+
+    // Create the commission
+    const commission = await tx.userAffiliateCommission.create({
+      data: {
+        userAffiliateId: userAffiliate.id,
+        referralId: referral.id,
+        type: 'PRO_CONVERSION',
+        baseAmount: 0,
+        rate: null,
+        amount: bonusAmount,
+        rewardType,
+        proTimeDays,
+        status: 'PENDING',
+      },
+    })
+
+    // Update affiliate stats
+    await tx.userAffiliate.update({
+      where: { id: userAffiliate.id },
+      data: {
+        totalReferrals: { increment: 1 },
+        pendingEarnings: rewardType === 'CASH'
+          ? { increment: bonusAmount }
+          : undefined,
+        proTimeEarnedDays: rewardType === 'PRO_TIME' && proTimeDays
+          ? { increment: proTimeDays }
+          : undefined,
+      },
+    })
+
+    // If reward type is PRO_TIME, create a credit record
+    if (rewardType === 'PRO_TIME' && proTimeDays) {
+      const expiresAt = new Date()
+      expiresAt.setMonth(expiresAt.getMonth() + 12) // Credits expire in 12 months
+
+      await tx.proTimeCredit.create({
+        data: {
+          userAffiliateId: userAffiliate.id,
+          days: proTimeDays,
+          source: 'PRO_CONVERSION',
+          commissionId: commission.id,
+          status: 'PENDING',
+          expiresAt,
+        },
+      })
+    }
+
+    return { referral, commission }
+  })
+
+  return NextResponse.json({
+    success: true,
+    message: 'Pro conversion recorded successfully',
+    referralId: result.referral.id,
+    commissionId: result.commission.id,
+    commissionAmount: bonusAmount,
+    rewardType,
+    proTimeDays,
+    affiliateName: userAffiliate.user.name,
+    affiliateType: 'user',
+  })
 }
