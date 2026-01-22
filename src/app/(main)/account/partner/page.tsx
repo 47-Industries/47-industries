@@ -233,8 +233,33 @@ export default function PartnerDashboardPage() {
     )
   }
 
-  if (!partner) {
-    return null
+  if (error || !partner) {
+    return (
+      <div className="min-h-screen py-20">
+        <div className="container mx-auto px-6 max-w-4xl">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
+            <p className="text-text-secondary mb-6">
+              Unable to load partner dashboard. Please try again.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                Try Again
+              </button>
+              <Link
+                href="/account"
+                className="px-6 py-3 bg-surface border border-border text-white rounded-lg hover:bg-surface-elevated transition-colors"
+              >
+                Back to Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const totalLeads = Object.values(partner.leadStats).reduce((a, b) => a + b, 0)
