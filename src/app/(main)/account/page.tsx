@@ -31,12 +31,21 @@ interface PartnerInfo {
   totalEarned: number
 }
 
+interface AffiliateInfo {
+  affiliateCode: string
+  availablePoints: number
+  totalReferrals: number
+  proDaysEarned: number
+  isConnected: boolean
+}
+
 export default function AccountPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null)
   const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
+  const [affiliateInfo, setAffiliateInfo] = useState<AffiliateInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -50,6 +59,7 @@ export default function AccountPage() {
       fetchOrders()
       fetchClientInfo()
       fetchPartnerInfo()
+      fetchAffiliateInfo()
     }
   }, [session])
 
@@ -88,6 +98,26 @@ export default function AccountPage() {
       }
     } catch (error) {
       // User may not have a linked partner - that's okay
+    }
+  }
+
+  async function fetchAffiliateInfo() {
+    try {
+      const res = await fetch('/api/account/affiliate')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.stats) {
+          setAffiliateInfo({
+            affiliateCode: data.stats.affiliateCode,
+            availablePoints: data.stats.points.available,
+            totalReferrals: data.stats.stats.totalReferrals,
+            proDaysEarned: data.stats.stats.proDaysEarned,
+            isConnected: !!data.stats.motorev,
+          })
+        }
+      }
+    } catch (error) {
+      // User may not have an affiliate account - that's okay
     }
   }
 
@@ -190,6 +220,41 @@ export default function AccountPage() {
                 )}
                 <p className="text-green-500 text-sm">
                   ${partnerInfo.totalEarned.toFixed(2)} total earned
+                </p>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {/* MotoRev Affiliate Banner */}
+        {affiliateInfo && !partnerInfo && (
+          <Link
+            href="/account/affiliate"
+            className="block p-6 mb-8 border border-[#0066FF]/50 bg-[#0066FF]/5 rounded-xl hover:border-[#0066FF] transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img
+                  src="https://motorevapp.com/images/favicon.png"
+                  alt="MotoRev"
+                  className="w-10 h-10 rounded-lg"
+                />
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">MotoRev Affiliate</h3>
+                  <p className="text-text-secondary text-sm">
+                    {affiliateInfo.affiliateCode}
+                    {affiliateInfo.isConnected && (
+                      <span className="ml-2 text-green-500">Connected</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[#0066FF] font-medium">
+                  {affiliateInfo.availablePoints} points
+                </p>
+                <p className="text-text-secondary text-sm">
+                  {affiliateInfo.totalReferrals} referrals | {affiliateInfo.proDaysEarned}d Pro earned
                 </p>
               </div>
             </div>
