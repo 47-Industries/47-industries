@@ -225,11 +225,20 @@ export default function MyAccountPage() {
         window.addEventListener('message', handleMessage)
 
         // Also check if popup was closed without completing
-        const checkPopupClosed = setInterval(() => {
+        const checkPopupClosed = setInterval(async () => {
           if (popup?.closed) {
             clearInterval(checkPopupClosed)
             window.removeEventListener('message', handleMessage)
             setOauthPopup(null)
+
+            // Popup closed - check if connection was successful by refreshing status
+            await fetchMotorevStatus()
+            const updatedStatus = await fetch('/api/account/motorev').then(r => r.json())
+
+            if (updatedStatus.connected) {
+              setMessage({ type: 'success', text: 'MotoRev account connected successfully!' })
+            }
+
             setMotorevLoading(false)
           }
         }, 500)
