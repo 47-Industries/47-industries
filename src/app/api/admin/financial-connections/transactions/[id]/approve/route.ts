@@ -50,6 +50,7 @@ export async function POST(
     const vendor = body.vendor || transaction.merchantName || transaction.description || 'Bank Transaction'
     const vendorType = body.vendorType || 'OTHER'
     const createRecurring = body.createRecurring === true
+    const amountType = body.amountType || 'FIXED' // FIXED or VARIABLE
     const autoApprove = body.autoApprove === true
     const frequency = body.frequency || 'MONTHLY'
     // Use dueDay from body, or fall back to transaction date's day (capped at 28)
@@ -110,8 +111,8 @@ export async function POST(
             vendor,
             vendorType,
             frequency,
-            amountType: 'FIXED',
-            fixedAmount: amount,
+            amountType,
+            fixedAmount: amountType === 'FIXED' ? amount : null,
             dueDay,
             active: true,
             autoApprove,

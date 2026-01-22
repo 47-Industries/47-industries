@@ -41,6 +41,8 @@ interface ApprovalItem {
   description: string
   displayName: string | null // Clean name set by user
   amount: number | null
+  rawAmount: number | null // Original amount with sign (positive = income)
+  isIncome: boolean // true if money coming in (positive bank transaction)
   date: string
   source: string
   confidence?: number
@@ -93,6 +95,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   const [approveVendor, setApproveVendor] = useState('') // Vendor name for this bill
   const [approveVendorType, setApproveVendorType] = useState('OTHER')
   const [approveCreateRecurring, setApproveCreateRecurring] = useState(false)
+  const [approveAmountType, setApproveAmountType] = useState<'FIXED' | 'VARIABLE'>('FIXED')
   const [approveFrequency, setApproveFrequency] = useState<'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
   const [approveDueDay, setApproveDueDay] = useState(1) // Day of month for recurring bills
   const [approveAutoApprove, setApproveAutoApprove] = useState(false)
@@ -156,7 +159,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
   }, [statusFilter])
 
   const transformItems = (data: any): ApprovalItem[] => {
-    // Transform email bills
+    // Transform email bills (emails are always expenses)
     const emailItems: ApprovalItem[] = (data.proposedBills || []).map((bill: ProposedBill) => ({
       id: `email-${bill.id}`,
       type: 'email' as const,
@@ -164,6 +167,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
       description: bill.emailSubject || bill.emailFrom,
       displayName: null,
       amount: bill.amount,
+      rawAmount: bill.amount ? -Math.abs(bill.amount) : null, // Emails are expenses (negative)
+      isIncome: false,
       date: bill.emailDate || bill.createdAt,
       source: bill.source,
       confidence: bill.confidence,
@@ -171,7 +176,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
       original: bill
     }))
 
-    // Transform bank transactions
+    // Transform bank transactions (positive = income, negative = expense)
     const bankItems: ApprovalItem[] = (data.bankTransactions || []).map((txn: any) => ({
       id: `bank-${txn.id}`,
       type: 'bank' as const,
@@ -179,6 +184,8 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
       description: txn.description || '',
       displayName: txn.displayName || null,
       amount: Math.abs(txn.amount),
+      rawAmount: txn.amount, // Keep original sign
+      isIncome: txn.amount > 0, // Positive = income/payout
       date: txn.transactedAt,
       source: `${txn.financialAccount.institutionName}${txn.financialAccount.accountLast4 ? ` ****${txn.financialAccount.accountLast4}` : ''}`,
       status: txn.approvalStatus || 'PENDING',
@@ -346,6 +353,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
     setApproveVendor(item.vendor) // Default vendor name for this bill
     setApproveVendorType('OTHER')
     setApproveCreateRecurring(false)
+    setApproveAmountType('FIXED') // Default to fixed, user can change to variable
     setApproveFrequency('MONTHLY')
     // Set due day from the transaction/email date
     const itemDate = new Date(item.date)
@@ -391,6 +399,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendor: approveVendor,
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
+            amountType: approveAmountType,
             frequency: approveFrequency,
             dueDay: approveDueDay,
             autoApprove: approveAutoApprove,
@@ -413,6 +422,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             vendor: approveVendor,
             vendorType: approveVendorType,
             createRecurring: approveCreateRecurring,
+            amountType: approveAmountType,
             frequency: approveFrequency,
             dueDay: approveDueDay,
             autoApprove: approveAutoApprove,
@@ -904,6 +914,18 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                     }}>
                       {item.type === 'email' ? 'EMAIL' : 'BANK'}
                     </span>
+                    {item.isIncome && (
+                      <span style={{
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        background: 'rgba(16,185,129,0.15)',
+                        color: '#10b981',
+                        fontSize: '10px',
+                        fontWeight: 600
+                      }}>
+                        INCOME
+                      </span>
+                    )}
                     <span style={{ fontWeight: 500 }}>{item.vendor}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: '#71717a', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -915,7 +937,9 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   </div>
                 </div>
 
-                <div style={{ fontWeight: 600 }}>{formatCurrency(item.amount)}</div>
+                <div style={{ fontWeight: 600, color: item.isIncome ? '#10b981' : '#fff' }}>
+                  {item.isIncome ? '+' : ''}{formatCurrency(item.amount)}
+                </div>
 
                 <div style={{ fontSize: '13px', color: '#a1a1aa' }}>{formatDate(item.date)}</div>
 
@@ -924,6 +948,7 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                 <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
                   {item.status === 'PENDING' ? (
                     <>
+                      {/* For income, show different button label */}
                       <button
                         onClick={() => quickMode ? handleApprove(item, false) : openApproveModal(item)}
                         disabled={processing === item.id}
@@ -931,14 +956,14 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                           padding: '6px 12px',
                           borderRadius: '4px',
                           border: quickMode ? '1px solid #fbbf24' : 'none',
-                          background: quickMode ? 'rgba(251,191,36,0.2)' : '#10b981',
+                          background: quickMode ? 'rgba(251,191,36,0.2)' : item.isIncome ? '#3b82f6' : '#10b981',
                           color: quickMode ? '#fbbf24' : '#fff',
                           cursor: 'pointer',
                           fontSize: '12px',
                           opacity: processing === item.id ? 0.5 : 1
                         }}
                       >
-                        Approve
+                        {item.isIncome ? 'Record' : 'Approve'}
                       </button>
                       {item.type === 'email' && (
                         <button
@@ -1550,12 +1575,27 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600 }}>Approve Transaction</h3>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 600 }}>
+              {approveModalItem.isIncome ? 'Record Income' : 'Approve Transaction'}
+            </h3>
+            {approveModalItem.isIncome && (
+              <div style={{
+                padding: '8px 12px',
+                background: 'rgba(16,185,129,0.1)',
+                borderRadius: '6px',
+                marginBottom: '12px',
+                border: '1px solid rgba(16,185,129,0.3)'
+              }}>
+                <span style={{ fontSize: '12px', color: '#10b981' }}>
+                  This is incoming money (payout/deposit) - it will be recorded but not split as an expense.
+                </span>
+              </div>
+            )}
             <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#a1a1aa' }}>
               {approveModalItem.description}
             </p>
-            <p style={{ margin: '0 0 20px 0', fontSize: '15px', fontWeight: 600, color: '#10b981' }}>
-              {formatCurrency(approveModalItem.amount)}
+            <p style={{ margin: '0 0 20px 0', fontSize: '15px', fontWeight: 600, color: approveModalItem.isIncome ? '#10b981' : '#10b981' }}>
+              {approveModalItem.isIncome ? '+' : ''}{formatCurrency(approveModalItem.amount)}
             </p>
 
             {/* Vendor Name */}
@@ -1617,13 +1657,38 @@ export default function ApprovalQueueTab({ onCountChange }: ApprovalQueueTabProp
                   style={{ marginTop: '3px' }}
                 />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 500 }}>Create as Recurring Expense</div>
-                  <div style={{ fontSize: '12px', color: '#71717a' }}>Track this as a recurring company expense</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                    Create as Recurring {approveModalItem.isIncome ? 'Income' : 'Expense'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#71717a' }}>
+                    Track this as a recurring {approveModalItem.isIncome ? 'income source' : 'company expense'}
+                  </div>
                 </div>
               </label>
 
               {approveCreateRecurring && (
                 <div style={{ marginTop: '10px', marginLeft: '26px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Amount Type - Fixed or Variable */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '12px', color: '#a1a1aa', minWidth: '70px' }}>Amount:</label>
+                    <select
+                      value={approveAmountType}
+                      onChange={(e) => setApproveAmountType(e.target.value as 'FIXED' | 'VARIABLE')}
+                      style={{
+                        padding: '6px 10px',
+                        background: '#18181b',
+                        border: '1px solid #3f3f46',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        fontSize: '13px',
+                        flex: 1
+                      }}
+                    >
+                      <option value="FIXED">Fixed (same amount each time)</option>
+                      <option value="VARIABLE">Variable (different each time)</option>
+                    </select>
+                  </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <label style={{ fontSize: '12px', color: '#a1a1aa', minWidth: '70px' }}>Frequency:</label>
                     <select

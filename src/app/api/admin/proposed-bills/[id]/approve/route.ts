@@ -38,6 +38,7 @@ export async function POST(
     const amountMode = body.amountMode || 'EXACT'
     const amountMin = body.amountMin
     const amountMax = body.amountMax
+    const amountType = body.amountType || 'VARIABLE' // Email bills default to VARIABLE
 
     // Get proposed bill
     const proposed = await prisma.proposedBill.findUnique({
@@ -111,7 +112,8 @@ export async function POST(
             vendor: finalVendor,
             vendorType,
             frequency,
-            amountType: 'VARIABLE',
+            amountType,
+            fixedAmount: amountType === 'FIXED' ? amount : null,
             dueDay: dueDay || Math.min(dueDate.getDate(), 28),
             active: true,
             autoApprove,
