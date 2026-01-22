@@ -16,6 +16,7 @@ interface Partner {
   firstSaleRate: number
   recurringRate: number
   status: string
+  partnerType: 'SERVICE_REFERRAL' | 'PRODUCT_AFFILIATE' | 'BOTH'
   createdAt: string
   totalEarned: number
   pendingAmount: number
@@ -42,6 +43,7 @@ export default function PartnersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const { showToast } = useToast()
@@ -56,13 +58,14 @@ export default function PartnersPage() {
 
   useEffect(() => {
     fetchPartners()
-  }, [statusFilter])
+  }, [statusFilter, typeFilter])
 
   const fetchPartners = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (typeFilter !== 'all') params.append('type', typeFilter)
       if (searchQuery) params.append('search', searchQuery)
 
       const res = await fetch(`/api/admin/partners?${params}`)
@@ -141,6 +144,31 @@ export default function PartnersPage() {
     { value: 'ACTIVE', label: 'Active' },
     { value: 'INACTIVE', label: 'Inactive' },
   ]
+
+  const partnerTypes = [
+    { value: 'all', label: 'All Types' },
+    { value: 'SERVICE_REFERRAL', label: 'Service Referral' },
+    { value: 'PRODUCT_AFFILIATE', label: 'Product Affiliate' },
+    { value: 'BOTH', label: 'Full Partner' },
+  ]
+
+  const getTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      SERVICE_REFERRAL: '#3b82f6',
+      PRODUCT_AFFILIATE: '#10b981',
+      BOTH: '#7c3aed',
+    }
+    return colors[type] || '#6b7280'
+  }
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      SERVICE_REFERRAL: 'Service Referral',
+      PRODUCT_AFFILIATE: 'Product Affiliate',
+      BOTH: 'Full Partner',
+    }
+    return labels[type] || type
+  }
 
   return (
     <div style={{ color: '#fff' }}>
@@ -301,6 +329,23 @@ export default function PartnersPage() {
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          style={{
+            padding: '12px 16px',
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            minWidth: '170px',
+          }}
+        >
+          {partnerTypes.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Quick Links */}
@@ -439,6 +484,17 @@ export default function PartnersPage() {
                       color: getStatusColor(partner.status),
                     }}>
                       {partner.status}
+                    </span>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      background: `${getTypeColor(partner.partnerType)}20`,
+                      color: getTypeColor(partner.partnerType),
+                    }}>
+                      {getTypeLabel(partner.partnerType)}
                     </span>
                     {partner.user && (
                       <span style={{
@@ -606,6 +662,7 @@ function CreatePartnerModal({
     firstSaleRate: '50',
     recurringRate: '30',
     userId: '',
+    partnerType: 'BOTH' as 'SERVICE_REFERRAL' | 'PRODUCT_AFFILIATE' | 'BOTH',
   })
   const { showToast } = useToast()
 
@@ -662,6 +719,7 @@ function CreatePartnerModal({
           userId: userMode === 'existing' ? formData.userId : undefined,
           firstSaleRate: parseFloat(formData.firstSaleRate),
           recurringRate: parseFloat(formData.recurringRate),
+          partnerType: formData.partnerType,
         }),
       })
 
@@ -816,6 +874,97 @@ function CreatePartnerModal({
                 )}
               </div>
             )}
+
+            {/* Partner Type Selection */}
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>
+              Partner Type
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, partnerType: 'BOTH' })}
+                style={{
+                  padding: '12px 16px',
+                  background: formData.partnerType === 'BOTH' ? '#7c3aed20' : '#0a0a0a',
+                  border: formData.partnerType === 'BOTH' ? '2px solid #7c3aed' : '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: formData.partnerType === 'BOTH' ? '#a78bfa' : '#a1a1aa',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#7c3aed',
+                  }} />
+                  <span>Full Partner (Recommended)</span>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 400, marginTop: '4px', marginLeft: '16px' }}>
+                  Can refer service leads and earn affiliate commissions
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, partnerType: 'SERVICE_REFERRAL' })}
+                style={{
+                  padding: '12px 16px',
+                  background: formData.partnerType === 'SERVICE_REFERRAL' ? '#3b82f620' : '#0a0a0a',
+                  border: formData.partnerType === 'SERVICE_REFERRAL' ? '2px solid #3b82f6' : '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: formData.partnerType === 'SERVICE_REFERRAL' ? '#60a5fa' : '#a1a1aa',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#3b82f6',
+                  }} />
+                  <span>Service Referral Only</span>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 400, marginTop: '4px', marginLeft: '16px' }}>
+                  For partners who refer clients for web/app dev or 3D printing
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, partnerType: 'PRODUCT_AFFILIATE' })}
+                style={{
+                  padding: '12px 16px',
+                  background: formData.partnerType === 'PRODUCT_AFFILIATE' ? '#10b98120' : '#0a0a0a',
+                  border: formData.partnerType === 'PRODUCT_AFFILIATE' ? '2px solid #10b981' : '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: formData.partnerType === 'PRODUCT_AFFILIATE' ? '#34d399' : '#a1a1aa',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#10b981',
+                  }} />
+                  <span>Product Affiliate Only</span>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 400, marginTop: '4px', marginLeft: '16px' }}>
+                  For partners who drive shop sales and MotoRev signups
+                </div>
+              </button>
+            </div>
 
             {/* Partner Info */}
             <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>

@@ -55,6 +55,23 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
         },
+        affiliateLinks: {
+          orderBy: { createdAt: 'desc' },
+        },
+        affiliateReferrals: {
+          include: {
+            link: true,
+            commission: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        affiliateCommissions: {
+          include: {
+            referral: true,
+            payout: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 
@@ -115,6 +132,7 @@ export async function PUT(
         firstSaleRate: parseFloat(body.firstSaleRate),
         recurringRate: parseFloat(body.recurringRate),
         status: body.status,
+        partnerType: body.partnerType,
         zelleEmail: body.zelleEmail || null,
         zellePhone: body.zellePhone || null,
         venmoUsername: body.venmoUsername || null,

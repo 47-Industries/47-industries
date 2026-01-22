@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminAuth } from '@/lib/auth-helper'
 
-// GET /api/admin/partners/commissions - List all commissions
+// GET /api/admin/partners/commissions - List all commissions (unified view)
 export async function GET(req: NextRequest) {
   try {
     const isAuthorized = await verifyAdminAuth(req)
@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const partnerId = searchParams.get('partnerId')
+    const source = searchParams.get('source') // 'service', 'affiliate', or 'all'
 
     const where: any = {}
 
@@ -24,40 +25,116 @@ export async function GET(req: NextRequest) {
       where.partnerId = partnerId
     }
 
-    const commissions = await prisma.partnerCommission.findMany({
-      where,
-      include: {
-        partner: {
-          select: { id: true, name: true, partnerNumber: true },
+    // Fetch service commissions (PartnerCommission) unless filtering for affiliate only
+    let serviceCommissions: any[] = []
+    if (!source || source === 'all' || source === 'service') {
+      serviceCommissions = await prisma.partnerCommission.findMany({
+        where,
+        include: {
+          partner: {
+            select: { id: true, name: true, partnerNumber: true, partnerType: true },
+          },
+          lead: {
+            select: { id: true, businessName: true, leadNumber: true },
+          },
+          payout: {
+            select: { id: true, payoutNumber: true, status: true },
+          },
         },
-        lead: {
-          select: { id: true, businessName: true, leadNumber: true },
-        },
-        payout: {
-          select: { id: true, payoutNumber: true, status: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+      })
+    }
 
-    // Get totals
-    const totals = await prisma.partnerCommission.aggregate({
+    // Fetch affiliate commissions unless filtering for service only
+    let affiliateCommissions: any[] = []
+    if (!source || source === 'all' || source === 'affiliate') {
+      affiliateCommissions = await prisma.affiliateCommission.findMany({
+        where,
+        include: {
+          partner: {
+            select: { id: true, name: true, partnerNumber: true, partnerType: true },
+          },
+          referral: {
+            select: { id: true, platform: true, eventType: true, orderId: true, customerEmail: true },
+          },
+          payout: {
+            select: { id: true, payoutNumber: true, status: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+    }
+
+    // Transform to unified format
+    const unifiedCommissions = [
+      ...serviceCommissions.map(c => ({
+        ...c,
+        source: 'service' as const,
+        description: c.lead?.businessName || 'Unknown Lead',
+      })),
+      ...affiliateCommissions.map(c => ({
+        ...c,
+        source: 'affiliate' as const,
+        description: c.type === 'SHOP_ORDER'
+          ? `Shop Order${c.referral?.orderId ? ` #${c.referral.orderId.slice(0, 8)}...` : ''}`
+          : 'MotoRev Pro Conversion',
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    // Get totals for service commissions
+    const serviceTotals = await prisma.partnerCommission.aggregate({
       where,
       _sum: { amount: true },
       _count: true,
     })
 
-    const pendingTotal = await prisma.partnerCommission.aggregate({
+    const servicePendingTotal = await prisma.partnerCommission.aggregate({
       where: { ...where, status: 'PENDING' },
       _sum: { amount: true },
     })
 
+    const serviceApprovedTotal = await prisma.partnerCommission.aggregate({
+      where: { ...where, status: 'APPROVED' },
+      _sum: { amount: true },
+    })
+
+    const servicePaidTotal = await prisma.partnerCommission.aggregate({
+      where: { ...where, status: 'PAID' },
+      _sum: { amount: true },
+    })
+
+    // Get totals for affiliate commissions
+    const affiliateTotals = await prisma.affiliateCommission.aggregate({
+      where,
+      _sum: { amount: true },
+      _count: true,
+    })
+
+    const affiliatePendingTotal = await prisma.affiliateCommission.aggregate({
+      where: { ...where, status: 'PENDING' },
+      _sum: { amount: true },
+    })
+
+    const affiliateApprovedTotal = await prisma.affiliateCommission.aggregate({
+      where: { ...where, status: 'APPROVED' },
+      _sum: { amount: true },
+    })
+
+    const affiliatePaidTotal = await prisma.affiliateCommission.aggregate({
+      where: { ...where, status: 'PAID' },
+      _sum: { amount: true },
+    })
+
     return NextResponse.json({
-      commissions,
-      totals: {
-        total: totals._sum.amount || 0,
-        count: totals._count,
-        pending: pendingTotal._sum.amount || 0,
+      commissions: unifiedCommissions,
+      stats: {
+        total: (Number(serviceTotals._sum.amount) || 0) + (Number(affiliateTotals._sum.amount) || 0),
+        totalAmount: (Number(serviceTotals._sum.amount) || 0) + (Number(affiliateTotals._sum.amount) || 0),
+        pendingAmount: (Number(servicePendingTotal._sum.amount) || 0) + (Number(affiliatePendingTotal._sum.amount) || 0),
+        approvedAmount: (Number(serviceApprovedTotal._sum.amount) || 0) + (Number(affiliateApprovedTotal._sum.amount) || 0),
+        paidAmount: (Number(servicePaidTotal._sum.amount) || 0) + (Number(affiliatePaidTotal._sum.amount) || 0),
+        serviceCount: serviceTotals._count,
+        affiliateCount: affiliateTotals._count,
       },
     })
   } catch (error) {

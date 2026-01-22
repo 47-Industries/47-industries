@@ -15,11 +15,16 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
     const search = searchParams.get('search')
+    const type = searchParams.get('type')
 
     const where: any = {}
 
     if (status && status !== 'all') {
       where.status = status
+    }
+
+    if (type && type !== 'all') {
+      where.partnerType = type
     }
 
     if (search) {
@@ -177,6 +182,7 @@ export async function POST(req: NextRequest) {
         firstSaleRate,
         recurringRate,
         status: body.status || 'ACTIVE',
+        partnerType: body.partnerType || 'BOTH',
         zelleEmail: body.zelleEmail || null,
         zellePhone: body.zellePhone || null,
         venmoUsername: body.venmoUsername || null,

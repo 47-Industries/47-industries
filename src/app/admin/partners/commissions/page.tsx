@@ -12,15 +12,25 @@ interface Commission {
   amount: number
   status: string
   createdAt: string
+  source: 'service' | 'affiliate'
+  description: string
   partner: {
     id: string
     name: string
     partnerNumber: string
+    partnerType?: string
   }
-  lead: {
+  lead?: {
     id: string
     businessName: string
     leadNumber: string
+  }
+  referral?: {
+    id: string
+    platform: string
+    eventType: string
+    orderId: string | null
+    customerEmail: string | null
   }
   payout?: {
     id: string
@@ -42,6 +52,7 @@ export default function PartnerCommissionsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
   const [selectedCommissions, setSelectedCommissions] = useState<Set<string>>(new Set())
   const [isMobile, setIsMobile] = useState(false)
   const { showToast } = useToast()
@@ -55,13 +66,14 @@ export default function PartnerCommissionsPage() {
 
   useEffect(() => {
     fetchCommissions()
-  }, [statusFilter])
+  }, [statusFilter, sourceFilter])
 
   const fetchCommissions = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (sourceFilter !== 'all') params.append('source', sourceFilter)
 
       const res = await fetch(`/api/admin/partners/commissions?${params}`)
       if (res.ok) {
@@ -152,6 +164,20 @@ export default function PartnerCommissionsPage() {
     { value: 'APPROVED', label: 'Approved' },
     { value: 'PAID', label: 'Paid' },
   ]
+
+  const sources = [
+    { value: 'all', label: 'All Sources' },
+    { value: 'service', label: 'Service Referrals' },
+    { value: 'affiliate', label: 'Affiliate Sales' },
+  ]
+
+  const getSourceColor = (source: string) => {
+    return source === 'service' ? '#3b82f6' : '#10b981'
+  }
+
+  const getSourceLabel = (source: string) => {
+    return source === 'service' ? 'Service' : 'Affiliate'
+  }
 
   const pendingCommissions = commissions.filter(c => c.status === 'PENDING')
 
@@ -257,10 +283,27 @@ export default function PartnerCommissionsPage() {
             borderRadius: '8px',
             color: 'white',
             fontSize: '14px',
-            minWidth: '180px',
+            minWidth: '150px',
           }}
         >
           {statuses.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          style={{
+            padding: '12px 16px',
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            minWidth: '160px',
+          }}
+        >
+          {sources.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
           ))}
         </select>
@@ -324,12 +367,14 @@ export default function PartnerCommissionsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {commissions.map((commission) => (
+          {commissions.map((commission) => {
+            const commissionKey = `${commission.source}-${commission.id}`
+            return (
             <div
-              key={commission.id}
+              key={commissionKey}
               style={{
                 background: '#18181b',
-                border: selectedCommissions.has(commission.id) ? '2px solid #3b82f6' : '1px solid #27272a',
+                border: selectedCommissions.has(commissionKey) ? '2px solid #3b82f6' : '1px solid #27272a',
                 borderRadius: '12px',
                 padding: '16px 20px',
               }}
@@ -345,13 +390,13 @@ export default function PartnerCommissionsPage() {
                   {commission.status === 'PENDING' && (
                     <input
                       type="checkbox"
-                      checked={selectedCommissions.has(commission.id)}
+                      checked={selectedCommissions.has(commissionKey)}
                       onChange={(e) => {
                         const newSet = new Set(selectedCommissions)
                         if (e.target.checked) {
-                          newSet.add(commission.id)
+                          newSet.add(commissionKey)
                         } else {
-                          newSet.delete(commission.id)
+                          newSet.delete(commissionKey)
                         }
                         setSelectedCommissions(newSet)
                       }}
@@ -360,7 +405,16 @@ export default function PartnerCommissionsPage() {
                   )}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600 }}>{commission.lead.businessName}</span>
+                      <span style={{ fontWeight: 600 }}>{commission.description}</span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${getSourceColor(commission.source)}20`,
+                        color: getSourceColor(commission.source),
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {getSourceLabel(commission.source)}
+                      </span>
                       <span style={{
                         padding: '2px 8px',
                         background: `${getTypeColor(commission.type)}20`,
@@ -384,7 +438,7 @@ export default function PartnerCommissionsPage() {
                       <Link href={`/admin/partners/${commission.partner.id}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
                         {commission.partner.name}
                       </Link>
-                      {' '}| {commission.rate}% of {formatCurrency(Number(commission.baseAmount))}
+                      {commission.rate ? ` | ${commission.rate}% of ${formatCurrency(Number(commission.baseAmount))}` : ''}
                       {' '}| {formatDate(commission.createdAt)}
                       {commission.payout && (
                         <span style={{ color: '#71717a' }}> | Payout: {commission.payout.payoutNumber}</span>
@@ -415,7 +469,7 @@ export default function PartnerCommissionsPage() {
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>

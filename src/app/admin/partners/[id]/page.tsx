@@ -29,6 +29,42 @@ interface ReferredProject {
   client: { id: string; name: string }
 }
 
+interface AffiliateLink {
+  id: string
+  name: string | null
+  code: string
+  url: string
+  platform: string
+  clicks: number
+  createdAt: string
+}
+
+interface AffiliateReferral {
+  id: string
+  platform: string
+  eventType: string
+  orderId: string | null
+  motorevUserId: string | null
+  customerEmail: string | null
+  customerName: string | null
+  orderTotal: number | null
+  createdAt: string
+  link?: { code: string; name: string | null } | null
+  commission?: { id: string; amount: number; status: string } | null
+}
+
+interface AffiliateCommission {
+  id: string
+  type: string
+  baseAmount: number
+  rate: number | null
+  amount: number
+  status: string
+  createdAt: string
+  referral?: { platform: string; eventType: string; orderId: string | null } | null
+  payout?: { id: string; payoutNumber: string; status: string } | null
+}
+
 interface Partner {
   id: string
   partnerNumber: string
@@ -40,6 +76,7 @@ interface Partner {
   firstSaleRate: number
   recurringRate: number
   status: string
+  partnerType: 'SERVICE_REFERRAL' | 'PRODUCT_AFFILIATE' | 'BOTH'
   stripeConnectId?: string
   stripeConnectStatus?: string
   zelleEmail?: string
@@ -47,6 +84,9 @@ interface Partner {
   venmoUsername?: string
   cashAppTag?: string
   mailingAddress?: string
+  affiliateCode?: string
+  shopCommissionRate?: number
+  motorevProBonus?: number
   createdAt: string
   updatedAt: string
   user?: { id: string; email: string; name?: string }
@@ -83,6 +123,9 @@ interface Partner {
   commissions: Commission[]
   payouts: Payout[]
   referredProjects: ReferredProject[]
+  affiliateLinks?: AffiliateLink[]
+  affiliateReferrals?: AffiliateReferral[]
+  affiliateCommissions?: AffiliateCommission[]
 }
 
 interface Lead {
@@ -144,7 +187,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'leads' | 'commissions' | 'payouts' | 'amendments'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'leads' | 'affiliate-links' | 'commissions' | 'payouts' | 'amendments'>('overview')
   const [amendments, setAmendments] = useState<Amendment[]>([])
   const [showAmendmentModal, setShowAmendmentModal] = useState(false)
   const [editingAmendment, setEditingAmendment] = useState<Amendment | null>(null)
@@ -784,12 +827,20 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
         marginBottom: '20px',
         borderBottom: '1px solid #27272a',
         paddingBottom: '1px',
+        flexWrap: 'wrap',
       }}>
         {[
           { key: 'overview', label: 'Overview' },
           { key: 'projects', label: `Referred Projects (${partner.referredProjects?.length || 0})` },
-          { key: 'leads', label: `Leads (${partner.leads.length})` },
-          { key: 'commissions', label: `Commissions (${partner.commissions.length})` },
+          // Only show Leads tab for SERVICE_REFERRAL or BOTH
+          ...(partner.partnerType === 'SERVICE_REFERRAL' || partner.partnerType === 'BOTH'
+            ? [{ key: 'leads', label: `Leads (${partner.leads.length})` }]
+            : []),
+          // Only show Affiliate Links tab for PRODUCT_AFFILIATE or BOTH
+          ...(partner.partnerType === 'PRODUCT_AFFILIATE' || partner.partnerType === 'BOTH'
+            ? [{ key: 'affiliate-links', label: `Affiliate Links (${partner.affiliateLinks?.length || 0})` }]
+            : []),
+          { key: 'commissions', label: `Commissions (${(partner.commissions?.length || 0) + (partner.affiliateCommissions?.length || 0)})` },
           { key: 'payouts', label: `Payouts (${partner.payouts.length})` },
           { key: 'amendments', label: `Amendments (${amendments.length})` },
         ].map((tab) => (
@@ -1674,6 +1725,142 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {activeTab === 'affiliate-links' && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Affiliate Links</h2>
+            {partner.affiliateCode && (
+              <span style={{
+                padding: '6px 12px',
+                background: '#10b98120',
+                color: '#10b981',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 500,
+              }}>
+                Code: {partner.affiliateCode}
+              </span>
+            )}
+          </div>
+          {(!partner.affiliateLinks || partner.affiliateLinks.length === 0) ? (
+            <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No affiliate links created</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {partner.affiliateLinks.map((link) => (
+                <div
+                  key={link.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    border: '1px solid #27272a',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>{link.name || link.code}</span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: link.platform === 'MOTOREV' ? '#7c3aed20' : '#10b98120',
+                        color: link.platform === 'MOTOREV' ? '#a78bfa' : '#34d399',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {link.platform === 'MOTOREV' ? 'MotoRev' : 'Shop'}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, color: '#a1a1aa', fontSize: '13px', wordBreak: 'break-all' }}>
+                      {link.url}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                      Created {formatDate(link.createdAt)}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: '18px', color: '#3b82f6' }}>
+                      {link.clicks}
+                    </p>
+                    <p style={{ margin: '2px 0 0 0', color: '#71717a', fontSize: '12px' }}>clicks</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Affiliate Referrals Section */}
+          {partner.affiliateReferrals && partner.affiliateReferrals.length > 0 && (
+            <div style={{ marginTop: '24px' }}>
+              <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600 }}>
+                Recent Referrals ({partner.affiliateReferrals.length})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {partner.affiliateReferrals.slice(0, 10).map((referral) => (
+                  <div
+                    key={referral.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: '#0a0a0a',
+                      borderRadius: '6px',
+                      border: '1px solid #27272a',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: referral.platform === 'MOTOREV' ? '#7c3aed20' : '#10b98120',
+                        color: referral.platform === 'MOTOREV' ? '#a78bfa' : '#34d399',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {referral.platform === 'MOTOREV' ? 'MotoRev' : 'Shop'}
+                      </span>
+                      <span style={{ fontSize: '13px' }}>
+                        {referral.eventType === 'ORDER' ? 'Order' : referral.eventType === 'PRO_CONVERSION' ? 'Pro Conversion' : 'Signup'}
+                      </span>
+                      <span style={{ color: '#71717a', fontSize: '13px' }}>
+                        {referral.customerEmail || 'Anonymous'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {referral.orderTotal && (
+                        <span style={{ color: '#a1a1aa', fontSize: '13px' }}>
+                          {formatCurrency(referral.orderTotal)}
+                        </span>
+                      )}
+                      {referral.commission && (
+                        <span style={{
+                          padding: '2px 8px',
+                          background: `${getStatusColor(referral.commission.status)}20`,
+                          color: getStatusColor(referral.commission.status),
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                        }}>
+                          {formatCurrency(referral.commission.amount)}
+                        </span>
+                      )}
+                      <span style={{ color: '#71717a', fontSize: '12px' }}>
+                        {formatDate(referral.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'commissions' && (
         <div style={{
           background: '#18181b',
@@ -1682,13 +1869,14 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           padding: '20px',
         }}>
           <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>Commissions</h2>
-          {partner.commissions.length === 0 ? (
+          {(partner.commissions.length === 0 && (!partner.affiliateCommissions || partner.affiliateCommissions.length === 0)) ? (
             <p style={{ color: '#71717a', margin: 0, fontSize: '14px' }}>No commissions earned</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Service/Lead Commissions */}
               {partner.commissions.map((commission) => (
                 <div
-                  key={commission.id}
+                  key={`service-${commission.id}`}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1702,6 +1890,15 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                       <span style={{ fontWeight: 600 }}>{commission.lead.businessName}</span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: '#3b82f620',
+                        color: '#60a5fa',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        Service
+                      </span>
                       <span style={{
                         padding: '2px 8px',
                         background: `${getStatusColor(commission.type)}20`,
@@ -1723,6 +1920,68 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                     <p style={{ margin: 0, color: '#a1a1aa', fontSize: '13px' }}>
                       {commission.rate}% of {formatCurrency(Number(commission.baseAmount))}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
+                      {formatDate(commission.createdAt)}
+                      {commission.payout && ` | Payout: ${commission.payout.payoutNumber}`}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: '18px', color: '#10b981' }}>
+                      {formatCurrency(Number(commission.amount))}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {/* Affiliate Commissions */}
+              {partner.affiliateCommissions?.map((commission) => (
+                <div
+                  key={`affiliate-${commission.id}`}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    borderRadius: '8px',
+                    border: '1px solid #27272a',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>
+                        {commission.type === 'SHOP_ORDER' ? 'Shop Order' : 'MotoRev Pro'}
+                      </span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: '#10b98120',
+                        color: '#34d399',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        Affiliate
+                      </span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: commission.referral?.platform === 'MOTOREV' ? '#7c3aed20' : '#10b98120',
+                        color: commission.referral?.platform === 'MOTOREV' ? '#a78bfa' : '#34d399',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {commission.referral?.platform === 'MOTOREV' ? 'MotoRev' : 'Shop'}
+                      </span>
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${getStatusColor(commission.status)}20`,
+                        color: getStatusColor(commission.status),
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {commission.status}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, color: '#a1a1aa', fontSize: '13px' }}>
+                      {commission.rate ? `${commission.rate}% of ${formatCurrency(Number(commission.baseAmount))}` : `Flat bonus: ${formatCurrency(Number(commission.amount))}`}
                     </p>
                     <p style={{ margin: '4px 0 0 0', color: '#71717a', fontSize: '12px' }}>
                       {formatDate(commission.createdAt)}
