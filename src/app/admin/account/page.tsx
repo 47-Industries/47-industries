@@ -187,7 +187,7 @@ export default function MyAccountPage() {
         const left = window.screenX + (window.outerWidth - popupWidth) / 2
         const top = window.screenY + (window.outerHeight - popupHeight) / 2
 
-        const motorevConnectUrl = `https://motorevapp.com/connect-47i.html?token=${encodeURIComponent(data.token)}&state=${encodeURIComponent(user?.id || '')}&redirect_uri=${encodeURIComponent(window.location.origin + '/api/account/motorev/callback')}`
+        const motorevConnectUrl = `https://motorev.app/connect-47i?token=${encodeURIComponent(data.token)}&state=${encodeURIComponent(user?.id || '')}&redirect_uri=${encodeURIComponent(window.location.origin + '/api/account/motorev/callback')}`
 
         const popup = window.open(
           motorevConnectUrl,
@@ -1543,7 +1543,7 @@ export default function MyAccountPage() {
           <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
             <div className="flex items-center gap-3 mb-4">
               <img
-                src="https://motorevapp.com/images/favicon.png"
+                src="https://motorev.app/images/favicon.png"
                 alt="MotoRev"
                 className="w-10 h-10 rounded-xl"
               />
@@ -1558,7 +1558,7 @@ export default function MyAccountPage() {
                 {/* Connected MotoRev Profile */}
                 {motorevStatus.affiliate && (
                   <a
-                    href={`https://motorevapp.com/rider/${motorevStatus.affiliate.motorevUsername || motorevStatus.affiliate.motorevUserId}`}
+                    href={`https://motorev.app/rider/${motorevStatus.affiliate.motorevUsername || motorevStatus.affiliate.motorevUserId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 p-4 bg-[#0066FF]/10 border border-[#0066FF]/30 rounded-xl hover:border-[#0066FF]/50 transition-colors cursor-pointer"
