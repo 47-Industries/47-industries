@@ -44,36 +44,47 @@ export async function GET(
     // Get related portfolio items based on interests
     let relatedPortfolio: any[] = []
     const interests = lead.interests as LeadInterest[] | null
-    if (interests && interests.length > 0) {
-      const categories = getPortfolioCategoriesForInterests(interests)
-      if (categories.length > 0) {
-        relatedPortfolio = await prisma.serviceProject.findMany({
-          where: {
-            category: { in: categories },
-            featured: true,
-          },
-          select: {
-            id: true,
-            title: true,
-            category: true,
-            thumbnailUrl: true,
-            slug: true,
-          },
-          take: 6,
-          orderBy: { createdAt: 'desc' },
-        })
+    if (interests && Array.isArray(interests) && interests.length > 0) {
+      try {
+        const categories = getPortfolioCategoriesForInterests(interests)
+        if (categories.length > 0) {
+          relatedPortfolio = await prisma.serviceProject.findMany({
+            where: {
+              category: { in: categories },
+              isFeatured: true,
+            },
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              thumbnailUrl: true,
+              slug: true,
+            },
+            take: 6,
+            orderBy: { createdAt: 'desc' },
+          })
+        }
+      } catch (portfolioError) {
+        console.error('Error fetching related portfolio:', portfolioError)
+        // Continue without portfolio items
       }
     }
 
     // Get recommended service type for conversion
-    const recommendedServiceType = interests && interests.length > 0
-      ? getRecommendedServiceType(interests)
-      : 'OTHER'
+    let recommendedServiceType = 'OTHER'
+    if (interests && Array.isArray(interests) && interests.length > 0) {
+      try {
+        recommendedServiceType = getRecommendedServiceType(interests)
+      } catch (e) {
+        console.error('Error getting recommended service type:', e)
+      }
+    }
 
     return NextResponse.json({ lead, relatedPortfolio, recommendedServiceType })
   } catch (error) {
     console.error('Error fetching lead:', error)
-    return NextResponse.json({ error: 'Failed to fetch lead' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: 'Failed to fetch lead', details: errorMessage }, { status: 500 })
   }
 }
 
