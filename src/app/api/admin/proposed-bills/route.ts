@@ -22,38 +22,46 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') || '0')
 
   try {
-    // Get email-based proposed bills
-    const [proposedBills, proposedTotal] = await Promise.all([
-      prisma.proposedBill.findMany({
-        where: status === 'ALL' ? {} : { status },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset
-      }),
-      prisma.proposedBill.count({
-        where: status === 'ALL' ? {} : { status }
-      })
-    ])
-
-    // Get bank transactions based on status filter
-    let bankTransactions: any[] = []
-    let bankTotal = 0
-
-    // Map status filter to approvalStatus
+    // Get counts first for proper pagination across both sources
+    const proposedWhere = status === 'ALL' ? {} : { status }
     const bankStatusFilter = status === 'ALL'
       ? {}
       : status === 'APPROVED'
         ? { approvalStatus: 'APPROVED' }
         : status === 'SKIPPED'
           ? { approvalStatus: 'SKIPPED' }
-          : { approvalStatus: 'PENDING' } // PENDING excludes SKIPPED
+          : { approvalStatus: 'PENDING' }
 
-    if (status === 'PENDING' || status === 'APPROVED' || status === 'SKIPPED' || status === 'ALL') {
-      const [txns, txnCount] = await Promise.all([
-        prisma.stripeTransaction.findMany({
+    const [proposedTotal, bankTotal] = await Promise.all([
+      prisma.proposedBill.count({ where: proposedWhere }),
+      prisma.stripeTransaction.count({ where: bankStatusFilter })
+    ])
+
+    const combinedTotal = proposedTotal + bankTotal
+
+    // Fetch items with combined pagination
+    // Email bills come first, then bank transactions
+    let proposedBills: any[] = []
+    let bankTransactions: any[] = []
+
+    if (offset < proposedTotal) {
+      // Still have email bills to show
+      const emailTake = Math.min(limit, proposedTotal - offset)
+      proposedBills = await prisma.proposedBill.findMany({
+        where: proposedWhere,
+        orderBy: { createdAt: 'desc' },
+        take: emailTake,
+        skip: offset
+      })
+
+      // If we need more items to fill the limit, get bank transactions
+      const remaining = limit - proposedBills.length
+      if (remaining > 0) {
+        bankTransactions = await prisma.stripeTransaction.findMany({
           where: bankStatusFilter,
           orderBy: { transactedAt: 'desc' },
-          take: limit,
+          take: remaining,
+          skip: 0,
           include: {
             financialAccount: {
               select: {
@@ -62,13 +70,25 @@ export async function GET(request: NextRequest) {
               }
             }
           }
-        }),
-        prisma.stripeTransaction.count({
-          where: bankStatusFilter
         })
-      ])
-      bankTransactions = txns
-      bankTotal = txnCount
+      }
+    } else {
+      // Past all email bills, only show bank transactions
+      const bankOffset = offset - proposedTotal
+      bankTransactions = await prisma.stripeTransaction.findMany({
+        where: bankStatusFilter,
+        orderBy: { transactedAt: 'desc' },
+        take: limit,
+        skip: bankOffset,
+        include: {
+          financialAccount: {
+            select: {
+              institutionName: true,
+              accountLast4: true
+            }
+          }
+        }
+      })
     }
 
     // Get pending counts for badge
@@ -80,7 +100,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       proposedBills,
       bankTransactions,
-      total: proposedTotal + bankTotal,
+      total: combinedTotal,
       pendingCount: pendingEmailCount + pendingBankCount,
       pendingEmailCount,
       pendingBankCount,
