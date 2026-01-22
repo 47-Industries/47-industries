@@ -1543,7 +1543,7 @@ export default function MyAccountPage() {
           <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
             <div className="flex items-center gap-3 mb-4">
               <img
-                src="https://motorev.app/images/favicon.png"
+                src="https://motorevapp.com/images/favicon.png"
                 alt="MotoRev"
                 className="w-10 h-10 rounded-xl"
               />

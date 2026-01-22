@@ -478,7 +478,7 @@ export default function AccountSettingsPage() {
           <div className="p-6 border-b border-border bg-surface/50">
             <div className="flex items-center gap-3">
               <img
-                src="https://motorev.app/images/favicon.png"
+                src="https://motorevapp.com/images/favicon.png"
                 alt="MotoRev"
                 className="w-10 h-10 rounded-xl"
               />
