@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { LEAD_INTEREST_LABELS, LeadInterest } from '@/lib/lead-utils'
 
 interface Lead {
   id: string
@@ -14,6 +15,7 @@ interface Lead {
   phone?: string
   status: string
   description?: string
+  interests?: LeadInterest[]
   createdAt: string
   commissions: {
     id: string
@@ -29,6 +31,7 @@ export default function PartnerLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [interestFilter, setInterestFilter] = useState('all')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -41,6 +44,11 @@ export default function PartnerLeadsPage() {
       fetchLeads()
     }
   }, [session, statusFilter])
+
+  // Filter leads by interest client-side
+  const filteredLeads = interestFilter === 'all'
+    ? leads
+    : leads.filter((lead) => lead.interests?.includes(interestFilter as LeadInterest))
 
   async function fetchLeads() {
     try {
@@ -129,8 +137,8 @@ export default function PartnerLeadsPage() {
           </Link>
         </div>
 
-        {/* Filter */}
-        <div className="mb-6">
+        {/* Filters */}
+        <div className="mb-6 flex gap-4 flex-wrap">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -140,10 +148,20 @@ export default function PartnerLeadsPage() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          <select
+            value={interestFilter}
+            onChange={(e) => setInterestFilter(e.target.value)}
+            className="px-4 py-2.5 bg-surface border border-border rounded-lg text-white"
+          >
+            <option value="all">All Interests</option>
+            {Object.entries(LEAD_INTEREST_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Leads List */}
-        {leads.length === 0 ? (
+        {filteredLeads.length === 0 ? (
           <div className="border border-border rounded-xl p-12 text-center">
             <p className="text-text-secondary mb-4">No leads found</p>
             <Link
@@ -156,7 +174,7 @@ export default function PartnerLeadsPage() {
         ) : (
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="divide-y divide-border">
-              {leads.map((lead) => (
+              {filteredLeads.map((lead) => (
                 <div key={lead.id} className="p-5 hover:bg-surface/50 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -173,6 +191,24 @@ export default function PartnerLeadsPage() {
                       <p className="text-text-secondary text-xs mt-1">
                         {lead.leadNumber} | Submitted {formatDate(lead.createdAt)}
                       </p>
+                      {/* Interest Badges */}
+                      {lead.interests && lead.interests.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {lead.interests.slice(0, 4).map((interest) => (
+                            <span
+                              key={interest}
+                              className="px-2 py-0.5 bg-accent/10 text-accent text-xs rounded"
+                            >
+                              {LEAD_INTEREST_LABELS[interest]}
+                            </span>
+                          ))}
+                          {lead.interests.length > 4 && (
+                            <span className="px-2 py-0.5 bg-surface text-text-secondary text-xs rounded">
+                              +{lead.interests.length - 4} more
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {lead.description && (
                         <p className="text-text-secondary text-sm mt-2 line-clamp-2">
                           {lead.description}

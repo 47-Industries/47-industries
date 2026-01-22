@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
+import { LEAD_INTEREST_LABELS, LEAD_SOURCE_LABELS, LeadInterest, LeadSource } from '@/lib/lead-utils'
 
 interface Lead {
   id: string
@@ -13,6 +14,8 @@ interface Lead {
   phone?: string
   website?: string
   description?: string
+  interests?: LeadInterest[]
+  source?: LeadSource
   status: string
   notes?: string
   clientId?: string
@@ -28,10 +31,21 @@ interface Lead {
   }
 }
 
+interface InterestStat {
+  interest: string
+  label: string
+  count: number
+}
+
+interface SourceStat {
+  source: string
+  count: number
+}
+
 interface Stats {
-  total: number
-  byStatus: Record<string, number>
-  converted: number
+  totalLeads: number
+  byInterest: InterestStat[]
+  bySource: SourceStat[]
 }
 
 export default function PartnerLeadsPage() {
@@ -39,6 +53,8 @@ export default function PartnerLeadsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [interestFilter, setInterestFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
   const { showToast } = useToast()
 
@@ -51,13 +67,16 @@ export default function PartnerLeadsPage() {
 
   useEffect(() => {
     fetchLeads()
-  }, [statusFilter])
+  }, [statusFilter, interestFilter, sourceFilter])
 
   const fetchLeads = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (interestFilter !== 'all') params.append('interest', interestFilter)
+      if (sourceFilter !== 'all') params.append('source', sourceFilter)
+      params.append('includeStats', 'true')
 
       const res = await fetch(`/api/admin/partners/leads?${params}`)
       if (res.ok) {
@@ -70,6 +89,16 @@ export default function PartnerLeadsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getSourceColor = (source: string) => {
+    const colors: Record<string, string> = {
+      PARTNER: '#3b82f6',
+      AI_RECEPTIONIST: '#8b5cf6',
+      WEBSITE: '#10b981',
+      MANUAL: '#71717a',
+    }
+    return colors[source] || '#6b7280'
   }
 
   const getStatusColor = (status: string) => {
@@ -133,39 +162,79 @@ export default function PartnerLeadsPage() {
 
       {/* Stats */}
       {stats && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
-          gap: '12px',
-          marginBottom: '24px',
-        }}>
+        <div style={{ marginBottom: '24px' }}>
+          {/* Total and Source Stats */}
           <div style={{
-            background: '#18181b',
-            border: '1px solid #27272a',
-            borderRadius: '12px',
-            padding: '16px',
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+            gap: '12px',
+            marginBottom: '12px',
           }}>
-            <p style={{ margin: 0, color: '#71717a', fontSize: '12px', textTransform: 'uppercase' }}>Total</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 700 }}>{stats.total}</p>
-          </div>
-          {Object.entries(stats.byStatus).map(([status, count]) => (
-            <div key={status} style={{
+            <div style={{
               background: '#18181b',
               border: '1px solid #27272a',
               borderRadius: '12px',
               padding: '16px',
             }}>
-              <p style={{ margin: 0, color: '#71717a', fontSize: '12px', textTransform: 'uppercase' }}>{status}</p>
-              <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 700, color: getStatusColor(status) }}>
-                {count}
-              </p>
+              <p style={{ margin: 0, color: '#71717a', fontSize: '12px', textTransform: 'uppercase' }}>Total Leads</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 700 }}>{stats.totalLeads}</p>
             </div>
-          ))}
+            {stats.bySource.map(({ source, count }) => (
+              <div key={source} style={{
+                background: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '12px',
+                padding: '16px',
+              }}>
+                <p style={{ margin: 0, color: '#71717a', fontSize: '12px', textTransform: 'uppercase' }}>
+                  {LEAD_SOURCE_LABELS[source as LeadSource] || source}
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 700, color: getSourceColor(source) }}>
+                  {count}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Interest Stats */}
+          {stats.byInterest.length > 0 && (
+            <div style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '12px',
+              padding: '16px',
+            }}>
+              <p style={{ margin: '0 0 12px 0', color: '#71717a', fontSize: '12px', textTransform: 'uppercase' }}>
+                By Interest
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {stats.byInterest.slice(0, 8).map(({ interest, label, count }) => (
+                  <span
+                    key={interest}
+                    style={{
+                      padding: '4px 10px',
+                      background: '#3b82f620',
+                      color: '#3b82f6',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    {label}: {count}
+                  </span>
+                ))}
+                {stats.byInterest.length > 8 && (
+                  <span style={{ padding: '4px 10px', color: '#71717a', fontSize: '13px' }}>
+                    +{stats.byInterest.length - 8} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Filter */}
-      <div style={{ marginBottom: '24px' }}>
+      {/* Filters */}
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -176,11 +245,49 @@ export default function PartnerLeadsPage() {
             borderRadius: '8px',
             color: 'white',
             fontSize: '14px',
-            minWidth: '180px',
+            minWidth: '160px',
           }}
         >
           {statuses.map((s) => (
             <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={interestFilter}
+          onChange={(e) => setInterestFilter(e.target.value)}
+          style={{
+            padding: '12px 16px',
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            minWidth: '180px',
+          }}
+        >
+          <option value="all">All Interests</option>
+          {Object.entries(LEAD_INTEREST_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          style={{
+            padding: '12px 16px',
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            minWidth: '160px',
+          }}
+        >
+          <option value="all">All Sources</option>
+          {Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
           ))}
         </select>
       </div>
@@ -239,6 +346,17 @@ export default function PartnerLeadsPage() {
                     }}>
                       {lead.status}
                     </span>
+                    {lead.source && lead.source !== 'PARTNER' && (
+                      <span style={{
+                        padding: '2px 8px',
+                        background: `${getSourceColor(lead.source)}20`,
+                        color: getSourceColor(lead.source),
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                      }}>
+                        {LEAD_SOURCE_LABELS[lead.source]}
+                      </span>
+                    )}
                     {lead.clientId && (
                       <span style={{
                         padding: '2px 8px',
@@ -255,6 +373,34 @@ export default function PartnerLeadsPage() {
                     {lead.contactName} | {lead.email}
                     {lead.phone && ` | ${lead.phone}`}
                   </p>
+                  {/* Interest Badges */}
+                  {lead.interests && lead.interests.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                      {lead.interests.slice(0, 4).map((interest) => (
+                        <span
+                          key={interest}
+                          style={{
+                            padding: '2px 8px',
+                            background: '#3b82f615',
+                            color: '#60a5fa',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                          }}
+                        >
+                          {LEAD_INTEREST_LABELS[interest]}
+                        </span>
+                      ))}
+                      {lead.interests.length > 4 && (
+                        <span style={{
+                          padding: '2px 8px',
+                          color: '#71717a',
+                          fontSize: '11px',
+                        }}>
+                          +{lead.interests.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <p style={{ margin: '6px 0 0 0', color: '#71717a', fontSize: '13px' }}>
                     From{' '}
                     <Link href={`/admin/partners/${lead.partner.id}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>

@@ -584,6 +584,22 @@ enum ServiceType {
   OTHER
 }
 
+enum LeadInterest {
+  AI_RECEPTIONIST       // AI phone/chat receptionist
+  AI_LEAD_GENERATOR     // AI lead generation tools
+  AI_AUTOMATION_OTHER   // Other AI/automation needs
+  WEB_DEVELOPMENT       // Websites, landing pages
+  WEB_APP               // Web applications, SaaS
+  MOBILE_APP_IOS        // iOS app
+  MOBILE_APP_ANDROID    // Android app
+  MOBILE_APP_BOTH       // Cross-platform mobile app
+  BULK_3D_PRINTING      // Bulk/commercial 3D printing
+  CUSTOM_3D_PRINTING    // Custom one-off 3D prints
+  E_COMMERCE            // Online store/shop setup
+  CONSULTATION          // General consultation
+  OTHER                 // Other/unspecified
+}
+
 enum InquiryStatus {
   NEW
   IN_PROGRESS
@@ -2187,6 +2203,10 @@ model ClientProject {
   referredByPartner   Partner?          @relation(fields: [referredByPartnerId], references: [id])
   closedByUserId      String?           // Team member who closed the sale
 
+  // Lead source tracking - when project was converted from a lead
+  sourceLeadId      String?             // Original PartnerLead ID if converted from lead
+  sourceInterests   Json?               // Original interests from lead
+
   // Relations
   contracts         Contract[]
 
@@ -2196,6 +2216,7 @@ model ClientProject {
   @@index([clientId])
   @@index([status])
   @@index([referredByPartnerId])
+  @@index([sourceLeadId])
 }
 
 model ClientNote {
@@ -2542,6 +2563,20 @@ model PartnerLead {
   website       String?
   description   String?  @db.Text
 
+  // Interest tracking (multiple allowed)
+  interests     Json?    // Array of LeadInterest values
+
+  // Lead source tracking
+  source        String   @default("PARTNER")  // PARTNER, AI_RECEPTIONIST, WEBSITE, MANUAL
+
+  // AI Receptionist capture fields
+  estimatedBudget  String?   // UNDER_1K, 1K_5K, 5K_15K, 15K_50K, OVER_50K
+  timeline         String?   // ASAP, 1_MONTH, 3_MONTHS, 6_MONTHS, FLEXIBLE
+  companySize      String?   // SOLO, SMALL_2_10, MEDIUM_11_50, LARGE_50_PLUS
+  currentSolution  String?   @db.Text
+  painPoints       String?   @db.Text
+  conversationId   String?   // Link to AI conversation logs
+
   // Status tracking
   status        String   @default("NEW")  // NEW, CONTACTED, QUALIFIED, CONVERTED, LOST
 
@@ -2562,6 +2597,7 @@ model PartnerLead {
   @@index([partnerId])
   @@index([status])
   @@index([clientId])
+  @@index([source])
 }
 
 model PartnerCommission {

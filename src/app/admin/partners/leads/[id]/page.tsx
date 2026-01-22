@@ -4,6 +4,18 @@ import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/Toast'
+import {
+  LEAD_INTEREST_LABELS,
+  LEAD_SOURCE_LABELS,
+  BUDGET_LABELS,
+  TIMELINE_LABELS,
+  COMPANY_SIZE_LABELS,
+  LeadInterest,
+  LeadSource,
+  EstimatedBudget,
+  Timeline,
+  CompanySize,
+} from '@/lib/lead-utils'
 
 interface Lead {
   id: string
@@ -14,6 +26,14 @@ interface Lead {
   phone?: string
   website?: string
   description?: string
+  interests?: LeadInterest[]
+  source?: LeadSource
+  estimatedBudget?: EstimatedBudget
+  timeline?: Timeline
+  companySize?: CompanySize
+  currentSolution?: string
+  painPoints?: string
+  conversationId?: string
   status: string
   notes?: string
   clientId?: string
@@ -39,9 +59,19 @@ interface Lead {
   }[]
 }
 
+interface RelatedPortfolio {
+  id: string
+  title: string
+  type: string
+  thumbnail?: string
+  slug: string
+}
+
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [lead, setLead] = useState<Lead | null>(null)
+  const [relatedPortfolio, setRelatedPortfolio] = useState<RelatedPortfolio[]>([])
+  const [recommendedServiceType, setRecommendedServiceType] = useState<string>('OTHER')
   const [loading, setLoading] = useState(true)
   const [showConvertModal, setShowConvertModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -59,6 +89,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       if (res.ok) {
         const data = await res.json()
         setLead(data.lead)
+        setRelatedPortfolio(data.relatedPortfolio || [])
+        setRecommendedServiceType(data.recommendedServiceType || 'OTHER')
       } else if (res.status === 404) {
         showToast('Lead not found', 'error')
         router.push('/admin/partners/leads')
@@ -69,6 +101,16 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } finally {
       setLoading(false)
     }
+  }
+
+  const getSourceColor = (source: string) => {
+    const colors: Record<string, string> = {
+      PARTNER: '#3b82f6',
+      AI_RECEPTIONIST: '#8b5cf6',
+      WEBSITE: '#10b981',
+      MANUAL: '#71717a',
+    }
+    return colors[source] || '#6b7280'
   }
 
   const handleUpdateStatus = async (status: string) => {
@@ -177,6 +219,17 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               }}>
                 {lead.status}
               </span>
+              {lead.source && lead.source !== 'PARTNER' && (
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  background: `${getSourceColor(lead.source)}20`,
+                  color: getSourceColor(lead.source),
+                }}>
+                  {LEAD_SOURCE_LABELS[lead.source]}
+                </span>
+              )}
               {lead.clientId && (
                 <span style={{
                   padding: '4px 10px',
@@ -312,6 +365,92 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
+      {/* Interests */}
+      {lead.interests && lead.interests.length > 0 && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '20px',
+        }}>
+          <h2 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 600 }}>Interests</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {lead.interests.map((interest) => (
+              <span
+                key={interest}
+                style={{
+                  padding: '6px 12px',
+                  background: '#3b82f620',
+                  color: '#60a5fa',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                }}
+              >
+                {LEAD_INTEREST_LABELS[interest]}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI Qualification Data */}
+      {lead.source === 'AI_RECEPTIONIST' && (lead.estimatedBudget || lead.timeline || lead.companySize || lead.currentSolution || lead.painPoints) && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #8b5cf640',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '20px',
+        }}>
+          <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ color: '#8b5cf6' }}>AI</span> Qualification Data
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: lead.currentSolution || lead.painPoints ? '16px' : '0' }}>
+            {lead.estimatedBudget && (
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Budget</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#10b981', fontWeight: 500 }}>
+                  {BUDGET_LABELS[lead.estimatedBudget]}
+                </p>
+              </div>
+            )}
+            {lead.timeline && (
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Timeline</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
+                  {TIMELINE_LABELS[lead.timeline]}
+                </p>
+              </div>
+            )}
+            {lead.companySize && (
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Company Size</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
+                  {COMPANY_SIZE_LABELS[lead.companySize]}
+                </p>
+              </div>
+            )}
+          </div>
+          {lead.currentSolution && (
+            <div style={{ marginBottom: lead.painPoints ? '12px' : '0' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Current Solution</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#a1a1aa', lineHeight: '1.5' }}>
+                {lead.currentSolution}
+              </p>
+            </div>
+          )}
+          {lead.painPoints && (
+            <div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Pain Points</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#a1a1aa', lineHeight: '1.5' }}>
+                {lead.painPoints}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Description */}
       {lead.description && (
         <div style={{
@@ -351,6 +490,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           border: '1px solid #27272a',
           borderRadius: '12px',
           padding: '20px',
+          marginBottom: '20px',
         }}>
           <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>Commissions</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -397,10 +537,59 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
+      {/* Related Portfolio */}
+      {relatedPortfolio.length > 0 && (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '20px',
+        }}>
+          <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600 }}>Related Portfolio</h2>
+          <p style={{ margin: '0 0 12px 0', color: '#71717a', fontSize: '13px' }}>
+            Based on the lead&apos;s interests, these portfolio items may be relevant
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+            {relatedPortfolio.map((project) => (
+              <Link
+                key={project.id}
+                href={`/admin/services/portfolio/${project.id}`}
+                style={{
+                  display: 'block',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  textDecoration: 'none',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                {project.thumbnail && (
+                  <img
+                    src={project.thumbnail}
+                    alt={project.title}
+                    style={{
+                      width: '100%',
+                      height: '100px',
+                      objectFit: 'cover',
+                      borderRadius: '4px',
+                      marginBottom: '8px',
+                    }}
+                  />
+                )}
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#fff' }}>{project.title}</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#71717a' }}>{project.type.replace('_', ' ')}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Convert Modal */}
       {showConvertModal && (
         <ConvertLeadModal
           lead={lead}
+          recommendedServiceType={recommendedServiceType}
           onClose={() => setShowConvertModal(false)}
           onSuccess={() => {
             setShowConvertModal(false)
@@ -416,10 +605,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 // Convert Lead Modal
 function ConvertLeadModal({
   lead,
+  recommendedServiceType,
   onClose,
   onSuccess,
 }: {
   lead: Lead
+  recommendedServiceType: string
   onClose: () => void
   onSuccess: () => void
 }) {
@@ -427,7 +618,7 @@ function ConvertLeadModal({
   const [formData, setFormData] = useState({
     clientType: 'ACTIVE',
     projectName: '',
-    projectType: 'WEB_DEVELOPMENT',
+    projectType: recommendedServiceType,
     contractValue: '',
     createCommission: true,
   })
@@ -553,6 +744,11 @@ function ConvertLeadModal({
             <div>
               <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
                 Project Type
+                {recommendedServiceType !== 'OTHER' && (
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#3b82f6' }}>
+                    (Recommended based on interests)
+                  </span>
+                )}
               </label>
               <select
                 value={formData.projectType}
@@ -569,8 +765,8 @@ function ConvertLeadModal({
               >
                 <option value="WEB_DEVELOPMENT">Web Development</option>
                 <option value="APP_DEVELOPMENT">App Development</option>
-                <option value="CONSULTING">Consulting</option>
-                <option value="MAINTENANCE">Maintenance</option>
+                <option value="AI_SOLUTIONS">AI Solutions</option>
+                <option value="CONSULTATION">Consultation</option>
                 <option value="OTHER">Other</option>
               </select>
             </div>

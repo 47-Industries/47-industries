@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validateInterests } from '@/lib/lead-utils'
 
 // GET /api/account/partner/leads - Get partner's leads
 export async function GET(req: NextRequest) {
@@ -78,6 +79,18 @@ export async function POST(req: NextRequest) {
     const count = await prisma.partnerLead.count()
     const leadNumber = `LEAD-${timestamp}-${(count + 1).toString().padStart(4, '0')}`
 
+    // Validate interests if provided
+    let interests = null
+    if (body.interests && Array.isArray(body.interests) && body.interests.length > 0) {
+      if (!validateInterests(body.interests)) {
+        return NextResponse.json(
+          { error: 'Invalid interest values provided' },
+          { status: 400 }
+        )
+      }
+      interests = body.interests
+    }
+
     const lead = await prisma.partnerLead.create({
       data: {
         leadNumber,
@@ -88,6 +101,10 @@ export async function POST(req: NextRequest) {
         phone: body.phone || null,
         website: body.website || null,
         description: body.description || null,
+        interests,
+        source: 'PARTNER',
+        estimatedBudget: body.estimatedBudget || null,
+        timeline: body.timeline || null,
         status: 'NEW',
         notes: body.notes || null,
       },

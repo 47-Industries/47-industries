@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminAuth, getAdminAuthInfo } from '@/lib/auth-helper'
+import {
+  validateInterests,
+  getRecommendedServiceType,
+  getPortfolioServiceTypesForInterests,
+  LeadInterest,
+} from '@/lib/lead-utils'
 
 // GET /api/admin/partners/leads/[id] - Get lead details
 export async function GET(
@@ -35,7 +41,36 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ lead })
+    // Get related portfolio items based on interests
+    let relatedPortfolio: any[] = []
+    const interests = lead.interests as LeadInterest[] | null
+    if (interests && interests.length > 0) {
+      const serviceTypes = getPortfolioServiceTypesForInterests(interests)
+      if (serviceTypes.length > 0) {
+        relatedPortfolio = await prisma.serviceProject.findMany({
+          where: {
+            type: { in: serviceTypes },
+            featured: true,
+          },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            thumbnail: true,
+            slug: true,
+          },
+          take: 6,
+          orderBy: { createdAt: 'desc' },
+        })
+      }
+    }
+
+    // Get recommended service type for conversion
+    const recommendedServiceType = interests && interests.length > 0
+      ? getRecommendedServiceType(interests)
+      : 'OTHER'
+
+    return NextResponse.json({ lead, relatedPortfolio, recommendedServiceType })
   } catch (error) {
     console.error('Error fetching lead:', error)
     return NextResponse.json({ error: 'Failed to fetch lead' }, { status: 500 })
@@ -56,6 +91,22 @@ export async function PUT(
     const { id } = await params
     const body = await req.json()
 
+    // Validate interests if provided
+    let interests = undefined // undefined means don't update
+    if (body.interests !== undefined) {
+      if (body.interests === null || (Array.isArray(body.interests) && body.interests.length === 0)) {
+        interests = null
+      } else if (Array.isArray(body.interests)) {
+        if (!validateInterests(body.interests)) {
+          return NextResponse.json(
+            { error: 'Invalid interest values provided' },
+            { status: 400 }
+          )
+        }
+        interests = body.interests
+      }
+    }
+
     const lead = await prisma.partnerLead.update({
       where: { id },
       data: {
@@ -65,6 +116,12 @@ export async function PUT(
         phone: body.phone || null,
         website: body.website || null,
         description: body.description || null,
+        ...(interests !== undefined && { interests }),
+        ...(body.estimatedBudget !== undefined && { estimatedBudget: body.estimatedBudget || null }),
+        ...(body.timeline !== undefined && { timeline: body.timeline || null }),
+        ...(body.companySize !== undefined && { companySize: body.companySize || null }),
+        ...(body.currentSolution !== undefined && { currentSolution: body.currentSolution || null }),
+        ...(body.painPoints !== undefined && { painPoints: body.painPoints || null }),
         status: body.status,
         notes: body.notes || null,
         closedBy: body.closedBy || null,
@@ -137,6 +194,7 @@ export async function POST(
 
     // Create a project if provided
     let project = null
+    const leadInterests = lead.interests as LeadInterest[] | null
     if (body.projectName && body.projectType) {
       project = await prisma.clientProject.create({
         data: {
@@ -149,6 +207,9 @@ export async function POST(
           monthlyRecurring: body.monthlyRecurring ? parseFloat(body.monthlyRecurring) : null,
           referredByPartnerId: lead.partnerId,
           closedByUserId: auth.userId,
+          // Track lead origin for attribution chain
+          sourceLeadId: lead.id,
+          sourceInterests: leadInterests,
         },
       })
     }

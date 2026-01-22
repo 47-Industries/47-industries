@@ -4,12 +4,22 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import {
+  INTEREST_CATEGORIES,
+  LEAD_INTEREST_LABELS,
+  BUDGET_LABELS,
+  TIMELINE_LABELS,
+  LeadInterest,
+  EstimatedBudget,
+  Timeline,
+} from '@/lib/lead-utils'
 
 export default function NewLeadPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [selectedInterests, setSelectedInterests] = useState<LeadInterest[]>([])
   const [formData, setFormData] = useState({
     businessName: '',
     contactName: '',
@@ -18,6 +28,8 @@ export default function NewLeadPage() {
     website: '',
     description: '',
     notes: '',
+    estimatedBudget: '' as EstimatedBudget | '',
+    timeline: '' as Timeline | '',
   })
 
   useEffect(() => {
@@ -25,6 +37,14 @@ export default function NewLeadPage() {
       router.push('/login?callbackUrl=/account/partner/leads/new')
     }
   }, [status, router])
+
+  const toggleInterest = (interest: LeadInterest) => {
+    setSelectedInterests((prev) =>
+      prev.includes(interest)
+        ? prev.filter((i) => i !== interest)
+        : [...prev, interest]
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,7 +59,12 @@ export default function NewLeadPage() {
       const res = await fetch('/api/account/partner/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          interests: selectedInterests.length > 0 ? selectedInterests : null,
+          estimatedBudget: formData.estimatedBudget || null,
+          timeline: formData.timeline || null,
+        }),
       })
 
       if (res.ok) {
@@ -168,6 +193,76 @@ export default function NewLeadPage() {
                 rows={4}
                 className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none resize-none"
               />
+            </div>
+
+            {/* Interests */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Interests
+                <span className="text-text-secondary font-normal ml-2">Select all that apply</span>
+              </label>
+              <div className="space-y-4">
+                {Object.entries(INTEREST_CATEGORIES).map(([category, interests]) => (
+                  <div key={category}>
+                    <div className="text-xs font-medium text-text-secondary mb-2">{category}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {interests.map((interest) => (
+                        <button
+                          key={interest}
+                          type="button"
+                          onClick={() => toggleInterest(interest)}
+                          className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                            selectedInterests.includes(interest)
+                              ? 'bg-accent text-white border-accent'
+                              : 'bg-surface border-border hover:border-text-secondary'
+                          }`}
+                        >
+                          {LEAD_INTEREST_LABELS[interest]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Budget and Timeline */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Estimated Budget */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Estimated Budget
+                  <span className="text-text-secondary font-normal ml-2">(Optional)</span>
+                </label>
+                <select
+                  value={formData.estimatedBudget}
+                  onChange={(e) => setFormData({ ...formData, estimatedBudget: e.target.value as EstimatedBudget | '' })}
+                  className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                >
+                  <option value="">Select budget range</option>
+                  {Object.entries(BUDGET_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Timeline */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Timeline
+                  <span className="text-text-secondary font-normal ml-2">(Optional)</span>
+                </label>
+                <select
+                  value={formData.timeline}
+                  onChange={(e) => setFormData({ ...formData, timeline: e.target.value as Timeline | '' })}
+                  className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                >
+                  <option value="">Select timeline</option>
+                  {Object.entries(TIMELINE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Notes */}
