@@ -378,6 +378,12 @@ model Order {
   // Discount Code
   discountCode    String?
 
+  // Affiliate Tracking
+  affiliateCode     String?         // Code used at checkout
+  affiliatePartnerId String?        // Partner ID (resolved from code)
+  affiliatePartner  Partner?        @relation(fields: [affiliatePartnerId], references: [id])
+  affiliateLinkId   String?         // Specific link used (if tracked)
+
   // Relations
   items           OrderItem[]
   returns         ReturnRequest[]
@@ -394,6 +400,7 @@ model Order {
   @@index([status])
   @@index([stripePaymentId])
   @@index([shippingAddressId])
+  @@index([affiliatePartnerId])
 }
 
 model OrderItem {
@@ -2482,12 +2489,24 @@ model Partner {
   cashAppTag        String?
   mailingAddress    String?  @db.Text
 
+  // Affiliate Settings (per-platform commission rates)
+  shopCommissionRate       Decimal?  @db.Decimal(5, 2)  @default(5.00)  // % of order total
+  motorevProBonus          Decimal?  @db.Decimal(10, 2) @default(2.50)  // Flat $ for Pro conversion
+  motorevProWindowDays     Int?      @default(30)       // Days after signup for Pro bonus
+
+  // Affiliate Code (unique per partner, used in URLs)
+  affiliateCode            String?   @unique            // e.g., "KYLE50"
+
   // Relations
   leads             PartnerLead[]
   commissions       PartnerCommission[]
   payouts           PartnerPayout[]
   contract          PartnerContract?
   referredProjects  ClientProject[]     // Projects this partner referred
+  affiliatedOrders  Order[]             // Shop orders attributed to this partner
+  affiliateLinks    AffiliateLink[]
+  affiliateReferrals AffiliateReferral[]
+  affiliateCommissions AffiliateCommission[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -2496,6 +2515,7 @@ model Partner {
   @@index([status])
   @@index([partnerNumber])
   @@index([stripeConnectId])
+  @@index([affiliateCode])
 }
 
 model PartnerContract {
@@ -2651,6 +2671,7 @@ model PartnerPayout {
 
   // Commissions included in this payout
   commissions   PartnerCommission[]
+  affiliateCommissions AffiliateCommission[]
 
   notes         String?  @db.Text
 
@@ -2660,6 +2681,143 @@ model PartnerPayout {
   @@index([partnerId])
   @@index([status])
   @@index([payoutNumber])
+}
+
+// ============================================
+// AFFILIATE SYSTEM (Shop & MotoRev Referrals)
+// ============================================
+
+model AffiliateLink {
+  id            String   @id @default(cuid())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // Link Details
+  code          String   @unique  // Short code: "ABC123"
+  name          String?           // Partner-given name: "TikTok Bio Link"
+
+  // Target
+  platform      String            // SHOP, MOTOREV
+  targetType    String            // STORE (all products), PRODUCT (specific), CATEGORY
+  targetId      String?           // Product ID or Category slug if specific
+
+  // Custom URL
+  customUrl     String?           // Override destination URL
+
+  // Stats (denormalized for quick display)
+  totalClicks   Int      @default(0)
+  totalReferrals Int     @default(0)
+  totalRevenue  Decimal  @db.Decimal(10, 2) @default(0)
+
+  // Status
+  isActive      Boolean  @default(true)
+
+  clicks        AffiliateClick[]
+  referrals     AffiliateReferral[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([code])
+  @@index([platform])
+}
+
+model AffiliateClick {
+  id            String   @id @default(cuid())
+  linkId        String
+  link          AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  // Visitor Info
+  ipAddress     String?
+  userAgent     String?  @db.Text
+  referrer      String?
+
+  // UTM params (if present)
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+
+  // Session tracking
+  sessionId     String?  // For correlating click to conversion
+
+  createdAt     DateTime @default(now())
+
+  @@index([linkId])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model AffiliateReferral {
+  id            String   @id @default(cuid())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  linkId        String?
+  link          AffiliateLink? @relation(fields: [linkId], references: [id])
+
+  // Referral Type
+  platform      String          // SHOP, MOTOREV
+  eventType     String          // ORDER, SIGNUP, PRO_CONVERSION
+
+  // Reference to external entity
+  orderId       String?         // Shop order ID (if SHOP/ORDER)
+  motorevUserId String?         // MotoRev user ID (if MOTOREV)
+
+  // Customer Info
+  customerEmail String?
+  customerName  String?
+
+  // Value
+  orderTotal    Decimal? @db.Decimal(10, 2)  // For orders
+
+  // Timing (for Pro conversion tracking)
+  signupAt      DateTime?       // When user signed up (for window calculation)
+  convertedAt   DateTime?       // When Pro conversion happened
+
+  // Commission
+  commission    AffiliateCommission?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([linkId])
+  @@index([platform])
+  @@index([eventType])
+  @@index([orderId])
+  @@index([motorevUserId])
+}
+
+model AffiliateCommission {
+  id            String   @id @default(cuid())
+  partnerId     String
+  partner       Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  referralId    String   @unique
+  referral      AffiliateReferral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  // Commission Details
+  type          String            // SHOP_ORDER, APP_PRO_CONVERSION
+  baseAmount    Decimal  @db.Decimal(10, 2)  // Order total or N/A
+  rate          Decimal? @db.Decimal(5, 2)   // % rate (for orders)
+  amount        Decimal  @db.Decimal(10, 2)  // Calculated commission
+
+  // Status
+  status        String   @default("PENDING")  // PENDING, APPROVED, PAID
+
+  // Payout tracking (uses existing PartnerPayout)
+  payoutId      String?
+  payout        PartnerPayout? @relation(fields: [payoutId], references: [id])
+
+  notes         String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([payoutId])
 }
 
 // ============================================

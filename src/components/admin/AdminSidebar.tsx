@@ -76,6 +76,7 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
         { label: 'Leads', href: '/admin/partners/leads' },
         { label: 'Commissions', href: '/admin/partners/commissions' },
         { label: 'Payouts', href: '/admin/partners/payouts' },
+        { label: 'Affiliate', href: '/admin/affiliate' },
       ],
     },
     {

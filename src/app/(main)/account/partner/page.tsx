@@ -396,7 +396,14 @@ export default function PartnerDashboardPage() {
         )}
 
         {/* Quick Links */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 gap-4 mb-8">
+          <Link
+            href="/account/partner/affiliate"
+            className="p-5 border border-accent/50 bg-accent/5 rounded-xl hover:border-accent transition-colors group"
+          >
+            <h3 className="font-semibold group-hover:text-accent transition-colors">Affiliate Links</h3>
+            <p className="text-sm text-text-secondary">Earn on shop orders</p>
+          </Link>
           <Link
             href="/account/partner/leads"
             className="p-5 border border-border rounded-xl hover:border-accent transition-colors group"

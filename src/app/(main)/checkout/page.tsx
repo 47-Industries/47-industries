@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { useCart } from '@/lib/cart-store'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart } from '@fortawesome/free-solid-svg-icons'
+import { getAffiliateCode } from '@/components/affiliate/AffiliateTracker'
 
 interface ShippingInfo {
   email: string
@@ -228,6 +229,9 @@ export default function CheckoutPage() {
     try {
       const selectedRate = shippingRates.find(r => r.id === selectedShippingId)
 
+      // Get affiliate code from cookie if present
+      const affiliateCode = getAffiliateCode()
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -253,6 +257,7 @@ export default function CheckoutPage() {
           shipmentId: digitalOnly ? null : shipmentId,
           tax: taxInfo?.taxAmount || 0,
           isDigitalOnly: digitalOnly,
+          affiliateCode, // Include affiliate code for tracking
         }),
       })
 

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { sendOrderConfirmation, sendDigitalProductDelivery, sendPaymentFailureNotification, sendInvoicePaymentConfirmation } from '@/lib/email'
 import Stripe from 'stripe'
 import { randomBytes } from 'crypto'
+import { calculateShopCommission } from '@/lib/affiliate-utils'
 
 export async function POST(req: NextRequest) {
   if (!isStripeConfigured) {
@@ -166,6 +167,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     userId = existingUser?.id || null
   }
 
+  // Get affiliate tracking data from metadata
+  const affiliateCode = metadata.affiliateCode || null
+  const affiliatePartnerId = metadata.affiliatePartnerId || null
+
   // Create order with items
   const order = await prisma.order.create({
     data: {
@@ -182,6 +187,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       paymentStatus: 'SUCCEEDED',
       stripeSessionId: session.id,
       stripePaymentId: session.payment_intent as string,
+      // Affiliate tracking
+      affiliateCode,
+      affiliatePartnerId,
       items: {
         create: items.map(item => {
           const product = products.find(p => p.id === item.productId)
@@ -221,6 +229,79 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   console.log('Order created:', order.orderNumber)
+
+  // Create affiliate referral and commission if this order has affiliate attribution
+  if (affiliatePartnerId) {
+    try {
+      // Get partner's commission rate
+      const partner = await prisma.partner.findUnique({
+        where: { id: affiliatePartnerId },
+        select: {
+          id: true,
+          shopCommissionRate: true,
+          affiliateLinks: {
+            where: { platform: 'SHOP', isActive: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      })
+
+      if (partner) {
+        const commissionRate = Number(partner.shopCommissionRate) || 5.00
+        const commissionAmount = calculateShopCommission(amountTotal, commissionRate)
+        const linkId = partner.affiliateLinks[0]?.id || null
+
+        // Create referral and commission in a transaction
+        await prisma.$transaction(async (tx) => {
+          // Create the referral
+          const referral = await tx.affiliateReferral.create({
+            data: {
+              partnerId: affiliatePartnerId,
+              linkId,
+              platform: 'SHOP',
+              eventType: 'ORDER',
+              orderId: order.id,
+              customerEmail: customerEmail || null,
+              customerName: customerName || null,
+              orderTotal: amountTotal,
+            },
+          })
+
+          // Create the commission
+          await tx.affiliateCommission.create({
+            data: {
+              partnerId: affiliatePartnerId,
+              referralId: referral.id,
+              type: 'SHOP_ORDER',
+              baseAmount: amountTotal,
+              rate: commissionRate,
+              amount: commissionAmount,
+              status: 'PENDING',
+              notes: `Order ${orderNumber}`,
+            },
+          })
+
+          // Update affiliate link stats if applicable
+          if (linkId) {
+            await tx.affiliateLink.update({
+              where: { id: linkId },
+              data: {
+                totalReferrals: { increment: 1 },
+                totalRevenue: { increment: amountTotal },
+              },
+            })
+          }
+        })
+
+        console.log(`Affiliate commission created for partner ${affiliatePartnerId}: $${commissionAmount}`)
+      }
+    } catch (affiliateError) {
+      // Don't fail the order if affiliate tracking fails
+      console.error('Failed to create affiliate referral/commission:', affiliateError)
+    }
+  }
 
   // Check if order contains any digital products
   const digitalProducts = products.filter(p => p.productType === 'DIGITAL')

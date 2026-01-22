@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, formatAmountForStripe, isStripeConfigured } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabled } from '@/lib/features'
+import { AFFILIATE_COOKIE_NAME } from '@/lib/affiliate-utils'
+import { cookies } from 'next/headers'
 
 interface CheckoutItem {
   productId: string
@@ -60,13 +62,38 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { items, shipping, shippingRate, shipmentId, tax, isDigitalOnly } = body as {
+    const { items, shipping, shippingRate, shipmentId, tax, isDigitalOnly, affiliateCode: bodyAffiliateCode } = body as {
       items: CheckoutItem[]
       shipping: ShippingInfo
       shippingRate?: ShippingRate | null
       shipmentId?: string | null
       tax?: number
       isDigitalOnly?: boolean
+      affiliateCode?: string
+    }
+
+    // Get affiliate code from request body or cookie
+    let affiliateCode = bodyAffiliateCode
+    let affiliatePartnerId: string | null = null
+
+    if (!affiliateCode) {
+      // Try to get from cookie
+      const cookieStore = await cookies()
+      affiliateCode = cookieStore.get(AFFILIATE_COOKIE_NAME)?.value || undefined
+    }
+
+    // Resolve partner from affiliate code
+    if (affiliateCode) {
+      const partner = await prisma.partner.findFirst({
+        where: {
+          affiliateCode: affiliateCode,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      })
+      if (partner) {
+        affiliatePartnerId = partner.id
+      }
     }
 
     if (!items || items.length === 0) {
@@ -262,6 +289,9 @@ export async function POST(req: NextRequest) {
             productType: item.productType || 'PHYSICAL',
           }))
         ),
+        // Affiliate tracking
+        ...(affiliateCode && { affiliateCode }),
+        ...(affiliatePartnerId && { affiliatePartnerId }),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,

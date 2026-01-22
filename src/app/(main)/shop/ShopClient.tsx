@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import AffiliateTracker from '@/components/affiliate/AffiliateTracker'
 
 interface Product {
   id: string
@@ -85,6 +86,11 @@ export default function ShopClient({
 
   return (
     <>
+      {/* Affiliate Tracking */}
+      <Suspense fallback={null}>
+        <AffiliateTracker />
+      </Suspense>
+
       {/* Product Grid - 4 columns on lg, 5 columns on xl */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {products.map((product) => {
