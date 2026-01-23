@@ -1,9 +1,4 @@
 import { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import '@/styles/globals.css'
-import { Providers } from '@/components/providers'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: '47 Industries',
@@ -17,16 +12,10 @@ export default function MobileLayout({
 }: {
   children: React.ReactNode
 }) {
+  // Simple layout without header/footer for mobile WebView experience
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-black text-white antialiased`}>
-        <Providers>
-          {/* No header/footer for mobile WebView experience */}
-          <main className="min-h-screen">
-            {children}
-          </main>
-        </Providers>
-      </body>
-    </html>
+    <main className="min-h-screen bg-black">
+      {children}
+    </main>
   )
 }
