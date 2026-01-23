@@ -35,15 +35,16 @@ function isRandomString(str: string): boolean {
 function isSuspiciousEmail(email: string): boolean {
   // Check for bot-like email patterns
   const emailLower = email.toLowerCase()
+  const localPart = emailLower.split('@')[0]
 
-  // Random number suffixes
-  if (/\d{3,}@/.test(emailLower)) {
+  // Only flag emails with very long number sequences (8+ digits) - likely random/bot
+  if (/\d{8,}/.test(localPart)) {
     return true
   }
 
-  // Random character patterns before @
-  const localPart = emailLower.split('@')[0]
-  if (localPart.length > 20 && /\d/.test(localPart)) {
+  // Flag emails that look like random strings: very long with mixed numbers and letters
+  // but no recognizable name pattern (e.g., "x7k2m9p4q1r@domain.com")
+  if (localPart.length > 25 && /\d/.test(localPart) && !/[a-z]{4,}/.test(localPart)) {
     return true
   }
 
