@@ -98,7 +98,7 @@ function ConnectContent() {
     setError(null)
 
     const result = await signIn('credentials', {
-      email,
+      usernameOrEmail: email,
       password,
       redirect: false,
     })
@@ -128,7 +128,7 @@ function ConnectContent() {
 
       // Sign in after successful registration
       const result = await signIn('credentials', {
-        email,
+        usernameOrEmail: email,
         password,
         redirect: false,
       })
@@ -172,9 +172,11 @@ function ConnectContent() {
       <div className="max-w-md mx-auto pt-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl font-bold text-white">47</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="47 Industries"
+            className="w-16 h-16 rounded-2xl mx-auto mb-4"
+          />
           <h1 className="text-2xl font-bold text-white mb-2">
             {isSignUp ? 'Create Account' : 'Sign In'}
           </h1>
