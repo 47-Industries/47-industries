@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
         progressPercent,
       },
       partnerEligible: userAffiliate.totalReferrals >= POINTS.PARTNER_CTA_THRESHOLD && !userAffiliate.isPartner,
-      shareLink: `https://motorevapp.com/signup?ref=${userAffiliate.affiliateCode}`,
+      shareLink: `https://motorev.app/signup?ref=${userAffiliate.affiliateCode}`,
       rates,
       connectedAt: userAffiliate.connectedAt,
     })

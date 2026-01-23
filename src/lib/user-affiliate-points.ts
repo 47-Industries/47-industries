@@ -365,7 +365,7 @@ export async function getAffiliatePointsStats(userAffiliateId: string) {
         color: affiliate.motorevBadgeColor,
       } : null,
     } : null,
-    shareLink: `https://motorevapp.com/signup?ref=${affiliate.affiliateCode}`,
+    shareLink: `https://motorev.app/signup?ref=${affiliate.affiliateCode}`,
   }
 }
 

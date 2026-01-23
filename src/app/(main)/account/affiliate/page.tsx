@@ -265,7 +265,7 @@ export default function UserAffiliateDashboardPage() {
         setStats(prev => prev ? {
           ...prev,
           affiliateCode: data.affiliateCode,
-          shareLink: `https://motorevapp.com/signup?ref=${data.affiliateCode}`,
+          shareLink: `https://motorev.app/signup?ref=${data.affiliateCode}`,
         } : null)
         setShowCustomCode(false)
         setCustomCode('')

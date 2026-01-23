@@ -44,7 +44,7 @@ export function getAffiliateUrl(
 
   if (platform === 'MOTOREV') {
     // MotoRev app signup with referral
-    return `https://motorevapp.com/signup?ref=${code}`
+    return `https://motorev.app/signup?ref=${code}`
   }
 
   // Shop URLs
