@@ -86,6 +86,9 @@ model User {
   // User affiliate - if this user is a non-partner affiliate
   userAffiliate UserAffiliate?
 
+  // Partner/affiliate applications
+  partnerApplications PartnerApplication[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -3364,4 +3367,36 @@ model PointRedemption {
   @@index([userAffiliateId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================
+// PARTNER/AFFILIATE APPLICATIONS
+// ============================================
+
+// PartnerApplication - Requests for partner or store affiliate access
+model PartnerApplication {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          String   // 'partner' or 'store-affiliate'
+  name          String
+  email         String
+  company       String?
+  website       String?
+  socialMedia   String?
+  audience      String   @db.Text  // How they plan to promote
+  reason        String   @db.Text  // Why they want to join
+
+  status        String   @default("PENDING")  // PENDING, APPROVED, REJECTED
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  reviewNotes   String?  @db.Text
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
 }
