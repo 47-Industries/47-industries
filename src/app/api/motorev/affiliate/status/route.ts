@@ -49,6 +49,33 @@ export async function GET(req: NextRequest) {
       },
     })
 
+    // Also check for Partner record directly (for users who may have become partners/store affiliates)
+    let partner = null
+    let pendingApplication = null
+
+    if (userAffiliate) {
+      partner = await prisma.partner.findUnique({
+        where: { userId: userAffiliate.user.id },
+        select: {
+          partnerType: true,
+          shopCommissionRate: true,
+          status: true,
+        },
+      })
+
+      // Check for pending applications
+      pendingApplication = await prisma.partnerApplication.findFirst({
+        where: {
+          userId: userAffiliate.user.id,
+          status: 'PENDING',
+        },
+        select: {
+          type: true,
+          status: true,
+        },
+      })
+    }
+
     if (!userAffiliate) {
       return NextResponse.json({
         connected: false,
@@ -77,6 +104,16 @@ export async function GET(req: NextRequest) {
       ((availablePoints % POINTS.REDEMPTION_THRESHOLD) / POINTS.REDEMPTION_THRESHOLD) * 100
     )
 
+    // Build partner info
+    const partnerInfo = {
+      isPartner: partner?.partnerType === 'BOTH' || partner?.partnerType === 'SERVICE_REFERRAL',
+      isStoreAffiliate: partner?.partnerType === 'BOTH' || partner?.partnerType === 'PRODUCT_AFFILIATE',
+      partnerType: partner?.partnerType ?? null,
+      partnerStatus: partner?.status ?? null,
+      shopCommissionRate: partner?.shopCommissionRate ? Number(partner.shopCommissionRate) : null,
+      pendingApplication: pendingApplication ?? null,
+    }
+
     return NextResponse.json({
       connected: true,
       affiliateCode: userAffiliate.affiliateCode,
@@ -101,7 +138,9 @@ export async function GET(req: NextRequest) {
         toNextReward: availablePoints >= POINTS.REDEMPTION_THRESHOLD ? 0 : pointsToNextReward,
         progressPercent,
       },
-      partnerEligible: userAffiliate.totalReferrals >= POINTS.PARTNER_CTA_THRESHOLD && !userAffiliate.isPartner,
+      // Partner/Store Affiliate info
+      partnerInfo,
+      partnerEligible: userAffiliate.totalReferrals >= POINTS.PARTNER_CTA_THRESHOLD && !partnerInfo.isPartner,
       shareLink: `https://motorev.app/signup?ref=${userAffiliate.affiliateCode}`,
       rates,
       connectedAt: userAffiliate.connectedAt,
