@@ -27,9 +27,22 @@ interface AffiliateStats {
   }[]
 }
 
+interface PartnerInfo {
+  isPartner: boolean
+  isStoreAffiliate: boolean
+  partnerType: 'SERVICE_REFERRAL' | 'PRODUCT_AFFILIATE' | 'BOTH' | null
+  partnerStatus: string | null
+  shopCommissionRate: number | null
+  pendingApplication: {
+    type: string
+    status: string
+  } | null
+}
+
 export default function MobileDashboardPage() {
   const { data: session, status } = useSession()
   const [stats, setStats] = useState<AffiliateStats | null>(null)
+  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,6 +63,7 @@ export default function MobileDashboardPage() {
       }
       const data = await res.json()
       setStats(data.stats)
+      setPartnerInfo(data.partnerInfo || null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -193,77 +207,159 @@ export default function MobileDashboardPage() {
         <div className="mb-6">
           <h3 className="text-white font-medium mb-3">Programs</h3>
 
-          {/* Partner Program Card */}
-          <div className={`border rounded-xl p-4 mb-3 ${
-            stats.partnerEligible
-              ? 'bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border-orange-500/30'
-              : 'bg-zinc-900 border-zinc-800'
-          }`}>
+          {/* User Affiliate Card - Always enrolled */}
+          <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-4 mb-3">
             <div className="flex items-start gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                stats.partnerEligible ? 'bg-orange-500/20' : 'bg-zinc-800'
-              }`}>
-                <svg className={`w-5 h-5 ${stats.partnerEligible ? 'text-orange-500' : 'text-zinc-500'}`} fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z" />
+              <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
               </div>
               <div className="flex-1">
-                <p className="text-white font-medium">Partner Program</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-white font-medium">User Affiliate</p>
+                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Enrolled</span>
+                </div>
                 <p className="text-zinc-400 text-sm mb-2">
-                  Earn cash commissions for referring clients to our services (web development, app development, 3D printing).
+                  Earn points for MotoRev referrals. Points auto-redeem for Pro subscription time.
                 </p>
-                {stats.partnerEligible ? (
-                  <Link
-                    href="/mobile/request-access?type=partner"
-                    className="inline-flex items-center gap-1 text-orange-500 text-sm font-medium hover:underline"
-                  >
-                    Apply Now
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                ) : (
-                  <div>
-                    <p className="text-zinc-500 text-xs mb-2">
-                      Reach 25 referrals to unlock ({stats.stats.totalReferrals}/25)
-                    </p>
-                    <div className="w-full bg-zinc-800 rounded-full h-1.5">
-                      <div
-                        className="bg-orange-500/50 h-1.5 rounded-full"
-                        style={{ width: `${Math.min((stats.stats.totalReferrals / 25) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                <p className="text-green-400 text-sm">
+                  {stats.points.available} points available
+                </p>
               </div>
             </div>
           </div>
 
           {/* Store Affiliate Card */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
+          {(() => {
+            const isStoreAffiliate = partnerInfo?.isStoreAffiliate
+            const hasPendingStoreApp = partnerInfo?.pendingApplication?.type === 'store-affiliate'
+
+            return (
+              <div className={`border rounded-xl p-4 mb-3 ${
+                isStoreAffiliate
+                  ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/30'
+                  : 'bg-zinc-900 border-zinc-800'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isStoreAffiliate ? 'bg-blue-500/20' : 'bg-zinc-800'
+                  }`}>
+                    <svg className={`w-5 h-5 ${isStoreAffiliate ? 'text-blue-500' : 'text-zinc-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-white font-medium">Store Affiliate</p>
+                      {isStoreAffiliate && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Enrolled</span>
+                      )}
+                      {hasPendingStoreApp && (
+                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">Pending</span>
+                      )}
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-2">
+                      Earn {partnerInfo?.shopCommissionRate || 5}% commission on 47 Industries shop purchases made through your referral link.
+                    </p>
+                    {isStoreAffiliate ? (
+                      <p className="text-blue-400 text-sm">
+                        {partnerInfo?.shopCommissionRate || 5}% commission rate
+                      </p>
+                    ) : hasPendingStoreApp ? (
+                      <p className="text-yellow-400 text-sm">
+                        Application under review
+                      </p>
+                    ) : (
+                      <Link
+                        href="/mobile/request-access?type=store-affiliate"
+                        className="inline-flex items-center gap-1 text-blue-500 text-sm font-medium hover:underline"
+                      >
+                        Request Access
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-white font-medium">Store Affiliate</p>
-                <p className="text-zinc-400 text-sm mb-2">
-                  Earn commission on 47 Industries shop purchases made through your referral link.
-                </p>
-                <Link
-                  href="/mobile/request-access?type=store-affiliate"
-                  className="inline-flex items-center gap-1 text-blue-500 text-sm font-medium hover:underline"
-                >
-                  Request Access
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
+            )
+          })()}
+
+          {/* Partner Program Card */}
+          {(() => {
+            const isPartner = partnerInfo?.isPartner
+            const hasPendingPartnerApp = partnerInfo?.pendingApplication?.type === 'partner'
+
+            return (
+              <div className={`border rounded-xl p-4 ${
+                isPartner
+                  ? 'bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border-orange-500/30'
+                  : stats.partnerEligible
+                    ? 'bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/20'
+                    : 'bg-zinc-900 border-zinc-800'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isPartner ? 'bg-orange-500/20' : stats.partnerEligible ? 'bg-orange-500/10' : 'bg-zinc-800'
+                  }`}>
+                    <svg className={`w-5 h-5 ${isPartner || stats.partnerEligible ? 'text-orange-500' : 'text-zinc-500'}`} fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-white font-medium">Partner Program</p>
+                      {isPartner && (
+                        <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">Enrolled</span>
+                      )}
+                      {hasPendingPartnerApp && (
+                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded">Pending</span>
+                      )}
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-2">
+                      Earn cash commissions for referring clients to our services (web development, app development, 3D printing).
+                    </p>
+                    {isPartner ? (
+                      <div className="text-orange-400 text-sm">
+                        <p>15% first sale / 10% recurring</p>
+                        {partnerInfo?.partnerType === 'BOTH' && (
+                          <p className="text-zinc-500 text-xs mt-1">Includes Store Affiliate benefits</p>
+                        )}
+                      </div>
+                    ) : hasPendingPartnerApp ? (
+                      <p className="text-yellow-400 text-sm">
+                        Application under review
+                      </p>
+                    ) : stats.partnerEligible ? (
+                      <Link
+                        href="/mobile/request-access?type=partner"
+                        className="inline-flex items-center gap-1 text-orange-500 text-sm font-medium hover:underline"
+                      >
+                        Apply Now
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <div>
+                        <p className="text-zinc-500 text-xs mb-2">
+                          Reach 25 referrals to unlock ({stats.stats.totalReferrals}/25)
+                        </p>
+                        <div className="w-full bg-zinc-800 rounded-full h-1.5">
+                          <div
+                            className="bg-orange-500/50 h-1.5 rounded-full"
+                            style={{ width: `${Math.min((stats.stats.totalReferrals / 25) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          })()}
         </div>
 
         {/* Recent Activity */}

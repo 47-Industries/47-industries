@@ -117,7 +117,7 @@ export async function PATCH(
     // If approved, create the partner or update user affiliate
     if (action === 'approve') {
       if (application.type === 'partner') {
-        // Create a Partner record
+        // Create a Full Partner record (services + shop)
         const partnerCount = await prisma.partner.count()
         const partnerNumber = `PTR-${String(partnerCount + 1).padStart(4, '0')}`
 
@@ -129,11 +129,13 @@ export async function PATCH(
             email: application.email,
             company: application.company,
             website: application.website,
-            partnerType: 'SERVICE_REFERRAL',
+            partnerType: 'BOTH', // Full partner: services + shop
             status: 'ACTIVE',
             commissionType: 'PERCENTAGE',
-            firstSaleRate: 15, // 15% on first sale
+            firstSaleRate: 15, // 15% on first service referral
             recurringRate: 10, // 10% recurring
+            shopCommissionRate: 5, // 5% on shop purchases
+            motorevProBonus: 2.50, // $2.50 per MotoRev Pro conversion
           },
         })
 
@@ -145,7 +147,7 @@ export async function PATCH(
           })
         }
       } else if (application.type === 'store-affiliate') {
-        // Create a Partner record for store affiliate
+        // Create a Store Affiliate record (shop only)
         const partnerCount = await prisma.partner.count()
         const partnerNumber = `AFF-${String(partnerCount + 1).padStart(4, '0')}`
 
@@ -157,11 +159,13 @@ export async function PATCH(
             email: application.email,
             company: application.company,
             website: application.website,
-            partnerType: 'PRODUCT_AFFILIATE',
+            partnerType: 'PRODUCT_AFFILIATE', // Store affiliate: shop only
             status: 'ACTIVE',
             commissionType: 'PERCENTAGE',
-            firstSaleRate: 10, // 10% on purchases
-            recurringRate: 10,
+            firstSaleRate: 0, // No service referral commission
+            recurringRate: 0,
+            shopCommissionRate: 5, // 5% on shop purchases
+            motorevProBonus: 0, // No MotoRev bonus
           },
         })
       }
@@ -181,17 +185,19 @@ export async function PATCH(
             <p>You now have access to:</p>
             <ul>
               ${application.type === 'partner' ? `
-                <li>15% commission on referred service contracts</li>
+                <li>15% commission on referred service contracts (web dev, app dev, 3D printing)</li>
+                <li>5% commission on referred shop purchases</li>
+                <li>$2.50 bonus per MotoRev Pro conversion</li>
                 <li>Partner dashboard to track leads and earnings</li>
                 <li>Priority support</li>
               ` : `
-                <li>10% commission on referred shop purchases</li>
-                <li>Unique tracking links and discount codes</li>
-                <li>Earnings dashboard</li>
+                <li>5% commission on referred shop purchases</li>
+                <li>Unique tracking links for products</li>
+                <li>Affiliate dashboard to track earnings</li>
               `}
             </ul>
-            <p>Log in to your 47 Industries account to access your dashboard.</p>
-            <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/account">Go to Dashboard</a></p>
+            <p>Log in to your 47 Industries account to access your ${application.type === 'partner' ? 'partner' : 'affiliate'} dashboard.</p>
+            <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/account/${application.type === 'partner' ? 'partner' : 'partner/affiliate'}">Go to Dashboard</a></p>
             <br />
             <p>Welcome to the team!</p>
             <p>The 47 Industries Team</p>

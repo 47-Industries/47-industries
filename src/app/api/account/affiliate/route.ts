@@ -8,7 +8,7 @@ import {
 } from '@/lib/user-affiliate-points'
 
 // GET /api/account/affiliate
-// Get affiliate dashboard data with points stats
+// Get affiliate dashboard data with points stats and partner info
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -46,8 +46,41 @@ export async function GET() {
     // Get recent activity
     const recentActivity = await getRecentPointTransactions(userAffiliate.id, 10)
 
+    // Get partner info (if user is a partner or store affiliate)
+    const partner = await prisma.partner.findUnique({
+      where: { userId: session.user.id },
+      select: {
+        partnerType: true,
+        shopCommissionRate: true,
+        status: true,
+      },
+    })
+
+    // Check for pending applications
+    const pendingApplication = await prisma.partnerApplication.findFirst({
+      where: {
+        userId: session.user.id,
+        status: 'PENDING',
+      },
+      select: {
+        type: true,
+        status: true,
+      },
+    })
+
+    // Build partner info
+    const partnerInfo = {
+      isPartner: partner?.partnerType === 'BOTH' || partner?.partnerType === 'SERVICE_REFERRAL',
+      isStoreAffiliate: partner?.partnerType === 'BOTH' || partner?.partnerType === 'PRODUCT_AFFILIATE',
+      partnerType: partner?.partnerType ?? null,
+      partnerStatus: partner?.status ?? null,
+      shopCommissionRate: partner?.shopCommissionRate ? Number(partner.shopCommissionRate) : null,
+      pendingApplication: pendingApplication ?? null,
+    }
+
     return NextResponse.json({
       stats,
+      partnerInfo,
       recentActivity: recentActivity.map((tx) => ({
         ...tx,
         createdAt: tx.createdAt.toISOString(),
