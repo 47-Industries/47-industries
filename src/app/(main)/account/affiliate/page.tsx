@@ -29,6 +29,8 @@ import {
   faCopy,
   faCheck,
   faArrowRight,
+  faPen,
+  faSpinner,
 } from '@fortawesome/free-solid-svg-icons'
 
 interface AffiliateStats {
@@ -144,6 +146,14 @@ export default function UserAffiliateDashboardPage() {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Custom code state
+  const [showCustomCode, setShowCustomCode] = useState(false)
+  const [customCode, setCustomCode] = useState('')
+  const [customCodeError, setCustomCodeError] = useState<string | null>(null)
+  const [customCodeAvailable, setCustomCodeAvailable] = useState<boolean | null>(null)
+  const [checkingCode, setCheckingCode] = useState(false)
+  const [settingCode, setSettingCode] = useState(false)
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=/account/affiliate')
@@ -185,6 +195,88 @@ export default function UserAffiliateDashboardPage() {
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
+    }
+  }
+
+  function handleCustomCodeChange(value: string) {
+    // Only allow alphanumeric characters, auto-format with MR- prefix
+    const cleaned = value.toUpperCase().replace(/[^A-Z0-9-]/g, '')
+
+    // If user starts typing without MR-, add it
+    let formatted = cleaned
+    if (!cleaned.startsWith('MR-')) {
+      formatted = 'MR-' + cleaned.replace(/^MR-?/i, '')
+    }
+
+    // Limit to MR- + 6 chars
+    if (formatted.length > 9) {
+      formatted = formatted.slice(0, 9)
+    }
+
+    setCustomCode(formatted)
+    setCustomCodeError(null)
+    setCustomCodeAvailable(null)
+  }
+
+  async function checkCodeAvailability() {
+    if (customCode.length !== 9) {
+      setCustomCodeError('Code must be MR- followed by 6 characters')
+      return
+    }
+
+    setCheckingCode(true)
+    setCustomCodeError(null)
+    setCustomCodeAvailable(null)
+
+    try {
+      const res = await fetch(`/api/account/affiliate/custom-code?code=${encodeURIComponent(customCode)}`)
+      const data = await res.json()
+
+      if (data.available) {
+        setCustomCodeAvailable(true)
+      } else {
+        setCustomCodeAvailable(false)
+        setCustomCodeError(data.error || 'This code is already taken')
+      }
+    } catch (err) {
+      setCustomCodeError('Failed to check code availability')
+    } finally {
+      setCheckingCode(false)
+    }
+  }
+
+  async function setCustomReferralCode() {
+    if (!customCodeAvailable || customCode.length !== 9) return
+
+    setSettingCode(true)
+    setCustomCodeError(null)
+
+    try {
+      const res = await fetch('/api/account/affiliate/custom-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: customCode }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Update local state
+        setStats(prev => prev ? {
+          ...prev,
+          affiliateCode: data.affiliateCode,
+          shareLink: `https://motorevapp.com/signup?ref=${data.affiliateCode}`,
+        } : null)
+        setShowCustomCode(false)
+        setCustomCode('')
+        setCustomCodeAvailable(null)
+      } else {
+        setCustomCodeError(data.error || 'Failed to set custom code')
+      }
+    } catch (err) {
+      setCustomCodeError('Failed to set custom code')
+    } finally {
+      setSettingCode(false)
     }
   }
 
@@ -355,9 +447,81 @@ export default function UserAffiliateDashboardPage() {
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <p className="text-xs text-text-secondary mt-3">
-              Referral Code: <span className="font-mono font-bold">{stats.affiliateCode}</span>
-            </p>
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-xs text-text-secondary">
+                Referral Code: <span className="font-mono font-bold">{stats.affiliateCode}</span>
+              </p>
+              <button
+                onClick={() => setShowCustomCode(!showCustomCode)}
+                className="text-xs text-accent hover:text-accent/80 transition-colors flex items-center gap-1"
+              >
+                <FontAwesomeIcon icon={faPen} className="w-3 h-3" />
+                Customize Code
+              </button>
+            </div>
+
+            {/* Custom Code Form */}
+            {showCustomCode && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <h3 className="text-sm font-medium mb-2">Set Custom Referral Code</h3>
+                <p className="text-xs text-text-secondary mb-3">
+                  Choose a memorable code for your referral link. Format: MR-XXXXXX (6 alphanumeric characters)
+                </p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customCode}
+                    onChange={(e) => handleCustomCodeChange(e.target.value)}
+                    placeholder="MR-XXXXXX"
+                    className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm font-mono uppercase focus:outline-none focus:border-accent"
+                    maxLength={9}
+                  />
+                  <button
+                    onClick={checkCodeAvailability}
+                    disabled={customCode.length !== 9 || checkingCode}
+                    className="px-4 py-2 bg-surface border border-border text-sm rounded-lg hover:bg-surface-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkingCode ? (
+                      <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+                    ) : (
+                      'Check'
+                    )}
+                  </button>
+                </div>
+
+                {/* Status Messages */}
+                {customCodeError && (
+                  <p className="text-xs text-red-500 mt-2">{customCodeError}</p>
+                )}
+
+                {customCodeAvailable && (
+                  <div className="mt-3">
+                    <p className="text-xs text-green-500 mb-2 flex items-center gap-1">
+                      <FontAwesomeIcon icon={faCheck} className="w-3 h-3" />
+                      Code is available!
+                    </p>
+                    <button
+                      onClick={setCustomReferralCode}
+                      disabled={settingCode}
+                      className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {settingCode ? (
+                        <>
+                          <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+                          Setting...
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
+                          Use This Code
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
