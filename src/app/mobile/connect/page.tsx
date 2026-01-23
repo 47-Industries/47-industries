@@ -1,11 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function MobileConnectPage() {
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-6">
+      <div className="text-center">
+        <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-zinc-400">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+function ConnectContent() {
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -311,5 +322,13 @@ export default function MobileConnectPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MobileConnectPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ConnectContent />
+    </Suspense>
   )
 }
