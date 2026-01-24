@@ -2,6 +2,25 @@
 
 import { useState, useEffect } from 'react'
 
+interface SkipRule {
+  id: string
+  ruleType: 'ACCOUNT' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'
+  name: string
+  reason: string | null
+  vendorPattern: string | null
+  amount: number | null
+  amountVariance: number | null
+  descriptionPattern: string | null
+  transactionType: string | null
+  isActive: boolean
+  skipCount: number
+  createdAt: string
+  financialAccount?: {
+    institutionName: string
+    accountLast4: string | null
+  } | null
+}
+
 interface EmailAccount {
   id: string
   provider: string
@@ -51,6 +70,7 @@ export default function ExpenseSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([])
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
+  const [skipRules, setSkipRules] = useState<SkipRule[]>([])
   const [syncing, setSyncing] = useState<string | null>(null)
   const [addingZoho, setAddingZoho] = useState(false)
   const [error, setError] = useState('')
@@ -77,9 +97,10 @@ export default function ExpenseSettingsTab() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [emailRes, recurringRes] = await Promise.all([
+      const [emailRes, recurringRes, rulesRes] = await Promise.all([
         fetch('/api/admin/email-accounts'),
-        fetch('/api/admin/recurring-bills')
+        fetch('/api/admin/recurring-bills'),
+        fetch('/api/admin/skip-rules')
       ])
 
       if (emailRes.ok) {
@@ -90,6 +111,11 @@ export default function ExpenseSettingsTab() {
       if (recurringRes.ok) {
         const data = await recurringRes.json()
         setRecurringBills(data.recurringBills || [])
+      }
+
+      if (rulesRes.ok) {
+        const data = await rulesRes.json()
+        setSkipRules(data.rules || [])
       }
     } catch (err) {
       setError('Failed to fetch data')
@@ -184,6 +210,21 @@ export default function ExpenseSettingsTab() {
       await fetch(`/api/admin/recurring-bills/${id}`, { method: 'DELETE' })
       setSuccess('Recurring bill deleted')
       fetchData()
+    } catch (err) {
+      setError('Failed to delete')
+    }
+  }
+
+  const handleDeleteSkipRule = async (id: string) => {
+    if (!confirm('Delete this skip rule? Future transactions will no longer be auto-skipped by this rule.')) return
+    try {
+      const res = await fetch(`/api/admin/skip-rules/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSuccess('Skip rule deleted')
+        fetchData()
+      } else {
+        setError('Failed to delete skip rule')
+      }
     } catch (err) {
       setError('Failed to delete')
     }
@@ -822,6 +863,99 @@ export default function ExpenseSettingsTab() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Skip Rules Section */}
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Skip Rules</h3>
+          <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>
+            Auto-skip rules for bank transactions. Created when you skip transactions in the Approval Queue.
+          </p>
+        </div>
+
+        {skipRules.length === 0 ? (
+          <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+            <div style={{ color: '#71717a', marginBottom: '8px' }}>No skip rules configured</div>
+            <div style={{ fontSize: '13px', color: '#52525b' }}>
+              Skip rules are created when you skip transactions in the Approval Queue and choose to create a rule.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {skipRules.map(rule => (
+              <div key={rule.id} style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 600 }}>{rule.name}</span>
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: rule.ruleType === 'VENDOR' ? 'rgba(139,92,246,0.2)' :
+                                   rule.ruleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.2)' :
+                                   rule.ruleType === 'DESCRIPTION_PATTERN' ? 'rgba(245,158,11,0.2)' :
+                                   'rgba(113,113,122,0.2)',
+                        color: rule.ruleType === 'VENDOR' ? '#8b5cf6' :
+                               rule.ruleType === 'VENDOR_AMOUNT' ? '#3b82f6' :
+                               rule.ruleType === 'DESCRIPTION_PATTERN' ? '#f59e0b' :
+                               '#71717a'
+                      }}>
+                        {rule.ruleType === 'VENDOR' ? 'Vendor' :
+                         rule.ruleType === 'VENDOR_AMOUNT' ? 'Vendor + Amount' :
+                         rule.ruleType === 'DESCRIPTION_PATTERN' ? 'Pattern' :
+                         rule.ruleType}
+                      </span>
+                      {!rule.isActive && (
+                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>
+                      {rule.ruleType === 'VENDOR' && rule.vendorPattern && (
+                        <>Vendor contains: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span></>
+                      )}
+                      {rule.ruleType === 'VENDOR_AMOUNT' && (
+                        <>
+                          Vendor: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span>
+                          {rule.amount && <> | Amount: <span style={{ color: '#fff' }}>{formatCurrency(rule.amount)} (±{rule.amountVariance || 5}%)</span></>}
+                        </>
+                      )}
+                      {rule.ruleType === 'DESCRIPTION_PATTERN' && rule.descriptionPattern && (
+                        <>Contains: <span style={{ color: '#fff' }}>{rule.descriptionPattern}</span></>
+                      )}
+                      {rule.ruleType === 'ACCOUNT' && rule.financialAccount && (
+                        <>Account: <span style={{ color: '#fff' }}>{rule.financialAccount.institutionName} ****{rule.financialAccount.accountLast4}</span></>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#52525b' }}>
+                      Skipped {rule.skipCount} transaction{rule.skipCount !== 1 ? 's' : ''}
+                      {rule.transactionType && rule.transactionType !== 'BOTH' && (
+                        <> | {rule.transactionType === 'INCOME' ? 'Income only' : 'Expenses only'}</>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSkipRule(rule.id)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      background: 'transparent',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recurring Bills Section */}
