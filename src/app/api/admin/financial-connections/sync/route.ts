@@ -139,9 +139,18 @@ export async function POST(request: NextRequest) {
       results.errors.push('Transaction refresh triggered. Transactions may take a few minutes to appear. Try syncing again shortly.')
     }
 
+    // Run maintenance on all pending transactions (not just new ones)
+    // This catches any that might have been missed
+    const { applySkipRulesToAllPending } = await import('@/lib/transaction-rules')
+    const maintenanceResult = await applySkipRulesToAllPending()
+
     return NextResponse.json({
       success: true,
-      results
+      results: {
+        ...results,
+        autoSkipped: maintenanceResult.skipped,
+        pendingProcessed: maintenanceResult.processed
+      }
     })
   } catch (error: any) {
     console.error('[FINANCIAL_CONNECTIONS] Error syncing:', error.message)

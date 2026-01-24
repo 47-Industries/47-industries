@@ -65,6 +65,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for existing duplicate (same vendor, normalized)
+    const normalizedVendor = vendor.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const existingBills = await prisma.recurringBill.findMany({
+      where: { active: true }
+    })
+
+    const duplicate = existingBills.find(bill => {
+      const existingNormalized = bill.vendor.toLowerCase().replace(/[^a-z0-9]/g, '')
+      return existingNormalized === normalizedVendor && bill.vendorType === vendorType
+    })
+
+    if (duplicate) {
+      return NextResponse.json({
+        success: true,
+        recurringBill: duplicate,
+        message: 'Recurring bill already exists - using existing'
+      })
+    }
+
     const recurringBill = await prisma.recurringBill.create({
       data: {
         name,

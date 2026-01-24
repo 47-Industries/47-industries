@@ -67,6 +67,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Description pattern is required for pattern rules' }, { status: 400 })
     }
 
+    // Check for existing duplicate rule
+    const existingRule = await findExistingRule(ruleType, {
+      financialAccountId,
+      vendorPattern,
+      amount,
+      descriptionPattern
+    })
+
+    if (existingRule) {
+      // Return existing rule instead of creating duplicate
+      return NextResponse.json({
+        rule: existingRule,
+        skippedCount: 0,
+        message: 'Rule already exists - using existing rule'
+      })
+    }
+
     const rule = await prisma.transactionSkipRule.create({
       data: {
         ruleType,
@@ -97,6 +114,59 @@ export async function POST(request: NextRequest) {
     console.error('[SKIP_RULES] Error creating:', error.message)
     return NextResponse.json({ error: 'Failed to create skip rule' }, { status: 500 })
   }
+}
+
+// Helper to find existing duplicate rule
+async function findExistingRule(
+  ruleType: string,
+  params: {
+    financialAccountId?: string
+    vendorPattern?: string
+    amount?: number
+    descriptionPattern?: string
+  }
+): Promise<any | null> {
+  if (ruleType === 'ACCOUNT' && params.financialAccountId) {
+    return prisma.transactionSkipRule.findFirst({
+      where: {
+        ruleType: 'ACCOUNT',
+        financialAccountId: params.financialAccountId,
+        isActive: true
+      }
+    })
+  }
+
+  if (ruleType === 'VENDOR_AMOUNT' && params.vendorPattern) {
+    return prisma.transactionSkipRule.findFirst({
+      where: {
+        ruleType: 'VENDOR_AMOUNT',
+        vendorPattern: { equals: params.vendorPattern, mode: 'insensitive' },
+        isActive: true
+      }
+    })
+  }
+
+  if (ruleType === 'VENDOR' && params.vendorPattern) {
+    return prisma.transactionSkipRule.findFirst({
+      where: {
+        ruleType: 'VENDOR',
+        vendorPattern: { equals: params.vendorPattern, mode: 'insensitive' },
+        isActive: true
+      }
+    })
+  }
+
+  if (ruleType === 'DESCRIPTION_PATTERN' && params.descriptionPattern) {
+    return prisma.transactionSkipRule.findFirst({
+      where: {
+        ruleType: 'DESCRIPTION_PATTERN',
+        descriptionPattern: { equals: params.descriptionPattern, mode: 'insensitive' },
+        isActive: true
+      }
+    })
+  }
+
+  return null
 }
 
 // Helper to apply a new rule to existing pending transactions
