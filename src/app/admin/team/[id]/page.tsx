@@ -669,6 +669,52 @@ export default function TeamMemberDetailPage() {
             </div>
           </div>
 
+          {/* About Page */}
+          <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">About Page</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-zinc-500">Show on About Page</label>
+                <p>
+                  <span className={`px-2 py-1 rounded text-sm ${teamMember.showOnAbout ? 'bg-green-500/10 text-green-400' : 'bg-zinc-500/10 text-zinc-400'}`}>
+                    {teamMember.showOnAbout ? 'Yes' : 'No'}
+                  </span>
+                </p>
+              </div>
+              {teamMember.showOnAbout && (
+                <>
+                  <div>
+                    <label className="text-sm text-zinc-500">Display Order</label>
+                    <p className="text-white">{teamMember.displayOrder}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-zinc-500">Accent Color</label>
+                    <p>
+                      <span className={`px-2 py-1 rounded text-sm capitalize ${
+                        teamMember.accentColor === 'blue' ? 'bg-blue-500/10 text-blue-400' :
+                        teamMember.accentColor === 'emerald' ? 'bg-emerald-500/10 text-emerald-400' :
+                        teamMember.accentColor === 'purple' ? 'bg-purple-500/10 text-purple-400' :
+                        teamMember.accentColor === 'orange' ? 'bg-orange-500/10 text-orange-400' :
+                        teamMember.accentColor === 'red' ? 'bg-red-500/10 text-red-400' :
+                        teamMember.accentColor === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
+                        teamMember.accentColor === 'pink' ? 'bg-pink-500/10 text-pink-400' :
+                        teamMember.accentColor === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
+                        teamMember.accentColor === 'green' ? 'bg-green-500/10 text-green-400' :
+                        'bg-zinc-500/10 text-zinc-400'
+                      }`}>
+                        {teamMember.accentColor || 'None'}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-zinc-500">Public Bio</label>
+                    <p className="text-white text-sm">{teamMember.publicBio || '-'}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
         </div>
       )}
 
