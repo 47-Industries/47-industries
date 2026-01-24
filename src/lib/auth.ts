@@ -106,6 +106,28 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Always redirect to main domain, not admin subdomain
+      const mainDomain = process.env.NEXT_PUBLIC_APP_URL || baseUrl
+
+      // If url is relative, prepend main domain
+      if (url.startsWith('/')) {
+        return `${mainDomain}${url}`
+      }
+
+      // If url is on admin subdomain, redirect to main domain instead
+      if (url.includes('admin.47industries.com')) {
+        return mainDomain
+      }
+
+      // If url is on same origin, allow it
+      if (url.startsWith(mainDomain)) {
+        return url
+      }
+
+      // Default to main domain homepage
+      return mainDomain
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
@@ -135,7 +157,8 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: '/admin/login',
+    signIn: '/login',
+    signOut: '/',
   },
   session: {
     strategy: 'jwt',
