@@ -1,4 +1,47 @@
-export default function AboutPage() {
+import { prisma } from '@/lib/prisma'
+
+// Color mapping for accent colors
+const colorClasses: Record<string, { border: string; text: string }> = {
+  blue: { border: 'border-l-blue-500', text: 'text-blue-400' },
+  emerald: { border: 'border-l-emerald-500', text: 'text-emerald-400' },
+  purple: { border: 'border-l-purple-500', text: 'text-purple-400' },
+  orange: { border: 'border-l-orange-500', text: 'text-orange-400' },
+  red: { border: 'border-l-red-500', text: 'text-red-400' },
+  yellow: { border: 'border-l-yellow-500', text: 'text-yellow-400' },
+  pink: { border: 'border-l-pink-500', text: 'text-pink-400' },
+  cyan: { border: 'border-l-cyan-500', text: 'text-cyan-400' },
+  green: { border: 'border-l-green-500', text: 'text-green-400' },
+}
+
+async function getTeamMembers() {
+  try {
+    const teamMembers = await prisma.teamMember.findMany({
+      where: {
+        showOnAbout: true,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        publicBio: true,
+        profileImageUrl: true,
+        accentColor: true,
+        displayOrder: true,
+      },
+      orderBy: {
+        displayOrder: 'asc',
+      },
+    })
+    return teamMembers
+  } catch (error) {
+    console.error('Error fetching team members:', error)
+    return []
+  }
+}
+
+export default async function AboutPage() {
+  const teamMembers = await getTeamMembers()
   return (
     <div className="min-h-screen py-20">
       <div className="container mx-auto px-6">
@@ -130,57 +173,86 @@ export default function AboutPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Kyle */}
-              <div className="p-6 bg-background border-l-4 border-l-blue-500 border border-border rounded-xl">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-xl font-bold">Kyle</h3>
-                    <p className="text-sm text-blue-400">President</p>
+              {teamMembers.length > 0 ? (
+                teamMembers.map((member) => {
+                  const colors = colorClasses[member.accentColor || 'blue'] || colorClasses.blue
+                  return (
+                    <div
+                      key={member.id}
+                      className={`p-6 bg-background border-l-4 ${colors.border} border border-border rounded-xl`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {member.profileImageUrl && (
+                            <img
+                              src={member.profileImageUrl}
+                              alt={member.name}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          )}
+                          <div>
+                            <h3 className="text-xl font-bold">{member.name}</h3>
+                            <p className={`text-sm ${colors.text}`}>{member.title}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {member.publicBio && (
+                        <p className="text-sm text-text-secondary leading-relaxed">
+                          {member.publicBio}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <>
+                  {/* Fallback hardcoded team if no database entries */}
+                  <div className="p-6 bg-background border-l-4 border-l-blue-500 border border-border rounded-xl">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold">Kyle</h3>
+                        <p className="text-sm text-blue-400">President</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                      Taught himself to code with AI in 2025. Leads all development across MotoRev, BookFade, and 47 Industries.
+                    </p>
                   </div>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Taught himself to code with AI in 2025. Leads all development across MotoRev, BookFade, and 47 Industries.
-                </p>
-              </div>
-
-              {/* Dean */}
-              <div className="p-6 bg-background border-l-4 border-l-emerald-500 border border-border rounded-xl">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-xl font-bold">Dean</h3>
-                    <p className="text-sm text-emerald-400">Chief Executive Officer</p>
+                  <div className="p-6 bg-background border-l-4 border-l-emerald-500 border border-border rounded-xl">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold">Dean</h3>
+                        <p className="text-sm text-emerald-400">Chief Executive Officer</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                      Stepped up to lead 47 Industries after Bryce&apos;s passing. Keeps the team united and the mission on track.
+                    </p>
                   </div>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Stepped up to lead 47 Industries after Bryce's passing. Keeps the team united and the mission on track.
-                </p>
-              </div>
-
-              {/* Wesley */}
-              <div className="p-6 bg-background border-l-4 border-l-purple-500 border border-border rounded-xl">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-xl font-bold">Wesley</h3>
-                    <p className="text-sm text-purple-400">Chief Product Officer</p>
+                  <div className="p-6 bg-background border-l-4 border-l-purple-500 border border-border rounded-xl">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold">Wesley</h3>
+                        <p className="text-sm text-purple-400">Chief Product Officer</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                      Oversees physical operations, product manufacturing, maintenance, and R&amp;D. The hands that build what we design.
+                    </p>
                   </div>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Oversees physical operations, product manufacturing, maintenance, and R&D. The hands that build what we design.
-                </p>
-              </div>
-
-              {/* Dylan */}
-              <div className="p-6 bg-background border-l-4 border-l-orange-500 border border-border rounded-xl">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="text-xl font-bold">Dylan</h3>
-                    <p className="text-sm text-orange-400">Executive Chairman</p>
+                  <div className="p-6 bg-background border-l-4 border-l-orange-500 border border-border rounded-xl">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold">Dylan</h3>
+                        <p className="text-sm text-orange-400">Executive Chairman</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                      Joined full-time when all four brothers moved under one roof in May 2025. The final piece of the team.
+                    </p>
                   </div>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Joined full-time when all four brothers moved under one roof in May 2025. The final piece of the team.
-                </p>
-              </div>
+                </>
+              )}
             </div>
           </div>
         </div>

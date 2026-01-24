@@ -46,6 +46,10 @@ interface TeamMember {
   equityNotes: string | null
   splitsExpenses: boolean
   defaultSplitPercent: number | null
+  showOnAbout: boolean
+  publicBio: string | null
+  displayOrder: number
+  accentColor: string | null
   userId: string | null
   user: {
     id: string
@@ -1292,6 +1296,10 @@ function EditTeamMemberModal({
     salaryFrequency: teamMember.salaryFrequency || '',
     username: teamMember.user?.username || '',
     splitsExpenses: teamMember.splitsExpenses || false,
+    showOnAbout: teamMember.showOnAbout || false,
+    publicBio: teamMember.publicBio || '',
+    displayOrder: teamMember.displayOrder || 0,
+    accentColor: teamMember.accentColor || 'blue',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1520,6 +1528,65 @@ function EditTeamMemberModal({
             <p className="text-xs text-zinc-500 mt-2">
               When enabled, this team member will be included in company bill splits by default.
             </p>
+          </div>
+
+          {/* About Page Settings */}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-400 mb-3">About Page Settings</h3>
+            <label className="flex items-center gap-3 cursor-pointer mb-4">
+              <input
+                type="checkbox"
+                checked={formData.showOnAbout}
+                onChange={(e) => setFormData({ ...formData, showOnAbout: e.target.checked })}
+                className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-zinc-900"
+              />
+              <span className="text-white">Show on About page</span>
+            </label>
+            {formData.showOnAbout && (
+              <div className="space-y-4 pl-8 border-l-2 border-zinc-700">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-1">Display Order</label>
+                    <input
+                      type="number"
+                      value={formData.displayOrder}
+                      onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                      min="0"
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Lower numbers appear first</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-1">Accent Color</label>
+                    <select
+                      value={formData.accentColor}
+                      onChange={(e) => setFormData({ ...formData, accentColor: e.target.value })}
+                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                    >
+                      <option value="blue">Blue</option>
+                      <option value="emerald">Emerald</option>
+                      <option value="purple">Purple</option>
+                      <option value="orange">Orange</option>
+                      <option value="red">Red</option>
+                      <option value="yellow">Yellow</option>
+                      <option value="pink">Pink</option>
+                      <option value="cyan">Cyan</option>
+                      <option value="green">Green</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">Public Bio</label>
+                  <textarea
+                    value={formData.publicBio}
+                    onChange={(e) => setFormData({ ...formData, publicBio: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                    placeholder="Brief bio shown on the About page..."
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">

@@ -2882,6 +2882,12 @@ model TeamMember {
   splitsExpenses       Boolean  @default(false)  // Whether this team member splits company bills
   defaultSplitPercent Decimal? @db.Decimal(5, 2)  // Optional default percentage (null = equal split)
 
+  // Public Display (About Page)
+  showOnAbout       Boolean  @default(false)  // Show on public About page
+  publicBio         String?  @db.Text          // Bio text for About page
+  displayOrder      Int      @default(0)       // Order on About page (lower = first)
+  accentColor       String?                    // Card accent color (blue, emerald, purple, orange, etc.)
+
   // Relations
   contracts         TeamMemberContract[]
   documents         TeamMemberDocument[]
