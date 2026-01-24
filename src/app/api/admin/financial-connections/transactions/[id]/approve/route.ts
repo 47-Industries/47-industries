@@ -168,12 +168,58 @@ export async function POST(
 
     let ruleCreated = false
     let additionalApproved = 0
+    let createdRuleId: string | null = null
 
     // Create auto-approve rule if requested
     if (createAutoApproveRule) {
       try {
-        // Note: Auto-approve rules would need a new model similar to TransactionSkipRule
-        // For now, we'll just auto-approve other matching pending transactions
+        // Create persistent auto-approve rule
+        const ruleData: any = {
+          action: 'APPROVE',
+          ruleType,
+          name: displayName || vendor,
+          displayName: displayName || null,
+          vendorType,
+          recurringBillId,
+          createdBy: session.user.id
+        }
+
+        if (ruleType === 'VENDOR' || ruleType === 'VENDOR_AMOUNT') {
+          ruleData.vendorPattern = vendorPattern
+        }
+        if (ruleType === 'VENDOR_AMOUNT') {
+          if (amountMode === 'RANGE' && amountMin !== null && amountMax !== null) {
+            ruleData.amountMin = amountMin
+            ruleData.amountMax = amountMax
+          } else {
+            ruleData.amount = amount
+            ruleData.amountVariance = 5
+          }
+        }
+        if (ruleType === 'DESCRIPTION_PATTERN') {
+          ruleData.descriptionPattern = patternOverride || vendorPattern
+        }
+
+        // Check for existing duplicate rule
+        const existingRule = await prisma.transactionSkipRule.findFirst({
+          where: {
+            action: 'APPROVE',
+            ruleType,
+            isActive: true,
+            ...(ruleType === 'VENDOR' || ruleType === 'VENDOR_AMOUNT' ? { vendorPattern } : {}),
+            ...(ruleType === 'DESCRIPTION_PATTERN' ? { descriptionPattern: patternOverride || vendorPattern } : {})
+          }
+        })
+
+        if (!existingRule) {
+          const newRule = await prisma.transactionSkipRule.create({ data: ruleData })
+          createdRuleId = newRule.id
+          ruleCreated = true
+        } else {
+          createdRuleId = existingRule.id
+        }
+
+        // Apply rule to matching pending transactions
         let whereClause: any = {
           approvalStatus: 'PENDING',
           id: { not: id }
@@ -281,7 +327,13 @@ export async function POST(
           additionalApproved++
         }
 
-        ruleCreated = true
+        // Update rule match count (includes the original transaction)
+        if (createdRuleId) {
+          await prisma.transactionSkipRule.update({
+            where: { id: createdRuleId },
+            data: { skipCount: { increment: additionalApproved + 1 } }
+          })
+        }
       } catch (ruleError: any) {
         console.error('[APPROVE] Error creating auto-approve rule:', ruleError.message)
         // Continue without failing - the main transaction was approved

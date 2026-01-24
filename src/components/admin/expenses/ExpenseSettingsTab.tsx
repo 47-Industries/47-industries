@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 
 interface SkipRule {
   id: string
+  action: 'SKIP' | 'APPROVE'
   ruleType: 'ACCOUNT' | 'VENDOR' | 'VENDOR_AMOUNT' | 'DESCRIPTION_PATTERN'
   name: string
   reason: string | null
@@ -865,96 +866,180 @@ export default function ExpenseSettingsTab() {
         </div>
       </div>
 
-      {/* Skip Rules Section */}
+      {/* Transaction Rules Section */}
       <div style={{ marginBottom: '32px' }}>
         <div style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Skip Rules</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Transaction Rules</h3>
           <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>
-            Auto-skip rules for bank transactions. Created when you skip transactions in the Approval Queue.
+            Auto-skip and auto-approve rules for bank transactions. Created from the Approval Queue.
           </p>
         </div>
 
         {skipRules.length === 0 ? (
           <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-            <div style={{ color: '#71717a', marginBottom: '8px' }}>No skip rules configured</div>
+            <div style={{ color: '#71717a', marginBottom: '8px' }}>No transaction rules configured</div>
             <div style={{ fontSize: '13px', color: '#52525b' }}>
-              Skip rules are created when you skip transactions in the Approval Queue and choose to create a rule.
+              Rules are created when you skip or approve transactions in the Approval Queue and choose to create a rule.
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {skipRules.map(rule => (
-              <div key={rule.id} style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 600 }}>{rule.name}</span>
-                      <span style={{
-                        fontSize: '10px',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: rule.ruleType === 'VENDOR' ? 'rgba(139,92,246,0.2)' :
-                                   rule.ruleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.2)' :
-                                   rule.ruleType === 'DESCRIPTION_PATTERN' ? 'rgba(245,158,11,0.2)' :
-                                   'rgba(113,113,122,0.2)',
-                        color: rule.ruleType === 'VENDOR' ? '#8b5cf6' :
-                               rule.ruleType === 'VENDOR_AMOUNT' ? '#3b82f6' :
-                               rule.ruleType === 'DESCRIPTION_PATTERN' ? '#f59e0b' :
-                               '#71717a'
-                      }}>
-                        {rule.ruleType === 'VENDOR' ? 'Vendor' :
-                         rule.ruleType === 'VENDOR_AMOUNT' ? 'Vendor + Amount' :
-                         rule.ruleType === 'DESCRIPTION_PATTERN' ? 'Pattern' :
-                         rule.ruleType}
-                      </span>
-                      {!rule.isActive && (
-                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>
-                          Inactive
-                        </span>
-                      )}
+          <>
+            {/* Auto-Approve Rules */}
+            {skipRules.filter(r => r.action === 'APPROVE').length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  Auto-Approve Rules ({skipRules.filter(r => r.action === 'APPROVE').length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {skipRules.filter(r => r.action === 'APPROVE').map(rule => (
+                    <div key={rule.id} style={{ background: '#18181b', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontWeight: 600 }}>{rule.name}</span>
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: rule.ruleType === 'VENDOR' ? 'rgba(139,92,246,0.2)' :
+                                         rule.ruleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.2)' :
+                                         rule.ruleType === 'DESCRIPTION_PATTERN' ? 'rgba(245,158,11,0.2)' :
+                                         'rgba(113,113,122,0.2)',
+                              color: rule.ruleType === 'VENDOR' ? '#8b5cf6' :
+                                     rule.ruleType === 'VENDOR_AMOUNT' ? '#3b82f6' :
+                                     rule.ruleType === 'DESCRIPTION_PATTERN' ? '#f59e0b' :
+                                     '#71717a'
+                            }}>
+                              {rule.ruleType === 'VENDOR' ? 'Vendor' :
+                               rule.ruleType === 'VENDOR_AMOUNT' ? 'Vendor + Amount' :
+                               rule.ruleType === 'DESCRIPTION_PATTERN' ? 'Pattern' :
+                               rule.ruleType}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>
+                            {(rule.ruleType === 'VENDOR' || rule.ruleType === 'VENDOR_AMOUNT') && rule.vendorPattern && (
+                              <>Vendor: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span></>
+                            )}
+                            {rule.ruleType === 'VENDOR_AMOUNT' && rule.amount && (
+                              <> | Amount: <span style={{ color: '#fff' }}>{formatCurrency(rule.amount)} (±{rule.amountVariance || 5}%)</span></>
+                            )}
+                            {rule.ruleType === 'DESCRIPTION_PATTERN' && rule.descriptionPattern && (
+                              <>Contains: <span style={{ color: '#fff' }}>{rule.descriptionPattern}</span></>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#52525b' }}>
+                            Approved {rule.skipCount} transaction{rule.skipCount !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSkipRule(rule.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            background: 'transparent',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>
-                      {rule.ruleType === 'VENDOR' && rule.vendorPattern && (
-                        <>Vendor contains: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span></>
-                      )}
-                      {rule.ruleType === 'VENDOR_AMOUNT' && (
-                        <>
-                          Vendor: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span>
-                          {rule.amount && <> | Amount: <span style={{ color: '#fff' }}>{formatCurrency(rule.amount)} (±{rule.amountVariance || 5}%)</span></>}
-                        </>
-                      )}
-                      {rule.ruleType === 'DESCRIPTION_PATTERN' && rule.descriptionPattern && (
-                        <>Contains: <span style={{ color: '#fff' }}>{rule.descriptionPattern}</span></>
-                      )}
-                      {rule.ruleType === 'ACCOUNT' && rule.financialAccount && (
-                        <>Account: <span style={{ color: '#fff' }}>{rule.financialAccount.institutionName} ****{rule.financialAccount.accountLast4}</span></>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#52525b' }}>
-                      Skipped {rule.skipCount} transaction{rule.skipCount !== 1 ? 's' : ''}
-                      {rule.transactionType && rule.transactionType !== 'BOTH' && (
-                        <> | {rule.transactionType === 'INCOME' ? 'Income only' : 'Expenses only'}</>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteSkipRule(rule.id)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(239,68,68,0.3)',
-                      background: 'transparent',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      fontSize: '12px'
-                    }}
-                  >
-                    Delete
-                  </button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* Auto-Skip Rules */}
+            {skipRules.filter(r => r.action !== 'APPROVE').length > 0 && (
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#71717a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                  </svg>
+                  Auto-Skip Rules ({skipRules.filter(r => r.action !== 'APPROVE').length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {skipRules.filter(r => r.action !== 'APPROVE').map(rule => (
+                    <div key={rule.id} style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontWeight: 600 }}>{rule.name}</span>
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: rule.ruleType === 'VENDOR' ? 'rgba(139,92,246,0.2)' :
+                                         rule.ruleType === 'VENDOR_AMOUNT' ? 'rgba(59,130,246,0.2)' :
+                                         rule.ruleType === 'DESCRIPTION_PATTERN' ? 'rgba(245,158,11,0.2)' :
+                                         'rgba(113,113,122,0.2)',
+                              color: rule.ruleType === 'VENDOR' ? '#8b5cf6' :
+                                     rule.ruleType === 'VENDOR_AMOUNT' ? '#3b82f6' :
+                                     rule.ruleType === 'DESCRIPTION_PATTERN' ? '#f59e0b' :
+                                     '#71717a'
+                            }}>
+                              {rule.ruleType === 'VENDOR' ? 'Vendor' :
+                               rule.ruleType === 'VENDOR_AMOUNT' ? 'Vendor + Amount' :
+                               rule.ruleType === 'DESCRIPTION_PATTERN' ? 'Pattern' :
+                               rule.ruleType}
+                            </span>
+                            {!rule.isActive && (
+                              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>
+                            {rule.ruleType === 'VENDOR' && rule.vendorPattern && (
+                              <>Vendor contains: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span></>
+                            )}
+                            {rule.ruleType === 'VENDOR_AMOUNT' && (
+                              <>
+                                Vendor: <span style={{ color: '#fff' }}>{rule.vendorPattern}</span>
+                                {rule.amount && <> | Amount: <span style={{ color: '#fff' }}>{formatCurrency(rule.amount)} (±{rule.amountVariance || 5}%)</span></>}
+                              </>
+                            )}
+                            {rule.ruleType === 'DESCRIPTION_PATTERN' && rule.descriptionPattern && (
+                              <>Contains: <span style={{ color: '#fff' }}>{rule.descriptionPattern}</span></>
+                            )}
+                            {rule.ruleType === 'ACCOUNT' && rule.financialAccount && (
+                              <>Account: <span style={{ color: '#fff' }}>{rule.financialAccount.institutionName} ****{rule.financialAccount.accountLast4}</span></>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#52525b' }}>
+                            Skipped {rule.skipCount} transaction{rule.skipCount !== 1 ? 's' : ''}
+                            {rule.transactionType && rule.transactionType !== 'BOTH' && (
+                              <> | {rule.transactionType === 'INCOME' ? 'Income only' : 'Expenses only'}</>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSkipRule(rule.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            background: 'transparent',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

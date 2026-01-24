@@ -3146,12 +3146,15 @@ model StripeTransaction {
   @@index([approvalStatus])
 }
 
-// TransactionSkipRule - Rules for auto-skipping personal/non-company transactions
+// TransactionSkipRule - Rules for auto-skipping or auto-approving transactions
 model TransactionSkipRule {
   id                  String    @id @default(cuid())
 
+  // Action: what to do when rule matches
+  action              String    @default("SKIP") // "SKIP" or "APPROVE"
+
   // Rule type determines which fields are used
-  ruleType            String    // "ACCOUNT", "VENDOR_AMOUNT", "DESCRIPTION_PATTERN"
+  ruleType            String    // "ACCOUNT", "VENDOR", "VENDOR_AMOUNT", "DESCRIPTION_PATTERN"
 
   // For ACCOUNT rules - skip all transactions from this account
   financialAccountId  String?
@@ -3171,14 +3174,19 @@ model TransactionSkipRule {
   // Rule metadata
   name                String    // User-friendly name (e.g., "Personal Checking", "Publix Payroll")
   displayName         String?   // Clean name to apply to matched transactions (e.g., "Publix Payroll")
-  reason              String?   // Why skipped (e.g., "Personal expense", "Payroll deposit")
+  reason              String?   // Why skipped/approved (e.g., "Personal expense", "Monthly subscription")
+
+  // For APPROVE rules: expense categorization
+  vendorType          String?   // "RENT", "UTILITY", "SUBSCRIPTION", etc.
+  recurringBillId     String?   // Link to recurring bill template if applicable
 
   isActive            Boolean   @default(true)
-  skipCount           Int       @default(0) // How many transactions auto-skipped by this rule
+  skipCount           Int       @default(0) // How many transactions matched by this rule
 
   createdAt           DateTime  @default(now())
   createdBy           String?   // User ID who created the rule
 
+  @@index([action])
   @@index([ruleType])
   @@index([financialAccountId])
   @@index([isActive])
