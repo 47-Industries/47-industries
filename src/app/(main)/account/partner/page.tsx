@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -110,7 +110,7 @@ interface Payout {
   paidAt?: string
 }
 
-export default function PartnerDashboardPage() {
+function PartnerDashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -941,5 +941,18 @@ export default function PartnerDashboardPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function PartnerDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen py-20 flex items-center justify-center">
+        <div className="animate-pulse text-text-secondary">Loading...</div>
+      </div>
+    }>
+      <PartnerDashboardContent />
+    </Suspense>
   )
 }
