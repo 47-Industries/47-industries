@@ -51,6 +51,32 @@ export async function POST(
 
     // Create Stripe Connect Express account if doesn't exist
     if (!stripeAccountId) {
+      // Build individual info with partner details so Stripe uses their phone, not platform owner's
+      const individualInfo: any = {
+        email: partner.email,
+      }
+
+      // Add phone so verification texts go to partner, not platform owner
+      if (partner.phone) {
+        // Format phone for Stripe (needs +1 prefix for US)
+        let phone = partner.phone.replace(/\D/g, '') // Remove non-digits
+        if (phone.length === 10) {
+          phone = '+1' + phone
+        } else if (phone.length === 11 && phone.startsWith('1')) {
+          phone = '+' + phone
+        } else if (!phone.startsWith('+')) {
+          phone = '+1' + phone
+        }
+        individualInfo.phone = phone
+      }
+
+      // Add name
+      if (partner.name) {
+        const nameParts = partner.name.trim().split(' ')
+        individualInfo.first_name = nameParts[0]
+        individualInfo.last_name = nameParts.slice(1).join(' ') || nameParts[0]
+      }
+
       const account = await getStripe().accounts.create({
         type: 'express',
         country: 'US',
@@ -60,6 +86,7 @@ export async function POST(
           transfers: { requested: true },
         },
         business_type: 'individual',
+        individual: individualInfo,
         metadata: {
           partnerId: partner.id,
           partnerNumber: partner.partnerNumber,
@@ -76,6 +103,29 @@ export async function POST(
           stripeConnectStatus: 'PENDING',
         },
       })
+    } else {
+      // Account exists - update with partner's phone if we have it
+      if (partner.phone) {
+        try {
+          let phone = partner.phone.replace(/\D/g, '')
+          if (phone.length === 10) {
+            phone = '+1' + phone
+          } else if (phone.length === 11 && phone.startsWith('1')) {
+            phone = '+' + phone
+          } else if (!phone.startsWith('+')) {
+            phone = '+1' + phone
+          }
+
+          await getStripe().accounts.update(stripeAccountId, {
+            individual: {
+              phone: phone,
+            },
+          })
+          console.log(`Updated Stripe Connect account ${stripeAccountId} with phone`)
+        } catch (updateErr: any) {
+          console.log('Could not update phone on existing account:', updateErr.message)
+        }
+      }
     }
 
     // Create account onboarding link
