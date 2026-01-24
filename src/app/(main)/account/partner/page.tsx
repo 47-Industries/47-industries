@@ -51,6 +51,7 @@ interface Partner {
   partnerNumber: string
   name: string
   email: string
+  phone?: string
   company?: string
   partnerType: 'SERVICE_REFERRAL' | 'PRODUCT_AFFILIATE' | 'BOTH'
   firstSaleRate: number
@@ -116,6 +117,10 @@ export default function PartnerDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [stripeConnectLoading, setStripeConnectLoading] = useState(false)
+  const [showPhoneModal, setShowPhoneModal] = useState(false)
+  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneSaving, setPhoneSaving] = useState(false)
+  const [phoneError, setPhoneError] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -156,6 +161,10 @@ export default function PartnerDashboardPage() {
       const data = await res.json()
       if (res.ok && data.onboardingUrl) {
         window.location.href = data.onboardingUrl
+      } else if (data.code === 'PHONE_REQUIRED') {
+        // Phone number required - show modal
+        setPhoneInput(partner?.phone || '')
+        setShowPhoneModal(true)
       } else {
         alert(data.error || 'Failed to setup Stripe Connect')
       }
@@ -164,6 +173,46 @@ export default function PartnerDashboardPage() {
       alert('Failed to setup Stripe Connect')
     } finally {
       setStripeConnectLoading(false)
+    }
+  }
+
+  async function savePhone() {
+    if (!phoneInput.trim()) {
+      setPhoneError('Phone number is required')
+      return
+    }
+
+    const digitsOnly = phoneInput.replace(/\D/g, '')
+    if (digitsOnly.length < 10) {
+      setPhoneError('Please enter a valid phone number with at least 10 digits')
+      return
+    }
+
+    setPhoneSaving(true)
+    setPhoneError('')
+
+    try {
+      const res = await fetch('/api/account/partner', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneInput }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        // Update local state
+        setPartner(prev => prev ? { ...prev, phone: phoneInput } : null)
+        setShowPhoneModal(false)
+        // Now try Stripe Connect again
+        setupStripeConnect()
+      } else {
+        setPhoneError(data.error || 'Failed to save phone number')
+      }
+    } catch (error) {
+      console.error('Error saving phone:', error)
+      setPhoneError('Failed to save phone number')
+    } finally {
+      setPhoneSaving(false)
     }
   }
 
@@ -776,6 +825,48 @@ export default function PartnerDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Phone Number Modal */}
+      {showPhoneModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface border border-border rounded-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-2">Phone Number Required</h2>
+            <p className="text-text-secondary text-sm mb-4">
+              Please enter your phone number to set up payouts. Stripe will send verification codes to this number during setup.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Phone Number</label>
+              <input
+                type="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                placeholder="(555) 123-4567"
+                className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:outline-none focus:border-accent"
+              />
+              {phoneError && (
+                <p className="text-red-500 text-sm mt-2">{phoneError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPhoneModal(false)}
+                className="flex-1 px-4 py-2.5 border border-border rounded-lg hover:bg-surface-elevated transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePhone}
+                disabled={phoneSaving}
+                className="flex-1 px-4 py-2.5 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+              >
+                {phoneSaving ? 'Saving...' : 'Save & Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

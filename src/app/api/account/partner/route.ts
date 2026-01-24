@@ -147,3 +147,51 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch partner data' }, { status: 500 })
   }
 }
+
+// PATCH /api/account/partner - Update partner profile (phone, etc.)
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const partner = await prisma.partner.findUnique({
+      where: { userId: session.user.id },
+    })
+
+    if (!partner) {
+      return NextResponse.json({ error: 'Not a partner' }, { status: 404 })
+    }
+
+    const body = await req.json()
+    const { phone } = body
+
+    // Validate phone if provided
+    if (phone !== undefined) {
+      if (phone && typeof phone === 'string') {
+        // Basic validation - should have at least 10 digits
+        const digitsOnly = phone.replace(/\D/g, '')
+        if (digitsOnly.length < 10) {
+          return NextResponse.json({ error: 'Phone number must have at least 10 digits' }, { status: 400 })
+        }
+      }
+    }
+
+    // Update partner
+    const updatedPartner = await prisma.partner.update({
+      where: { id: partner.id },
+      data: {
+        ...(phone !== undefined && { phone: phone || null }),
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      partner: updatedPartner,
+    })
+  } catch (error) {
+    console.error('Error updating partner:', error)
+    return NextResponse.json({ error: 'Failed to update partner' }, { status: 500 })
+  }
+}

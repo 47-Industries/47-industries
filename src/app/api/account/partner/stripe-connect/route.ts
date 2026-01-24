@@ -35,6 +35,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Partner account not found' }, { status: 404 })
     }
 
+    // Require phone number before setting up Stripe Connect
+    if (!partner.phone) {
+      return NextResponse.json({
+        error: 'Phone number required',
+        code: 'PHONE_REQUIRED',
+        message: 'Please add your phone number before setting up payouts. This ensures verification codes are sent to you, not the platform owner.'
+      }, { status: 400 })
+    }
+
     let stripeAccountId = partner.stripeConnectId
 
     // Create Stripe Connect Express account if doesn't exist
