@@ -100,32 +100,10 @@ export async function POST(req: NextRequest) {
           stripeConnectStatus: 'PENDING',
         },
       })
-    } else {
-      // Account exists - update with partner's phone if we have it and they haven't completed onboarding
-      if (partner.phone) {
-        try {
-          let phone = partner.phone.replace(/\D/g, '')
-          if (phone.length === 10) {
-            phone = '+1' + phone
-          } else if (phone.length === 11 && phone.startsWith('1')) {
-            phone = '+' + phone
-          } else if (!phone.startsWith('+')) {
-            phone = '+1' + phone
-          }
-
-          // Update the connected account with partner's phone
-          await getStripe().accounts.update(stripeAccountId, {
-            individual: {
-              phone: phone,
-            },
-          })
-          console.log(`Updated Stripe Connect account ${stripeAccountId} with phone`)
-        } catch (updateErr: any) {
-          // May fail if account is already verified - that's ok
-          console.log('Could not update phone on existing account:', updateErr.message)
-        }
-      }
     }
+    // Note: We don't try to update phone on existing Express accounts because
+    // Stripe doesn't allow platforms to modify 'individual' details after creation.
+    // Partners must update their info through Stripe's dashboard if needed.
 
     // Create account onboarding link - redirect back to partner dashboard
     const accountLink = await getStripe().accountLinks.create({
