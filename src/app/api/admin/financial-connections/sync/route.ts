@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkExpensePermission } from '@/lib/expense-permissions'
 import Stripe from 'stripe'
+import { applySkipRulesToTransaction } from '@/lib/transaction-rules'
 
 // POST /api/admin/financial-connections/sync - Sync transactions from connected accounts
 export async function POST(request: NextRequest) {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
           })
 
           if (!existing) {
-            await prisma.stripeTransaction.create({
+            const newTransaction = await prisma.stripeTransaction.create({
               data: {
                 financialAccountId: account.id,
                 stripeTransactionId: txn.id,
@@ -110,6 +111,9 @@ export async function POST(request: NextRequest) {
               }
             })
             results.transactionsAdded++
+
+            // Apply skip rules to the new transaction
+            await applySkipRulesToTransaction(newTransaction)
           }
         }
 
