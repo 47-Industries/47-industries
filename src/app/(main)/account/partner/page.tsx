@@ -159,13 +159,18 @@ export default function PartnerDashboardPage() {
           setStripeStatusMessage('Payout setup complete!')
           // Refresh partner data to get updated status
           fetchPartnerData()
+          setTimeout(() => setStripeStatusMessage(''), 5000)
+        } else if (data.detailsSubmitted && !data.payoutsEnabled) {
+          // User completed onboarding but Stripe is still verifying
+          setStripeStatusMessage('Submitted! Stripe is verifying your info. This usually takes 1-2 business days.')
+          fetchPartnerData()
+          setTimeout(() => setStripeStatusMessage(''), 10000)
         } else if (data.status === 'PENDING') {
           setStripeStatusMessage('Setup incomplete. Please complete all required steps.')
+          setTimeout(() => setStripeStatusMessage(''), 5000)
         } else {
           setStripeStatusMessage('')
         }
-        // Clear message after 5 seconds
-        setTimeout(() => setStripeStatusMessage(''), 5000)
       }
     } catch (error) {
       console.error('Error checking Stripe status:', error)
@@ -441,6 +446,11 @@ export default function PartnerDashboardPage() {
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
                 <span className="text-green-500 font-medium">Ready</span>
               </div>
+            ) : partner.stripeConnectStatus === 'PENDING_VERIFICATION' ? (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
+                <span className="text-yellow-500 text-sm">Verifying</span>
+              </div>
             ) : (
               <button
                 onClick={setupStripeConnect}
@@ -643,7 +653,7 @@ export default function PartnerDashboardPage() {
         </div>
 
         {/* Payout Setup Banner - if not connected */}
-        {partner.stripeConnectStatus !== 'CONNECTED' && (
+        {partner.stripeConnectStatus !== 'CONNECTED' && partner.stripeConnectStatus !== 'PENDING_VERIFICATION' && (
           <div className="p-5 border border-yellow-500/30 rounded-xl bg-yellow-500/5 mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -666,6 +676,25 @@ export default function PartnerDashboardPage() {
               >
                 {stripeConnectLoading ? 'Loading...' : 'Connect Bank Account'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Verification in Progress Banner */}
+        {partner.stripeConnectStatus === 'PENDING_VERIFICATION' && (
+          <div className="p-5 border border-blue-500/30 rounded-xl bg-blue-500/5 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24" className="animate-spin">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-400">Verification in Progress</h3>
+                <p className="text-sm text-text-secondary">
+                  Stripe is reviewing your information. This usually takes 1-2 business days. You&apos;ll be able to receive payouts once verified.
+                </p>
+              </div>
             </div>
           </div>
         )}

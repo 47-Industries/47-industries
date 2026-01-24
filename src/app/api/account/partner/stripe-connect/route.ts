@@ -182,8 +182,17 @@ export async function GET(req: NextRequest) {
 
     const isFullyOnboarded = account.details_submitted && account.payouts_enabled
 
+    // Determine more specific status
+    let newStatus: string
+    if (isFullyOnboarded) {
+      newStatus = 'CONNECTED'
+    } else if (account.details_submitted) {
+      newStatus = 'PENDING_VERIFICATION' // Details submitted, awaiting Stripe verification
+    } else {
+      newStatus = 'PENDING' // Onboarding not complete
+    }
+
     // Update status in database if changed
-    const newStatus = isFullyOnboarded ? 'CONNECTED' : 'PENDING'
     if (partner.stripeConnectStatus !== newStatus) {
       await prisma.partner.update({
         where: { id: partner.id },
