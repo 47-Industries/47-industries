@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/prisma'
 
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic'
+
 // Color mapping for accent colors
 const colorClasses: Record<string, { border: string; text: string }> = {
   blue: { border: 'border-l-blue-500', text: 'text-blue-400' },
