@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 interface ReferredProject {
@@ -113,6 +113,7 @@ interface Payout {
 export default function PartnerDashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [partner, setPartner] = useState<Partner | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -121,6 +122,7 @@ export default function PartnerDashboardPage() {
   const [phoneInput, setPhoneInput] = useState('')
   const [phoneSaving, setPhoneSaving] = useState(false)
   const [phoneError, setPhoneError] = useState('')
+  const [stripeStatusMessage, setStripeStatusMessage] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -133,6 +135,43 @@ export default function PartnerDashboardPage() {
       fetchPartnerData()
     }
   }, [session])
+
+  // Check Stripe status after returning from onboarding
+  useEffect(() => {
+    const stripeSuccess = searchParams.get('stripe_success')
+    const stripeRefresh = searchParams.get('stripe_refresh')
+
+    if (stripeSuccess === 'true' || stripeRefresh === 'true') {
+      // Remove query params from URL
+      router.replace('/account/partner', { scroll: false })
+      // Check Stripe status
+      checkStripeStatus()
+    }
+  }, [searchParams])
+
+  async function checkStripeStatus() {
+    try {
+      setStripeStatusMessage('Verifying payout setup...')
+      const res = await fetch('/api/account/partner/stripe-connect')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.connected) {
+          setStripeStatusMessage('Payout setup complete!')
+          // Refresh partner data to get updated status
+          fetchPartnerData()
+        } else if (data.status === 'PENDING') {
+          setStripeStatusMessage('Setup incomplete. Please complete all required steps.')
+        } else {
+          setStripeStatusMessage('')
+        }
+        // Clear message after 5 seconds
+        setTimeout(() => setStripeStatusMessage(''), 5000)
+      }
+    } catch (error) {
+      console.error('Error checking Stripe status:', error)
+      setStripeStatusMessage('')
+    }
+  }
 
   async function fetchPartnerData() {
     try {
@@ -392,7 +431,12 @@ export default function PartnerDashboardPage() {
           </div>
           <div className="p-5 border border-border rounded-xl bg-surface">
             <p className="text-sm text-text-secondary mb-1">Payout Status</p>
-            {partner.stripeConnectStatus === 'CONNECTED' ? (
+            {stripeStatusMessage ? (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+                <span className="text-blue-400 text-sm">{stripeStatusMessage}</span>
+              </div>
+            ) : partner.stripeConnectStatus === 'CONNECTED' ? (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
                 <span className="text-green-500 font-medium">Ready</span>
