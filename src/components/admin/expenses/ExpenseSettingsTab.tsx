@@ -67,6 +67,8 @@ export default function ExpenseSettingsTab() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [fixingOrphans, setFixingOrphans] = useState(false)
+  const [consolidating, setConsolidating] = useState(false)
+  const [consolidateResults, setConsolidateResults] = useState<any>(null)
 
   useEffect(() => {
     fetchData()
@@ -257,6 +259,42 @@ export default function ExpenseSettingsTab() {
       setError('Failed to fix orphan bills')
     } finally {
       setFixingOrphans(false)
+    }
+  }
+
+  const handleConsolidate = async (action: 'all' | 'rules' | 'bills' | 'apply-rules') => {
+    setConsolidating(true)
+    setError('')
+    setSuccess('')
+    setConsolidateResults(null)
+    try {
+      const res = await fetch('/api/admin/expenses/consolidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setConsolidateResults(data.results)
+        const messages = []
+        if (data.results.rules) {
+          messages.push(`Merged ${data.results.rules.groupsMerged} rule groups, deleted ${data.results.rules.rulesDeleted} duplicates`)
+        }
+        if (data.results.bills) {
+          messages.push(`Merged ${data.results.bills.groupsMerged} bill groups, deactivated ${data.results.bills.billsDeactivated} duplicates`)
+        }
+        if (data.results.rulesApplied) {
+          messages.push(`Processed ${data.results.rulesApplied.processed} pending transactions, skipped ${data.results.rulesApplied.skipped}`)
+        }
+        setSuccess(messages.join('. ') || 'Consolidation complete')
+        fetchData()
+      } else {
+        setError(data.error || 'Consolidation failed')
+      }
+    } catch (err) {
+      setError('Failed to consolidate')
+    } finally {
+      setConsolidating(false)
     }
   }
 
@@ -662,6 +700,127 @@ export default function ExpenseSettingsTab() {
             To connect bank accounts, go to the <strong>Transactions</strong> tab and click "Connect Bank".
             Stripe Financial Connections allows secure read-only access to transaction history.
           </div>
+        </div>
+      </div>
+
+      {/* Maintenance Section */}
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Maintenance</h3>
+          <p style={{ fontSize: '13px', color: '#71717a', margin: '4px 0 0 0' }}>
+            Clean up duplicates and re-apply rules to pending transactions
+          </p>
+        </div>
+
+        <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+            <button
+              onClick={() => handleConsolidate('apply-rules')}
+              disabled={consolidating}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #3b82f6',
+                background: 'rgba(59,130,246,0.1)',
+                color: '#3b82f6',
+                cursor: consolidating ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+                opacity: consolidating ? 0.5 : 1,
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Re-apply Skip Rules</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>Apply rules to pending transactions</div>
+            </button>
+
+            <button
+              onClick={() => handleConsolidate('rules')}
+              disabled={consolidating}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #f59e0b',
+                background: 'rgba(245,158,11,0.1)',
+                color: '#f59e0b',
+                cursor: consolidating ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+                opacity: consolidating ? 0.5 : 1,
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Merge Duplicate Rules</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>Consolidate identical skip rules</div>
+            </button>
+
+            <button
+              onClick={() => handleConsolidate('bills')}
+              disabled={consolidating}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #8b5cf6',
+                background: 'rgba(139,92,246,0.1)',
+                color: '#8b5cf6',
+                cursor: consolidating ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+                opacity: consolidating ? 0.5 : 1,
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Merge Duplicate Bills</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>Consolidate identical recurring bills</div>
+            </button>
+
+            <button
+              onClick={() => handleConsolidate('all')}
+              disabled={consolidating}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #10b981',
+                background: 'rgba(16,185,129,0.1)',
+                color: '#10b981',
+                cursor: consolidating ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: 500,
+                opacity: consolidating ? 0.5 : 1,
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Run All Maintenance</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>Consolidate + re-apply rules</div>
+            </button>
+          </div>
+
+          {consolidating && (
+            <div style={{ textAlign: 'center', padding: '12px', color: '#71717a' }}>
+              Running maintenance...
+            </div>
+          )}
+
+          {consolidateResults && (
+            <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '8px', color: '#a1a1aa' }}>Results:</div>
+              {consolidateResults.rules && (
+                <div style={{ color: '#f59e0b', marginBottom: '4px' }}>
+                  Rules: {consolidateResults.rules.groupsMerged} groups merged, {consolidateResults.rules.rulesDeleted} deleted
+                </div>
+              )}
+              {consolidateResults.bills && (
+                <div style={{ color: '#8b5cf6', marginBottom: '4px' }}>
+                  Bills: {consolidateResults.bills.groupsMerged} groups merged, {consolidateResults.bills.billsDeactivated} deactivated, {consolidateResults.bills.instancesMigrated} instances migrated
+                </div>
+              )}
+              {consolidateResults.rulesApplied && (
+                <div style={{ color: '#3b82f6' }}>
+                  Transactions: {consolidateResults.rulesApplied.processed} processed, {consolidateResults.rulesApplied.skipped} auto-skipped
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
