@@ -86,14 +86,20 @@ export default function Custom3DPrintingForm() {
 
     // Volume discounts for mass production
     let volumeMultiplier = 1
-    if (formData.quantity >= 100) {
-      volumeMultiplier = 0.6 // 40% off for 100+
+    if (formData.quantity >= 1000) {
+      volumeMultiplier = 0.35 // 65% off for 1000+
+    } else if (formData.quantity >= 500) {
+      volumeMultiplier = 0.4 // 60% off for 500+
+    } else if (formData.quantity >= 250) {
+      volumeMultiplier = 0.45 // 55% off for 250+
+    } else if (formData.quantity >= 100) {
+      volumeMultiplier = 0.5 // 50% off for 100+
     } else if (formData.quantity >= 50) {
-      volumeMultiplier = 0.7 // 30% off for 50+
+      volumeMultiplier = 0.6 // 40% off for 50+
     } else if (formData.quantity >= 25) {
-      volumeMultiplier = 0.8 // 20% off for 25+
+      volumeMultiplier = 0.7 // 30% off for 25+
     } else if (formData.quantity >= 10) {
-      volumeMultiplier = 0.9 // 10% off for 10+
+      volumeMultiplier = 0.85 // 15% off for 10+
     }
 
     // Production cost with volume discount
