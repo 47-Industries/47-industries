@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const accountId = body.accountId // Optional - sync specific account
+    const triggerRefresh = body.refresh === true // Only refresh if explicitly requested
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -66,12 +67,16 @@ export async function POST(request: NextRequest) {
             console.log(`[SYNC] Subscribe note:`, subErr.message)
           }
 
-          // Trigger a transaction refresh (Stripe fetches latest from bank)
-          // This is async - transactions may not be immediately available
-          await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
-            features: ['transactions']
-          })
-          console.log(`[SYNC] Triggered transaction refresh for ${account.stripeAccountId}`)
+          // Only trigger bank refresh if explicitly requested
+          // This avoids sending verification texts on every sync
+          if (triggerRefresh) {
+            await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
+              features: ['transactions']
+            })
+            console.log(`[SYNC] Triggered transaction refresh for ${account.stripeAccountId}`)
+          } else {
+            console.log(`[SYNC] Skipping refresh (fetch existing transactions only)`)
+          }
         } catch (refreshErr: any) {
           console.log(`[SYNC] Refresh note for ${account.stripeAccountId}:`, refreshErr.message)
           // Continue anyway - transactions might already be available
@@ -136,7 +141,11 @@ export async function POST(request: NextRequest) {
 
     // Add helpful message if no transactions found
     if (results.transactionsAdded === 0 && results.accountsSynced > 0 && results.errors.length === 0) {
-      results.errors.push('Transaction refresh triggered. Transactions may take a few minutes to appear. Try syncing again shortly.')
+      if (triggerRefresh) {
+        results.errors.push('Refresh triggered. New transactions may take a few minutes to appear from your bank.')
+      } else {
+        results.errors.push('No new transactions found. Use "Refresh from Bank" if you need the latest data.')
+      }
     }
 
     // Run maintenance on all pending transactions (not just new ones)

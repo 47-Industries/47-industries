@@ -322,17 +322,11 @@ async function syncBankTransactions(): Promise<{
 
     for (const account of accounts) {
       try {
-        // Subscribe and refresh
-        try {
-          await stripe.financialConnections.accounts.subscribe(account.stripeAccountId, {
-            features: ['transactions']
-          })
-          await stripe.financialConnections.accounts.refresh(account.stripeAccountId, {
-            features: ['transactions']
-          })
-        } catch (e) {
-          // Continue - might already be subscribed
-        }
+        // Note: We intentionally do NOT call refresh() here
+        // Calling refresh() triggers Stripe to pull fresh data from the bank,
+        // which sends verification texts to the user every time.
+        // Instead, we just fetch transactions that are already available.
+        // Use the manual sync button with refresh if you need fresh bank data.
 
         // Fetch all transactions with pagination
         let hasMore = true
