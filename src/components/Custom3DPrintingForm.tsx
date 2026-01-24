@@ -64,6 +64,7 @@ export default function Custom3DPrintingForm() {
   const [error, setError] = useState('')
   const [requestNumber, setRequestNumber] = useState('')
   const [estimatedCost, setEstimatedCost] = useState(0)
+  const [pricePerUnit, setPricePerUnit] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formatFileSize = (bytes: number) => {
@@ -102,22 +103,27 @@ export default function Custom3DPrintingForm() {
       volumeMultiplier = 0.85 // 15% off for 10+
     }
 
-    // Production cost with volume discount
-    let productionCost = perUnitCost * formData.quantity * volumeMultiplier
+    // One-time fees (design, setup)
+    const oneTimeFees = needsPrototyping ? 300 : 0
 
-    // One-time design/prototyping fee (NOT per-unit)
-    if (needsPrototyping) {
-      productionCost += 250 // Flat design fee
-      productionCost += 50 // Prototyping/revision fee
-    }
+    // Add-on services (per-unit)
+    let perUnitAddOns = 0
+    if (formData.assembly) perUnitAddOns += 10
+    if (formData.packaging) perUnitAddOns += 5
 
-    // Add-on services
-    let addOnCost = 0
-    if (formData.expedited) addOnCost += productionCost * 0.5 // 50% rush fee
-    if (formData.assembly) addOnCost += formData.quantity * 10
-    if (formData.packaging) addOnCost += formData.quantity * 5
+    // Calculate production cost (units only, no one-time fees)
+    const unitProductionCost = (perUnitCost * volumeMultiplier) + perUnitAddOns
+    const totalProductionCost = unitProductionCost * formData.quantity
 
-    setEstimatedCost(Math.ceil(productionCost + addOnCost))
+    // Rush fee applies to production cost
+    const rushFee = formData.expedited ? totalProductionCost * 0.5 : 0
+
+    // Final totals
+    const totalCost = totalProductionCost + rushFee + oneTimeFees
+    const effectivePerUnit = totalCost / formData.quantity
+
+    setEstimatedCost(Math.ceil(totalCost))
+    setPricePerUnit(Math.ceil(effectivePerUnit * 100) / 100) // Round to 2 decimal places
   }, [formData.material, formData.finish, formData.color, formData.quantity, formData.expedited, formData.assembly, formData.packaging, needsPrototyping])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -586,15 +592,28 @@ export default function Custom3DPrintingForm() {
       {/* Estimated Cost */}
       {estimatedCost > 0 && (
         <div className="border border-accent/30 bg-accent/5 rounded-xl p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold mb-1">Estimated Total</h3>
               <p className="text-sm text-text-secondary">Final quote will be provided within 24-48 hours</p>
             </div>
             <div className="text-3xl font-bold text-accent">
-              ${estimatedCost}
+              ${estimatedCost.toLocaleString()}
             </div>
           </div>
+          <div className="flex items-center justify-between pt-4 border-t border-accent/20">
+            <div className="text-sm text-text-secondary">
+              Price per unit ({formData.quantity} units)
+            </div>
+            <div className="text-lg font-semibold text-text-primary">
+              ${pricePerUnit.toFixed(2)}/unit
+            </div>
+          </div>
+          {formData.quantity >= 10 && (
+            <div className="mt-3 text-xs text-green-400">
+              Volume discount applied: {formData.quantity >= 1000 ? '65%' : formData.quantity >= 500 ? '60%' : formData.quantity >= 250 ? '55%' : formData.quantity >= 100 ? '50%' : formData.quantity >= 50 ? '40%' : formData.quantity >= 25 ? '30%' : '15%'} off
+            </div>
+          )}
         </div>
       )}
 
