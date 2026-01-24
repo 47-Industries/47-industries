@@ -74,26 +74,44 @@ export default function Custom3DPrintingForm() {
 
   // Calculate estimated cost
   useEffect(() => {
-    const materialCost = MATERIAL_PRICES[formData.material as keyof typeof MATERIAL_PRICES] || 0.02
+    const materialCostPerUnit = MATERIAL_PRICES[formData.material as keyof typeof MATERIAL_PRICES] || 0.02
     const finishMultiplier = FINISH_MULTIPLIERS[formData.finish as keyof typeof FINISH_MULTIPLIERS] || 1
     const colorCost = COLOR_PRICES[formData.color as keyof typeof COLOR_PRICES] || 0
 
-    // Base cost calculation (simplified - actual would use file volume)
-    const baseCost = 15
-    let cost = (baseCost + colorCost) * finishMultiplier * materialCost * 100 * formData.quantity
+    // Base per-unit cost (labor, machine time, materials for typical small print)
+    // Assumes ~50g average material usage per unit
+    const baseLaborCost = 8 // Base handling/setup per unit
+    const estimatedMaterialCost = 50 * materialCostPerUnit // ~50g of material
+    const perUnitCost = (baseLaborCost + estimatedMaterialCost + colorCost) * finishMultiplier
 
-    // MASSIVE prototyping fee if no 3D file
-    if (needsPrototyping) {
-      cost = cost * 3 // Triple the base cost
-      cost += 250 * formData.quantity // Add $250 per unit for design/prototyping
+    // Volume discounts for mass production
+    let volumeMultiplier = 1
+    if (formData.quantity >= 100) {
+      volumeMultiplier = 0.6 // 40% off for 100+
+    } else if (formData.quantity >= 50) {
+      volumeMultiplier = 0.7 // 30% off for 50+
+    } else if (formData.quantity >= 25) {
+      volumeMultiplier = 0.8 // 20% off for 25+
+    } else if (formData.quantity >= 10) {
+      volumeMultiplier = 0.9 // 10% off for 10+
     }
 
+    // Production cost with volume discount
+    let productionCost = perUnitCost * formData.quantity * volumeMultiplier
+
+    // One-time design/prototyping fee (NOT per-unit)
+    if (needsPrototyping) {
+      productionCost += 250 // Flat design fee
+      productionCost += 50 // Prototyping/revision fee
+    }
+
+    // Add-on services
     let addOnCost = 0
-    if (formData.expedited) addOnCost += cost * 0.5 // 50% rush fee
+    if (formData.expedited) addOnCost += productionCost * 0.5 // 50% rush fee
     if (formData.assembly) addOnCost += formData.quantity * 10
     if (formData.packaging) addOnCost += formData.quantity * 5
 
-    setEstimatedCost(Math.ceil(cost + addOnCost))
+    setEstimatedCost(Math.ceil(productionCost + addOnCost))
   }, [formData.material, formData.finish, formData.color, formData.quantity, formData.expedited, formData.assembly, formData.packaging, needsPrototyping])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
