@@ -31,6 +31,9 @@ export async function GET(
           orderBy: { createdAt: 'desc' },
           include: {
             items: true,
+            payments: {
+              orderBy: { paidAt: 'desc' },
+            },
           },
         },
         contracts: {
@@ -63,6 +66,83 @@ export async function GET(
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
+    }
+
+    // Calculate financial totals from invoices and payments
+    let totalInvoiced = 0
+    let totalPaid = 0
+    const allPayments: any[] = []
+
+    for (const invoice of client.invoices) {
+      totalInvoiced += Number(invoice.total)
+      for (const payment of (invoice as any).payments) {
+        totalPaid += Number(payment.amount)
+        allPayments.push({
+          ...payment,
+          amount: Number(payment.amount),
+          invoiceNumber: invoice.invoiceNumber,
+        })
+      }
+    }
+
+    const totalOutstanding = totalInvoiced - totalPaid
+
+    // Fetch partner lead and related payouts for this client
+    const partnerLead = await prisma.partnerLead.findFirst({
+      where: { clientId: id },
+      include: {
+        partner: {
+          select: { id: true, name: true, partnerNumber: true },
+        },
+        commissions: {
+          include: {
+            payout: {
+              select: {
+                id: true,
+                payoutNumber: true,
+                amount: true,
+                method: true,
+                status: true,
+                paidAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    // Build money movement data
+    const moneyMovement = {
+      // Money In
+      paymentsReceived: allPayments.sort((a, b) =>
+        new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+      ),
+      totalReceived: totalPaid,
+      // Partner Info
+      partner: partnerLead?.partner || null,
+      // Partner Payouts
+      partnerPayouts: partnerLead?.commissions
+        .filter(c => c.payout)
+        .map(c => ({
+          id: c.payout!.id,
+          payoutNumber: c.payout!.payoutNumber,
+          commissionType: c.type,
+          baseAmount: Number(c.baseAmount),
+          rate: Number(c.rate),
+          commissionAmount: Number(c.amount),
+          payoutAmount: Number(c.payout!.amount),
+          method: c.payout!.method,
+          status: c.payout!.status,
+          paidAt: c.payout!.paidAt,
+        })) || [],
+      totalToPartner: partnerLead?.commissions
+        .filter(c => c.payout?.status === 'PAID')
+        .reduce((sum, c) => sum + Number(c.amount), 0) || 0,
+      // 47 Industries share
+      totalTo47: totalPaid - (partnerLead?.commissions
+        .filter(c => c.payout?.status === 'PAID')
+        .reduce((sum, c) => sum + Number(c.amount), 0) || 0),
     }
 
     // Fetch attribution info for projects (partner who referred, team member who closed)
@@ -105,6 +185,9 @@ export async function GET(
       client: {
         ...client,
         projects: projectsWithAttribution,
+        totalRevenue: totalPaid,
+        totalOutstanding,
+        moneyMovement,
       },
     })
   } catch (error) {

@@ -43,6 +43,7 @@ interface Client {
   activities: Activity[]
   inquiry?: any
   user?: { id: string; email: string; name?: string }
+  moneyMovement?: MoneyMovement
 }
 
 interface Contact {
@@ -83,6 +84,37 @@ interface Project {
   }
 }
 
+interface InvoicePayment {
+  id: string
+  amount: number
+  method: string
+  paidAt: string
+  notes?: string
+  invoiceNumber?: string
+}
+
+interface PartnerPayoutInfo {
+  id: string
+  payoutNumber: string
+  commissionType: string
+  baseAmount: number
+  rate: number
+  commissionAmount: number
+  payoutAmount: number
+  method?: string
+  status: string
+  paidAt?: string
+}
+
+interface MoneyMovement {
+  paymentsReceived: InvoicePayment[]
+  totalReceived: number
+  partner: { id: string; name: string; partnerNumber: string } | null
+  partnerPayouts: PartnerPayoutInfo[]
+  totalToPartner: number
+  totalTo47: number
+}
+
 interface Invoice {
   id: string
   invoiceNumber: string
@@ -91,6 +123,7 @@ interface Invoice {
   dueDate?: string
   paidAt?: string
   createdAt: string
+  payments?: InvoicePayment[]
 }
 
 interface Amendment {
@@ -1434,6 +1467,139 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
         </div>
+
+        {/* Money Movement */}
+        {client.moneyMovement && (client.moneyMovement.paymentsReceived.length > 0 || client.moneyMovement.partnerPayouts.length > 0) && (
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>Money Movement</h3>
+
+            {/* Summary Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px', borderLeft: '3px solid #10b981' }}>
+                <p style={{ margin: 0, color: '#71717a', fontSize: '11px', textTransform: 'uppercase' }}>Money In</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 700, color: '#10b981' }}>
+                  {formatCurrency(client.moneyMovement.totalReceived)}
+                </p>
+              </div>
+              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px', borderLeft: '3px solid #f59e0b' }}>
+                <p style={{ margin: 0, color: '#71717a', fontSize: '11px', textTransform: 'uppercase' }}>To Partner</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 700, color: '#f59e0b' }}>
+                  {formatCurrency(client.moneyMovement.totalToPartner)}
+                </p>
+                {client.moneyMovement.partner && (
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#71717a' }}>
+                    {client.moneyMovement.partner.name}
+                  </p>
+                )}
+              </div>
+              <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '12px', borderLeft: '3px solid #3b82f6' }}>
+                <p style={{ margin: 0, color: '#71717a', fontSize: '11px', textTransform: 'uppercase' }}>To 47 Industries</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: 700, color: '#3b82f6' }}>
+                  {formatCurrency(client.moneyMovement.totalTo47)}
+                </p>
+              </div>
+            </div>
+
+            {/* Payments Received */}
+            {client.moneyMovement.paymentsReceived.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 500, color: '#a1a1aa' }}>Payments Received</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {client.moneyMovement.paymentsReceived.map((payment) => (
+                    <div
+                      key={payment.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        borderRadius: '6px',
+                        border: '1px solid #27272a',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ color: '#10b981', fontWeight: 600, fontSize: '14px' }}>
+                          +{formatCurrency(payment.amount)}
+                        </span>
+                        <span style={{
+                          padding: '2px 6px',
+                          background: '#27272a',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          color: '#a1a1aa',
+                        }}>
+                          {payment.method}
+                        </span>
+                        {payment.invoiceNumber && (
+                          <span style={{ color: '#71717a', fontSize: '12px' }}>
+                            {payment.invoiceNumber}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ color: '#71717a', fontSize: '12px' }}>
+                        {formatDate(payment.paidAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Partner Payouts */}
+            {client.moneyMovement.partnerPayouts.length > 0 && (
+              <div>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 500, color: '#a1a1aa' }}>Partner Payouts</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {client.moneyMovement.partnerPayouts.map((payout) => (
+                    <div
+                      key={payout.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        background: '#0a0a0a',
+                        borderRadius: '6px',
+                        border: '1px solid #27272a',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: '14px' }}>
+                          -{formatCurrency(payout.commissionAmount)}
+                        </span>
+                        <span style={{
+                          padding: '2px 6px',
+                          background: '#27272a',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          color: '#a1a1aa',
+                        }}>
+                          {payout.method || 'PENDING'}
+                        </span>
+                        <span style={{ color: '#71717a', fontSize: '12px' }}>
+                          {payout.payoutNumber}
+                        </span>
+                        <span style={{
+                          padding: '2px 6px',
+                          background: payout.status === 'PAID' ? '#10b98120' : '#f59e0b20',
+                          color: payout.status === 'PAID' ? '#10b981' : '#f59e0b',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                        }}>
+                          {payout.status}
+                        </span>
+                      </div>
+                      <span style={{ color: '#71717a', fontSize: '12px' }}>
+                        {payout.paidAt ? formatDate(payout.paidAt) : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Recent Invoices */}
         <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: '#a1a1aa' }}>Recent Invoices</h3>
