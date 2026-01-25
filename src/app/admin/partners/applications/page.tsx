@@ -130,12 +130,30 @@ export default function ApplicationsPage() {
             Review and manage partner and affiliate program applications
           </p>
         </div>
-        <Link
-          href="/admin/partners"
-          className="text-zinc-400 hover:text-white text-sm transition-colors"
-        >
-          Back to Partners
-        </Link>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2">
+            <span className="text-zinc-400 text-sm">Application Link:</span>
+            <code className="text-blue-400 text-sm font-mono">47industries.com/partners/apply</code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText('https://47industries.com/partners/apply')
+                showToast('Link copied to clipboard', 'success')
+              }}
+              className="text-zinc-500 hover:text-white transition-colors ml-1"
+              title="Copy link"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+          <Link
+            href="/admin/partners"
+            className="text-zinc-400 hover:text-white text-sm transition-colors"
+          >
+            Back to Partners
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
