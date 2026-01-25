@@ -28,7 +28,14 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         partner: {
-          select: { id: true, name: true, partnerNumber: true, email: true },
+          select: {
+            id: true,
+            name: true,
+            partnerNumber: true,
+            email: true,
+            stripeConnectId: true,
+            stripeConnectStatus: true,
+          },
         },
         commissions: {
           select: { id: true, amount: true, type: true },

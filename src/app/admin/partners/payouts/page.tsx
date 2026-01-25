@@ -23,6 +23,8 @@ interface Payout {
     id: string
     name: string
     partnerNumber: string
+    stripeConnectId?: string
+    stripeConnectStatus?: string
   }
   commissions: { id: string; amount: number; type: string }[]
 }
@@ -42,6 +44,10 @@ export default function PartnerPayoutsPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [partners, setPartners] = useState<Partner[]>([])
+  const [stripePayoutId, setStripePayoutId] = useState<string | null>(null)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [executingPayout, setExecutingPayout] = useState(false)
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -105,6 +111,56 @@ export default function PartnerPayoutsPage() {
       }
     } catch (error) {
       showToast('Failed to update payout', 'error')
+    }
+  }
+
+  const handleStripePayoutStart = async (payoutId: string) => {
+    setSendingCode(true)
+    try {
+      // Send verification code
+      const res = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'payout' }),
+      })
+      if (res.ok) {
+        setStripePayoutId(payoutId)
+        setVerificationCode('')
+        showToast('Verification code sent to your phone', 'success')
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to send verification code', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to send verification code', 'error')
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  const handleStripePayoutExecute = async () => {
+    if (!stripePayoutId || !verificationCode) return
+
+    setExecutingPayout(true)
+    try {
+      const res = await fetch(`/api/admin/partners/payouts/${stripePayoutId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationCode }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast(`Payout executed! Transfer ID: ${data.transferId}`, 'success')
+        setStripePayoutId(null)
+        setVerificationCode('')
+        fetchPayouts()
+      } else {
+        showToast(data.error || 'Failed to execute payout', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to execute payout', 'error')
+    } finally {
+      setExecutingPayout(false)
     }
   }
 
@@ -348,7 +404,27 @@ export default function PartnerPayoutsPage() {
                     {formatCurrency(Number(payout.amount))}
                   </span>
                   {payout.status === 'PENDING' && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* Stripe Connect - only if partner has it set up */}
+                      {payout.partner.stripeConnectId && payout.partner.stripeConnectStatus === 'CONNECTED' && (
+                        <button
+                          onClick={() => handleStripePayoutStart(payout.id)}
+                          disabled={sendingCode}
+                          style={{
+                            padding: '8px 14px',
+                            background: '#6366f1',
+                            border: 'none',
+                            borderRadius: '6px',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            cursor: sendingCode ? 'wait' : 'pointer',
+                            opacity: sendingCode ? 0.7 : 1,
+                          }}
+                        >
+                          {sendingCode ? 'Sending...' : 'Pay via Stripe'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleMarkPaid(payout.id, 'CASH')}
                         style={{
@@ -397,6 +473,99 @@ export default function PartnerPayoutsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Stripe Verification Modal */}
+      {stripePayoutId && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '400px',
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 }}>
+              Verify Stripe Payout
+            </h3>
+            <p style={{ margin: '0 0 20px 0', color: '#a1a1aa', fontSize: '14px' }}>
+              Enter the verification code sent to your phone to execute this payout.
+            </p>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Verification Code
+              </label>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '18px',
+                  textAlign: 'center',
+                  letterSpacing: '8px',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setStripePayoutId(null)
+                  setVerificationCode('')
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStripePayoutExecute}
+                disabled={executingPayout || verificationCode.length < 6}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#6366f1',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: executingPayout ? 'wait' : 'pointer',
+                  opacity: executingPayout || verificationCode.length < 6 ? 0.6 : 1,
+                }}
+              >
+                {executingPayout ? 'Processing...' : 'Execute Payout'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
