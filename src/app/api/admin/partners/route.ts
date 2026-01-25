@@ -54,9 +54,16 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
+    // Expose stripeConnectId and stripeConnectStatus on each partner
+    const partnersWithStripeInfo = partners.map((p) => ({
+      ...p,
+      stripeConnectId: p.stripeConnectId,
+      stripeConnectStatus: p.stripeConnectStatus,
+    }))
+
     // Calculate totals for each partner
     const partnersWithTotals = await Promise.all(
-      partners.map(async (partner) => {
+      partnersWithStripeInfo.map(async (partner) => {
         const commissionTotals = await prisma.partnerCommission.aggregate({
           where: { partnerId: partner.id },
           _sum: { amount: true },

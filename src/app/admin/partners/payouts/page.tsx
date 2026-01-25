@@ -8,6 +8,8 @@ interface Partner {
   id: string
   name: string
   partnerNumber: string
+  stripeConnectId?: string
+  stripeConnectStatus?: string
 }
 
 interface Payout {
@@ -605,7 +607,17 @@ function CreatePayoutModal({
     status: 'PAID',
     paidAt: new Date().toISOString().split('T')[0],
   })
+  const [step, setStep] = useState<'form' | 'verification'>('form')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [pendingPayoutId, setPendingPayoutId] = useState<string | null>(null)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [executingPayout, setExecutingPayout] = useState(false)
   const { showToast } = useToast()
+
+  // Get selected partner info
+  const selectedPartner = partners.find(p => p.id === formData.partnerId)
+  const isStripeConnected = selectedPartner?.stripeConnectStatus === 'CONNECTED'
+  const isStripeMethod = formData.method === 'STRIPE_CONNECT'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -620,6 +632,62 @@ function CreatePayoutModal({
       return
     }
 
+    // If Stripe Connect method selected but partner not connected
+    if (isStripeMethod && !isStripeConnected) {
+      showToast('This partner does not have Stripe Connect set up. Use a different payment method.', 'warning')
+      return
+    }
+
+    // If Stripe Connect, create PENDING payout and start verification flow
+    if (isStripeMethod && isStripeConnected) {
+      try {
+        setSaving(true)
+        // Create a PENDING payout first
+        const res = await fetch('/api/admin/partners/payouts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            partnerId: formData.partnerId,
+            amount,
+            method: 'STRIPE_CONNECT',
+            notes: formData.notes || null,
+            status: 'PENDING', // Create as pending
+            markAsPaid: false,
+          }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          setPendingPayoutId(data.payout.id)
+          // Now send verification code
+          setSendingCode(true)
+          const verifyRes = await fetch('/api/auth/send-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'payout' }),
+          })
+          if (verifyRes.ok) {
+            setStep('verification')
+            showToast('Verification code sent to your phone', 'success')
+          } else {
+            const verifyData = await verifyRes.json()
+            showToast(verifyData.error || 'Failed to send verification code', 'error')
+          }
+          setSendingCode(false)
+        } else {
+          const data = await res.json()
+          showToast(data.error || 'Failed to create payout', 'error')
+        }
+      } catch (error) {
+        showToast('Failed to create payout', 'error')
+      } finally {
+        setSaving(false)
+        setSendingCode(false)
+      }
+      return
+    }
+
+    // Regular (non-Stripe) payout creation
     try {
       setSaving(true)
       const res = await fetch('/api/admin/partners/payouts', {
@@ -650,7 +718,130 @@ function CreatePayoutModal({
     }
   }
 
+  const handleStripeExecute = async () => {
+    if (!pendingPayoutId || !verificationCode) return
+
+    setExecutingPayout(true)
+    try {
+      const res = await fetch(`/api/admin/partners/payouts/${pendingPayoutId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationCode }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        showToast(`Payout executed! Transfer ID: ${data.transferId}`, 'success')
+        onSuccess()
+      } else {
+        showToast(data.error || 'Failed to execute payout', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to execute payout', 'error')
+    } finally {
+      setExecutingPayout(false)
+    }
+  }
+
   const methods = ['CASH', 'ZELLE', 'VENMO', 'STRIPE_CONNECT']
+
+  // Verification step UI
+  if (step === 'verification') {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 50,
+        padding: '20px',
+      }}>
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '12px',
+          padding: '24px',
+          width: '100%',
+          maxWidth: '400px',
+        }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600 }}>
+            Verify Stripe Payout
+          </h3>
+          <p style={{ margin: '0 0 8px 0', color: '#a1a1aa', fontSize: '14px' }}>
+            Enter the verification code sent to your phone to execute this payout.
+          </p>
+          <p style={{ margin: '0 0 20px 0', color: '#71717a', fontSize: '13px' }}>
+            Amount: <span style={{ color: '#10b981', fontWeight: 600 }}>${formData.amount}</span> to {selectedPartner?.name}
+          </p>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Verification Code
+            </label>
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter 6-digit code"
+              maxLength={6}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#0a0a0a',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '18px',
+                textAlign: 'center',
+                letterSpacing: '8px',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={() => {
+                setStep('form')
+                setVerificationCode('')
+                setPendingPayoutId(null)
+              }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#27272a',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleStripeExecute}
+              disabled={executingPayout || verificationCode.length < 6}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#6366f1',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: executingPayout ? 'wait' : 'pointer',
+                opacity: executingPayout || verificationCode.length < 6 ? 0.6 : 1,
+              }}
+            >
+              {executingPayout ? 'Processing...' : 'Execute Payout'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -699,7 +890,7 @@ function CreatePayoutModal({
                 <option value="">Select a partner</option>
                 {partners.map((partner) => (
                   <option key={partner.id} value={partner.id}>
-                    {partner.name} ({partner.partnerNumber})
+                    {partner.name} ({partner.partnerNumber}){partner.stripeConnectStatus === 'CONNECTED' ? ' - Stripe' : ''}
                   </option>
                 ))}
               </select>
@@ -733,30 +924,43 @@ function CreatePayoutModal({
               </div>
             </div>
 
-            {/* Method & Status */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-                  Payment Method
-                </label>
-                <select
-                  value={formData.method}
-                  onChange={(e) => setFormData({ ...formData, method: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: '#0a0a0a',
-                    border: '1px solid #27272a',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px',
-                  }}
-                >
-                  {methods.map((m) => (
-                    <option key={m} value={m}>{m.replace('_', ' ')}</option>
-                  ))}
-                </select>
-              </div>
+            {/* Payment Method */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Payment Method
+              </label>
+              <select
+                value={formData.method}
+                onChange={(e) => setFormData({ ...formData, method: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              >
+                {methods.map((m) => (
+                  <option key={m} value={m}>{m.replace('_', ' ')}</option>
+                ))}
+              </select>
+              {/* Stripe Connect warning/info */}
+              {isStripeMethod && selectedPartner && !isStripeConnected && (
+                <p style={{ margin: '6px 0 0 0', color: '#f59e0b', fontSize: '12px' }}>
+                  This partner does not have Stripe Connect set up.
+                </p>
+              )}
+              {isStripeMethod && isStripeConnected && (
+                <p style={{ margin: '6px 0 0 0', color: '#6366f1', fontSize: '12px' }}>
+                  Stripe transfer will be executed after verification.
+                </p>
+              )}
+            </div>
+
+            {/* Status - Only show for non-Stripe methods */}
+            {!isStripeMethod && (
               <div>
                 <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
                   Status
@@ -778,10 +982,10 @@ function CreatePayoutModal({
                   <option value="PENDING">Pending</option>
                 </select>
               </div>
-            </div>
+            )}
 
-            {/* Paid Date (if status is PAID) */}
-            {formData.status === 'PAID' && (
+            {/* Paid Date (if status is PAID and not Stripe) */}
+            {formData.status === 'PAID' && !isStripeMethod && (
               <div>
                 <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
                   Paid Date
@@ -803,27 +1007,29 @@ function CreatePayoutModal({
               </div>
             )}
 
-            {/* Reference */}
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-                Reference (optional)
-              </label>
-              <input
-                type="text"
-                value={formData.reference}
-                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-                placeholder="Check #, transaction ID, etc."
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#0a0a0a',
-                  border: '1px solid #27272a',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                }}
-              />
-            </div>
+            {/* Reference - Only for non-Stripe methods */}
+            {!isStripeMethod && (
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Reference (optional)
+                </label>
+                <input
+                  type="text"
+                  value={formData.reference}
+                  onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                  placeholder="Check #, transaction ID, etc."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            )}
 
             {/* Notes */}
             <div>
@@ -868,21 +1074,25 @@ function CreatePayoutModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || sendingCode || (isStripeMethod && !isStripeConnected)}
               style={{
                 flex: 1,
                 padding: '12px',
-                background: '#10b981',
+                background: isStripeMethod && isStripeConnected ? '#6366f1' : '#10b981',
                 border: 'none',
                 borderRadius: '8px',
                 color: 'white',
                 fontSize: '14px',
                 fontWeight: 500,
-                cursor: 'pointer',
-                opacity: saving ? 0.6 : 1,
+                cursor: (saving || sendingCode || (isStripeMethod && !isStripeConnected)) ? 'not-allowed' : 'pointer',
+                opacity: (saving || sendingCode || (isStripeMethod && !isStripeConnected)) ? 0.6 : 1,
               }}
             >
-              {saving ? 'Creating...' : 'Create Payout'}
+              {saving || sendingCode
+                ? 'Processing...'
+                : isStripeMethod && isStripeConnected
+                  ? 'Pay via Stripe'
+                  : 'Create Payout'}
             </button>
           </div>
         </form>
