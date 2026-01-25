@@ -17,6 +17,10 @@ export async function GET() {
         profileImageUrl: true,
         accentColor: true,
         displayOrder: true,
+        aboutDisplayName: true,
+        aboutDisplayTitle: true,
+        aboutShowPhoto: true,
+        aboutUseFirstName: true,
       },
       orderBy: {
         displayOrder: 'asc',

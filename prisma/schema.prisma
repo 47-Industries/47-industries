@@ -2883,10 +2883,14 @@ model TeamMember {
   defaultSplitPercent Decimal? @db.Decimal(5, 2)  // Optional default percentage (null = equal split)
 
   // Public Display (About Page)
-  showOnAbout       Boolean  @default(false)  // Show on public About page
-  publicBio         String?  @db.Text          // Bio text for About page
-  displayOrder      Int      @default(0)       // Order on About page (lower = first)
-  accentColor       String?                    // Card accent color (blue, emerald, purple, orange, etc.)
+  showOnAbout          Boolean  @default(false)  // Show on public About page
+  publicBio            String?  @db.Text          // Bio text for About page
+  displayOrder         Int      @default(0)       // Order on About page (lower = first)
+  accentColor          String?                    // Card accent color (blue, emerald, purple, orange, etc.)
+  aboutDisplayName     String?                    // Custom display name (null = use name field)
+  aboutDisplayTitle    String?                    // Custom display title (null = use title field)
+  aboutShowPhoto       Boolean  @default(true)    // Show profile photo on About page
+  aboutUseFirstName    Boolean  @default(false)   // Use first name only instead of full name
 
   // Relations
   contracts         TeamMemberContract[]

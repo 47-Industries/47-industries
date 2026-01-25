@@ -169,6 +169,10 @@ export async function PUT(
     if (body.publicBio !== undefined) updateData.publicBio = body.publicBio || null
     if (body.displayOrder !== undefined) updateData.displayOrder = body.displayOrder
     if (body.accentColor !== undefined) updateData.accentColor = body.accentColor || null
+    if (body.aboutDisplayName !== undefined) updateData.aboutDisplayName = body.aboutDisplayName || null
+    if (body.aboutDisplayTitle !== undefined) updateData.aboutDisplayTitle = body.aboutDisplayTitle || null
+    if (body.aboutShowPhoto !== undefined) updateData.aboutShowPhoto = body.aboutShowPhoto
+    if (body.aboutUseFirstName !== undefined) updateData.aboutUseFirstName = body.aboutUseFirstName
 
     // Update team member and optionally update linked user's username
     const updated = await prisma.$transaction(async (tx) => {

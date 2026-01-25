@@ -31,6 +31,10 @@ async function getTeamMembers() {
         profileImageUrl: true,
         accentColor: true,
         displayOrder: true,
+        aboutDisplayName: true,
+        aboutDisplayTitle: true,
+        aboutShowPhoto: true,
+        aboutUseFirstName: true,
       },
       orderBy: {
         displayOrder: 'asc',
@@ -179,6 +183,16 @@ export default async function AboutPage() {
               {teamMembers.length > 0 ? (
                 teamMembers.map((member) => {
                   const colors = colorClasses[member.accentColor || 'blue'] || colorClasses.blue
+                  // Determine display name
+                  let displayName = member.aboutDisplayName || member.name
+                  if (!member.aboutDisplayName && member.aboutUseFirstName) {
+                    displayName = member.name.split(' ')[0]
+                  }
+                  // Determine display title
+                  const displayTitle = member.aboutDisplayTitle || member.title
+                  // Determine if showing photo
+                  const showPhoto = member.aboutShowPhoto !== false && member.profileImageUrl
+
                   return (
                     <div
                       key={member.id}
@@ -186,16 +200,16 @@ export default async function AboutPage() {
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          {member.profileImageUrl && (
+                          {showPhoto && (
                             <img
-                              src={member.profileImageUrl}
-                              alt={member.name}
+                              src={member.profileImageUrl!}
+                              alt={displayName}
                               className="w-12 h-12 rounded-full object-cover"
                             />
                           )}
                           <div>
-                            <h3 className="text-xl font-bold">{member.name}</h3>
-                            <p className={`text-sm ${colors.text}`}>{member.title}</p>
+                            <h3 className="text-xl font-bold">{displayName}</h3>
+                            <p className={`text-sm ${colors.text}`}>{displayTitle}</p>
                           </div>
                         </div>
                       </div>

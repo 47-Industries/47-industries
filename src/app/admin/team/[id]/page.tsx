@@ -50,6 +50,10 @@ interface TeamMember {
   publicBio: string | null
   displayOrder: number
   accentColor: string | null
+  aboutDisplayName: string | null
+  aboutDisplayTitle: string | null
+  aboutShowPhoto: boolean
+  aboutUseFirstName: boolean
   userId: string | null
   user: {
     id: string
@@ -683,28 +687,53 @@ export default function TeamMemberDetailPage() {
               </div>
               {teamMember.showOnAbout && (
                 <>
-                  <div>
-                    <label className="text-sm text-zinc-500">Display Order</label>
-                    <p className="text-white">{teamMember.displayOrder}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-zinc-500">Display Name</label>
+                      <p className="text-white">
+                        {teamMember.aboutDisplayName || (teamMember.aboutUseFirstName ? teamMember.name.split(' ')[0] : teamMember.name)}
+                        {teamMember.aboutUseFirstName && !teamMember.aboutDisplayName && (
+                          <span className="text-xs text-zinc-500 ml-2">(first name only)</span>
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-zinc-500">Display Title</label>
+                      <p className="text-white">{teamMember.aboutDisplayTitle || teamMember.title}</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm text-zinc-500">Accent Color</label>
-                    <p>
-                      <span className={`px-2 py-1 rounded text-sm capitalize ${
-                        teamMember.accentColor === 'blue' ? 'bg-blue-500/10 text-blue-400' :
-                        teamMember.accentColor === 'emerald' ? 'bg-emerald-500/10 text-emerald-400' :
-                        teamMember.accentColor === 'purple' ? 'bg-purple-500/10 text-purple-400' :
-                        teamMember.accentColor === 'orange' ? 'bg-orange-500/10 text-orange-400' :
-                        teamMember.accentColor === 'red' ? 'bg-red-500/10 text-red-400' :
-                        teamMember.accentColor === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
-                        teamMember.accentColor === 'pink' ? 'bg-pink-500/10 text-pink-400' :
-                        teamMember.accentColor === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
-                        teamMember.accentColor === 'green' ? 'bg-green-500/10 text-green-400' :
-                        'bg-zinc-500/10 text-zinc-400'
-                      }`}>
-                        {teamMember.accentColor || 'None'}
-                      </span>
-                    </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-sm text-zinc-500">Display Order</label>
+                      <p className="text-white">{teamMember.displayOrder}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-zinc-500">Show Photo</label>
+                      <p>
+                        <span className={`px-2 py-1 rounded text-sm ${teamMember.aboutShowPhoto ? 'bg-green-500/10 text-green-400' : 'bg-zinc-500/10 text-zinc-400'}`}>
+                          {teamMember.aboutShowPhoto ? 'Yes' : 'No'}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm text-zinc-500">Accent Color</label>
+                      <p>
+                        <span className={`px-2 py-1 rounded text-sm capitalize ${
+                          teamMember.accentColor === 'blue' ? 'bg-blue-500/10 text-blue-400' :
+                          teamMember.accentColor === 'emerald' ? 'bg-emerald-500/10 text-emerald-400' :
+                          teamMember.accentColor === 'purple' ? 'bg-purple-500/10 text-purple-400' :
+                          teamMember.accentColor === 'orange' ? 'bg-orange-500/10 text-orange-400' :
+                          teamMember.accentColor === 'red' ? 'bg-red-500/10 text-red-400' :
+                          teamMember.accentColor === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
+                          teamMember.accentColor === 'pink' ? 'bg-pink-500/10 text-pink-400' :
+                          teamMember.accentColor === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
+                          teamMember.accentColor === 'green' ? 'bg-green-500/10 text-green-400' :
+                          'bg-zinc-500/10 text-zinc-400'
+                        }`}>
+                          {teamMember.accentColor || 'None'}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm text-zinc-500">Public Bio</label>
@@ -1346,6 +1375,10 @@ function EditTeamMemberModal({
     publicBio: teamMember.publicBio || '',
     displayOrder: teamMember.displayOrder || 0,
     accentColor: teamMember.accentColor || 'blue',
+    aboutDisplayName: teamMember.aboutDisplayName || '',
+    aboutDisplayTitle: teamMember.aboutDisplayTitle || '',
+    aboutShowPhoto: teamMember.aboutShowPhoto ?? true,
+    aboutUseFirstName: teamMember.aboutUseFirstName || false,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1590,6 +1623,55 @@ function EditTeamMemberModal({
             </label>
             {formData.showOnAbout && (
               <div className="space-y-4 pl-8 border-l-2 border-zinc-700">
+                {/* Display Options */}
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.aboutShowPhoto}
+                      onChange={(e) => setFormData({ ...formData, aboutShowPhoto: e.target.checked })}
+                      className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-blue-600"
+                    />
+                    <span className="text-sm text-white">Show Photo</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.aboutUseFirstName}
+                      onChange={(e) => setFormData({ ...formData, aboutUseFirstName: e.target.checked })}
+                      className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-blue-600"
+                    />
+                    <span className="text-sm text-white">First Name Only</span>
+                  </label>
+                </div>
+
+                {/* Custom Display Name & Title */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-1">Display Name</label>
+                    <input
+                      type="text"
+                      value={formData.aboutDisplayName}
+                      onChange={(e) => setFormData({ ...formData, aboutDisplayName: e.target.value })}
+                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                      placeholder={formData.aboutUseFirstName ? teamMember.name.split(' ')[0] : teamMember.name}
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Leave blank to use default</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-1">Display Title</label>
+                    <input
+                      type="text"
+                      value={formData.aboutDisplayTitle}
+                      onChange={(e) => setFormData({ ...formData, aboutDisplayTitle: e.target.value })}
+                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                      placeholder={teamMember.title}
+                    />
+                    <p className="text-xs text-zinc-500 mt-1">Leave blank to use job title</p>
+                  </div>
+                </div>
+
+                {/* Order & Color */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-zinc-400 mb-1">Display Order</label>
@@ -1621,6 +1703,8 @@ function EditTeamMemberModal({
                     </select>
                   </div>
                 </div>
+
+                {/* Bio */}
                 <div>
                   <label className="block text-sm text-zinc-400 mb-1">Public Bio</label>
                   <textarea
