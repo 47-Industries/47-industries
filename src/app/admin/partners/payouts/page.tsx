@@ -378,7 +378,7 @@ export default function PartnerPayoutsPage() {
                         Zelle
                       </button>
                       <button
-                        onClick={() => handleMarkPaid(payout.id, 'CHECK')}
+                        onClick={() => handleMarkPaid(payout.id, 'VENMO')}
                         style={{
                           padding: '8px 14px',
                           background: '#27272a',
@@ -389,22 +389,7 @@ export default function PartnerPayoutsPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        Check
-                      </button>
-                      <button
-                        onClick={() => handleMarkPaid(payout.id)}
-                        style={{
-                          padding: '8px 14px',
-                          background: '#10b981',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: 'white',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Mark Paid
+                        Venmo
                       </button>
                     </div>
                   )}
@@ -496,7 +481,7 @@ function CreatePayoutModal({
     }
   }
 
-  const methods = ['CASH', 'CHECK', 'ZELLE', 'VENMO', 'BANK_TRANSFER', 'STRIPE_CONNECT']
+  const methods = ['CASH', 'ZELLE', 'VENMO', 'STRIPE_CONNECT']
 
   return (
     <div style={{
