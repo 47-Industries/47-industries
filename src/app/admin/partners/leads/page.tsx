@@ -3,7 +3,24 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
-import { LEAD_INTEREST_LABELS, LEAD_SOURCE_LABELS, LeadInterest, LeadSource } from '@/lib/lead-utils'
+import {
+  LEAD_INTEREST_LABELS,
+  LEAD_SOURCE_LABELS,
+  BUDGET_LABELS,
+  TIMELINE_LABELS,
+  COMPANY_SIZE_LABELS,
+  LeadInterest,
+  LeadSource,
+  EstimatedBudget,
+  Timeline,
+  CompanySize,
+} from '@/lib/lead-utils'
+
+interface Partner {
+  id: string
+  name: string
+  partnerNumber: string
+}
 
 interface Lead {
   id: string
@@ -56,6 +73,8 @@ export default function PartnerLeadsPage() {
   const [interestFilter, setInterestFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [partners, setPartners] = useState<Partner[]>([])
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -67,7 +86,20 @@ export default function PartnerLeadsPage() {
 
   useEffect(() => {
     fetchLeads()
+    fetchPartners()
   }, [statusFilter, interestFilter, sourceFilter])
+
+  const fetchPartners = async () => {
+    try {
+      const res = await fetch('/api/admin/partners?status=ACTIVE')
+      if (res.ok) {
+        const data = await res.json()
+        setPartners(data.partners || [])
+      }
+    } catch (error) {
+      console.error('Error fetching partners:', error)
+    }
+  }
 
   const fetchLeads = async () => {
     try {
@@ -151,13 +183,36 @@ export default function PartnerLeadsPage() {
       </Link>
 
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-          Partner Leads
-        </h1>
-        <p style={{ color: '#a1a1aa', fontSize: '14px', margin: '4px 0 0 0' }}>
-          All leads submitted by partners
-        </p>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+            Partner Leads
+          </h1>
+          <p style={{ color: '#a1a1aa', fontSize: '14px', margin: '4px 0 0 0' }}>
+            All leads submitted by partners
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            padding: '10px 20px',
+            background: '#3b82f6',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Lead
+        </button>
       </div>
 
       {/* Stats */}
@@ -441,6 +496,508 @@ export default function PartnerLeadsPage() {
           ))}
         </div>
       )}
+
+      {/* Add Lead Modal */}
+      {showAddModal && (
+        <AddLeadModal
+          partners={partners}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false)
+            showToast('Lead created successfully', 'success')
+            fetchLeads()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Add Lead Modal
+function AddLeadModal({
+  partners,
+  onClose,
+  onSuccess,
+}: {
+  partners: Partner[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [selectedInterests, setSelectedInterests] = useState<LeadInterest[]>([])
+  const [formData, setFormData] = useState({
+    partnerId: '',
+    businessName: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    website: '',
+    description: '',
+    status: 'NEW',
+    source: 'MANUAL',
+    estimatedBudget: '',
+    timeline: '',
+    companySize: '',
+    currentSolution: '',
+    painPoints: '',
+    notes: '',
+  })
+  const { showToast } = useToast()
+
+  const toggleInterest = (interest: LeadInterest) => {
+    setSelectedInterests((prev) =>
+      prev.includes(interest)
+        ? prev.filter((i) => i !== interest)
+        : [...prev, interest]
+    )
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.partnerId || !formData.businessName || !formData.contactName || !formData.email) {
+      showToast('Partner, business name, contact name, and email are required', 'warning')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const res = await fetch('/api/admin/partners/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          interests: selectedInterests.length > 0 ? selectedInterests : null,
+          estimatedBudget: formData.estimatedBudget || null,
+          timeline: formData.timeline || null,
+          companySize: formData.companySize || null,
+          currentSolution: formData.currentSolution || null,
+          painPoints: formData.painPoints || null,
+        }),
+      })
+
+      if (res.ok) {
+        onSuccess()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to create lead', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to create lead', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const statuses = ['NEW', 'CONTACTED', 'QUALIFIED']
+
+  const interestCategories: Record<string, LeadInterest[]> = {
+    'AI & Automation': ['AI_RECEPTIONIST', 'AI_LEAD_GENERATOR', 'AI_AUTOMATION_OTHER'],
+    'Web & Apps': ['WEB_DEVELOPMENT', 'WEB_APP', 'E_COMMERCE'],
+    'Mobile Apps': ['MOBILE_APP_IOS', 'MOBILE_APP_ANDROID', 'MOBILE_APP_BOTH'],
+    '3D Printing': ['BULK_3D_PRINTING', 'CUSTOM_3D_PRINTING'],
+    'Other': ['CONSULTATION', 'OTHER'],
+  }
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: '20px',
+    }}>
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #27272a',
+        borderRadius: '12px',
+        padding: '24px',
+        width: '100%',
+        maxWidth: '700px',
+        maxHeight: '90vh',
+        overflow: 'auto',
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>Add New Lead</h3>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Partner Selection */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Partner *
+              </label>
+              <select
+                value={formData.partnerId}
+                onChange={(e) => setFormData({ ...formData, partnerId: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              >
+                <option value="">Select a partner</option>
+                {partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name} ({partner.partnerNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Basic Info Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Business Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessName}
+                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Contact Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.contactName}
+                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Contact Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Website, Status & Source */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Website
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  {statuses.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Source
+                </label>
+                <select
+                  value={formData.source}
+                  onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  {Object.entries(LEAD_SOURCE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Interests */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                Interests
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {Object.entries(interestCategories).map(([category, interests]) => (
+                  <div key={category}>
+                    <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#71717a' }}>{category}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {interests.map((interest) => (
+                        <button
+                          key={interest}
+                          type="button"
+                          onClick={() => toggleInterest(interest)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: selectedInterests.includes(interest) ? '#3b82f6' : '#27272a',
+                            color: selectedInterests.includes(interest) ? 'white' : '#a1a1aa',
+                          }}
+                        >
+                          {LEAD_INTEREST_LABELS[interest]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Qualification Data */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Estimated Budget
+                </label>
+                <select
+                  value={formData.estimatedBudget}
+                  onChange={(e) => setFormData({ ...formData, estimatedBudget: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(BUDGET_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Timeline
+                </label>
+                <select
+                  value={formData.timeline}
+                  onChange={(e) => setFormData({ ...formData, timeline: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(TIMELINE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Company Size
+                </label>
+                <select
+                  value={formData.companySize}
+                  onChange={(e) => setFormData({ ...formData, companySize: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="">Not specified</option>
+                  {Object.entries(COMPANY_SIZE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                placeholder="What does this lead need?"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Internal Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={2}
+                placeholder="Internal notes (not visible to partner)"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#27272a',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Creating...' : 'Create Lead'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/Toast'
 
+interface Partner {
+  id: string
+  name: string
+  partnerNumber: string
+}
+
 interface Payout {
   id: string
   payoutNumber: string
@@ -34,6 +40,8 @@ export default function PartnerPayoutsPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [partners, setPartners] = useState<Partner[]>([])
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -45,7 +53,20 @@ export default function PartnerPayoutsPage() {
 
   useEffect(() => {
     fetchPayouts()
+    fetchPartners()
   }, [statusFilter])
+
+  const fetchPartners = async () => {
+    try {
+      const res = await fetch('/api/admin/partners?status=ACTIVE')
+      if (res.ok) {
+        const data = await res.json()
+        setPartners(data.partners || [])
+      }
+    } catch (error) {
+      console.error('Error fetching partners:', error)
+    }
+  }
 
   const fetchPayouts = async () => {
     try {
@@ -140,13 +161,36 @@ export default function PartnerPayoutsPage() {
       </Link>
 
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-          Partner Payouts
-        </h1>
-        <p style={{ color: '#a1a1aa', fontSize: '14px', margin: '4px 0 0 0' }}>
-          Track and manage partner payments
-        </p>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+            Partner Payouts
+          </h1>
+          <p style={{ color: '#a1a1aa', fontSize: '14px', margin: '4px 0 0 0' }}>
+            Track and manage partner payments
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            padding: '10px 20px',
+            background: '#10b981',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create Payout
+        </button>
       </div>
 
       {/* Stats */}
@@ -370,6 +414,325 @@ export default function PartnerPayoutsPage() {
           ))}
         </div>
       )}
+
+      {/* Create Payout Modal */}
+      {showCreateModal && (
+        <CreatePayoutModal
+          partners={partners}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false)
+            showToast('Payout created successfully', 'success')
+            fetchPayouts()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Create Payout Modal
+function CreatePayoutModal({
+  partners,
+  onClose,
+  onSuccess,
+}: {
+  partners: Partner[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    partnerId: '',
+    amount: '',
+    method: 'CASH',
+    reference: '',
+    notes: '',
+    status: 'PAID',
+    paidAt: new Date().toISOString().split('T')[0],
+  })
+  const { showToast } = useToast()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.partnerId || !formData.amount) {
+      showToast('Partner and amount are required', 'warning')
+      return
+    }
+
+    const amount = parseFloat(formData.amount)
+    if (isNaN(amount) || amount <= 0) {
+      showToast('Please enter a valid amount', 'warning')
+      return
+    }
+
+    try {
+      setSaving(true)
+      const res = await fetch('/api/admin/partners/payouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partnerId: formData.partnerId,
+          amount,
+          method: formData.method || null,
+          reference: formData.reference || null,
+          notes: formData.notes || null,
+          status: formData.status,
+          markAsPaid: formData.status === 'PAID',
+          paidAt: formData.status === 'PAID' ? formData.paidAt : null,
+        }),
+      })
+
+      if (res.ok) {
+        onSuccess()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Failed to create payout', 'error')
+      }
+    } catch (error) {
+      showToast('Failed to create payout', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const methods = ['CASH', 'CHECK', 'ZELLE', 'VENMO', 'BANK_TRANSFER', 'STRIPE_CONNECT']
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: '20px',
+    }}>
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #27272a',
+        borderRadius: '12px',
+        padding: '24px',
+        width: '100%',
+        maxWidth: '500px',
+        maxHeight: '90vh',
+        overflow: 'auto',
+      }}>
+        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: 600 }}>Create Payout</h3>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Partner Selection */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Partner *
+              </label>
+              <select
+                value={formData.partnerId}
+                onChange={(e) => setFormData({ ...formData, partnerId: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              >
+                <option value="">Select a partner</option>
+                {partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name} ({partner.partnerNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Amount *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#71717a' }}>$</span>
+                <input
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px 10px 26px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Method & Status */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Payment Method
+                </label>
+                <select
+                  value={formData.method}
+                  onChange={(e) => setFormData({ ...formData, method: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  {methods.map((m) => (
+                    <option key={m} value={m}>{m.replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="PAID">Paid</option>
+                  <option value="PENDING">Pending</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Paid Date (if status is PAID) */}
+            {formData.status === 'PAID' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Paid Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.paidAt}
+                  onChange={(e) => setFormData({ ...formData, paidAt: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Reference */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Reference (optional)
+              </label>
+              <input
+                type="text"
+                value={formData.reference}
+                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                placeholder="Check #, transaction ID, etc."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                Notes (optional)
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={2}
+                placeholder="Internal notes about this payout"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#27272a',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#10b981',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? 'Creating...' : 'Create Payout'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

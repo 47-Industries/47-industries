@@ -69,7 +69,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/admin/partners/payouts - Create payout from pending commissions
+// POST /api/admin/partners/payouts - Create payout
+// Supports two modes:
+// 1. Direct payout: provide partnerId and amount directly (standalone payout)
+// 2. Commission payout: provide partnerId and optionally commissionIds to pay out commissions
 export async function POST(req: NextRequest) {
   try {
     const isAuthorized = await verifyAdminAuth(req)
@@ -87,34 +90,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get pending commissions for this partner
-    let commissionIds = body.commissionIds
-
-    if (!commissionIds || commissionIds.length === 0) {
-      // If no specific commissions provided, get all pending/approved
-      const pendingCommissions = await prisma.partnerCommission.findMany({
-        where: {
-          partnerId: body.partnerId,
-          status: { in: ['PENDING', 'APPROVED'] },
-          payoutId: null,
-        },
-      })
-      commissionIds = pendingCommissions.map(c => c.id)
-    }
-
-    if (commissionIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No pending commissions to pay out' },
-        { status: 400 }
-      )
-    }
-
-    // Calculate total
-    const commissions = await prisma.partnerCommission.findMany({
-      where: { id: { in: commissionIds } },
-    })
-    const totalAmount = commissions.reduce((sum, c) => sum + Number(c.amount), 0)
-
     // Generate payout number
     const date = new Date()
     const timestamp = date.getFullYear().toString() +
@@ -123,7 +98,52 @@ export async function POST(req: NextRequest) {
     const count = await prisma.partnerPayout.count()
     const payoutNumber = `PAY-${timestamp}-${(count + 1).toString().padStart(4, '0')}`
 
-    // Create payout (optionally mark as paid immediately for manual payouts)
+    let totalAmount: number
+    let commissionIds: string[] = []
+
+    // Mode 1: Direct payout with explicit amount (standalone, no commissions required)
+    if (body.amount && typeof body.amount === 'number' && body.amount > 0) {
+      totalAmount = body.amount
+      // Optionally link to commissions if provided
+      commissionIds = body.commissionIds || []
+    }
+    // Mode 2: Commission-based payout
+    else {
+      commissionIds = body.commissionIds || []
+
+      if (commissionIds.length === 0) {
+        // If no specific commissions provided, get all pending/approved
+        const pendingCommissions = await prisma.partnerCommission.findMany({
+          where: {
+            partnerId: body.partnerId,
+            status: { in: ['PENDING', 'APPROVED'] },
+            payoutId: null,
+          },
+        })
+        commissionIds = pendingCommissions.map(c => c.id)
+      }
+
+      if (commissionIds.length === 0) {
+        return NextResponse.json(
+          { error: 'No pending commissions to pay out. Use amount field for direct payouts.' },
+          { status: 400 }
+        )
+      }
+
+      // Calculate total from commissions
+      const commissions = await prisma.partnerCommission.findMany({
+        where: { id: { in: commissionIds } },
+      })
+      totalAmount = commissions.reduce((sum, c) => sum + Number(c.amount), 0)
+    }
+
+    // Parse paidAt date if provided
+    let paidAt = null
+    if (body.markAsPaid || body.status === 'PAID') {
+      paidAt = body.paidAt ? new Date(body.paidAt) : new Date()
+    }
+
+    // Create payout
     const payout = await prisma.partnerPayout.create({
       data: {
         payoutNumber,
@@ -131,8 +151,9 @@ export async function POST(req: NextRequest) {
         amount: totalAmount,
         method: body.method || null,
         reference: body.reference || null,
-        status: body.markAsPaid ? 'PAID' : 'PENDING',
-        paidAt: body.markAsPaid ? new Date() : null,
+        status: body.markAsPaid || body.status === 'PAID' ? 'PAID' : 'PENDING',
+        paidAt,
+        paidBy: body.markAsPaid || body.status === 'PAID' ? auth.userId : null,
         notes: body.notes || null,
       },
       include: {
@@ -142,14 +163,16 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Link commissions to payout and update status if marked as paid
-    await prisma.partnerCommission.updateMany({
-      where: { id: { in: commissionIds } },
-      data: {
-        payoutId: payout.id,
-        status: body.markAsPaid ? 'PAID' : undefined,
-      },
-    })
+    // Link commissions to payout if any
+    if (commissionIds.length > 0) {
+      await prisma.partnerCommission.updateMany({
+        where: { id: { in: commissionIds } },
+        data: {
+          payoutId: payout.id,
+          status: body.markAsPaid || body.status === 'PAID' ? 'PAID' : undefined,
+        },
+      })
+    }
 
     // Fetch updated payout with commissions
     const updatedPayout = await prisma.partnerPayout.findUnique({
