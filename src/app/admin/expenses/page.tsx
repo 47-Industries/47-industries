@@ -953,55 +953,76 @@ export default function ExpensesPage() {
 
                       {/* Bill Splits - Always visible */}
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {bill.billSplits?.map(split => (
-                          <button
-                            key={split.id}
-                            onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '8px',
-                              padding: '6px 12px', borderRadius: '20px',
-                              border: split.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
-                              background: split.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
-                              color: split.status === 'PAID' ? '#10b981' : '#fff',
-                              cursor: 'pointer',
-                              fontSize: '13px',
-                              transition: 'all 0.15s'
-                            }}
-                            title="Click to toggle paid/unpaid"
-                          >
-                            {split.teamMember.profileImageUrl ? (
-                              <img
-                                src={split.teamMember.profileImageUrl}
-                                alt={split.teamMember.name}
-                                style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <span style={{
-                                width: '20px', height: '20px', borderRadius: '50%',
-                                background: split.status === 'PAID' ? '#10b981' : '#3b82f6',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '10px', fontWeight: 600
-                              }}>
-                                {split.status === 'PAID' ? 'OK' : (split.teamMember.name || split.teamMember.email || '?').charAt(0).toUpperCase()}
-                              </span>
-                            )}
-                            <span>{split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}</span>
-                            <span style={{ color: '#71717a' }}>{formatCurrency(Number(split.amount))}</span>
-                          </button>
-                        ))}
+                        {/* Company Paid Badge */}
+                        {bill.paidVia === 'Company Bank Account' ? (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '8px 16px', borderRadius: '20px',
+                            border: '1px solid rgba(59,130,246,0.4)',
+                            background: 'rgba(59,130,246,0.15)',
+                            color: '#3b82f6',
+                            fontSize: '14px', fontWeight: 500
+                          }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                              <line x1="3" y1="9" x2="21" y2="9"/>
+                              <line x1="9" y1="21" x2="9" y2="9"/>
+                            </svg>
+                            Company Paid
+                          </div>
+                        ) : (
+                          <>
+                            {bill.billSplits?.map(split => (
+                              <button
+                                key={split.id}
+                                onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px',
+                                  padding: '6px 12px', borderRadius: '20px',
+                                  border: split.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
+                                  background: split.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
+                                  color: split.status === 'PAID' ? '#10b981' : '#fff',
+                                  cursor: 'pointer',
+                                  fontSize: '13px',
+                                  transition: 'all 0.15s'
+                                }}
+                                title="Click to toggle paid/unpaid"
+                              >
+                                {split.teamMember.profileImageUrl ? (
+                                  <img
+                                    src={split.teamMember.profileImageUrl}
+                                    alt={split.teamMember.name}
+                                    style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
+                                  />
+                                ) : (
+                                  <span style={{
+                                    width: '20px', height: '20px', borderRadius: '50%',
+                                    background: split.status === 'PAID' ? '#10b981' : '#3b82f6',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '10px', fontWeight: 600
+                                  }}>
+                                    {split.status === 'PAID' ? 'OK' : (split.teamMember.name || split.teamMember.email || '?').charAt(0).toUpperCase()}
+                                  </span>
+                                )}
+                                <span>{split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}</span>
+                                <span style={{ color: '#71717a' }}>{formatCurrency(Number(split.amount))}</span>
+                              </button>
+                            ))}
 
-                        {bill.status !== 'PAID' && (
-                          <button
-                            onClick={() => handleMarkBillPaid(bill.id)}
-                            style={{
-                              padding: '6px 12px', borderRadius: '20px',
-                              border: '1px solid rgba(16,185,129,0.3)',
-                              background: 'transparent', color: '#10b981',
-                              cursor: 'pointer', fontSize: '13px'
-                            }}
-                          >
-                            Mark All Paid
-                          </button>
+                            {bill.status !== 'PAID' && (
+                              <button
+                                onClick={() => handleMarkBillPaid(bill.id)}
+                                style={{
+                                  padding: '6px 12px', borderRadius: '20px',
+                                  border: '1px solid rgba(16,185,129,0.3)',
+                                  background: 'transparent', color: '#10b981',
+                                  cursor: 'pointer', fontSize: '13px'
+                                }}
+                              >
+                                Mark All Paid
+                              </button>
+                            )}
+                          </>
                         )}
 
                         {/* Expand/Collapse Arrow */}
