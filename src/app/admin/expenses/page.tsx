@@ -927,7 +927,15 @@ export default function ExpensesPage() {
                         {bill.billSplits?.map(split => (
                           <button
                             key={split.id}
-                            onClick={() => openSplitEditModal(bill, split)}
+                            onClick={(e) => {
+                              if (e.shiftKey) {
+                                // Shift+click = quick toggle paid/unpaid
+                                handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)
+                              } else {
+                                // Normal click = open edit modal
+                                openSplitEditModal(bill, split)
+                              }
+                            }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',
                               padding: '6px 12px', borderRadius: '20px',
@@ -938,7 +946,7 @@ export default function ExpensesPage() {
                               fontSize: '13px',
                               transition: 'all 0.15s'
                             }}
-                            title="Click to edit split amount and status"
+                            title="Click to edit | Shift+click to quick toggle paid"
                           >
                             {split.teamMember.profileImageUrl ? (
                               <img
