@@ -21,9 +21,10 @@ export async function GET(request: NextRequest) {
 
     const splitterCount = splitters.length
 
-    // Auto-generate missing bill instances for requested period from recurring bills
+    // Auto-generate missing bill instances for FIXED amount recurring bills only
+    // Variable bills are created when we get actual amounts from email/bank scanning
     const recurringBills = await prisma.recurringBill.findMany({
-      where: { active: true }
+      where: { active: true, amountType: 'FIXED' }
     })
 
     const [year, month] = period.split('-').map(Number)
@@ -55,10 +56,14 @@ export async function GET(request: NextRequest) {
 
       if (existing) continue
 
-      // Create missing instance
+      // Create missing instance (only for FIXED amount bills)
       const dueDate = new Date(year, month - 1, recurring.dueDay || 1)
-      const amount = recurring.amountType === 'FIXED' ? Number(recurring.fixedAmount) || 0 : 0
-      const perPersonAmount = splitterCount > 0 && amount > 0 ? amount / splitterCount : 0
+      const amount = Number(recurring.fixedAmount) || 0
+
+      // Skip if no valid amount
+      if (amount <= 0) continue
+
+      const perPersonAmount = splitterCount > 0 ? amount / splitterCount : 0
 
       await prisma.billInstance.create({
         data: {

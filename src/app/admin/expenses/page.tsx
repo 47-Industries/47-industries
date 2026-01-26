@@ -1123,7 +1123,7 @@ export default function ExpensesPage() {
 
                                 {/* Percentage Display */}
                                 <span style={{ fontSize: '12px', color: '#71717a', minWidth: '45px' }}>
-                                  {bill.amount ? ((Number(splitAmounts[split.teamMember.id] || split.amount) / Number(bill.amount)) * 100).toFixed(0) : 0}%
+                                  {Number(bill.amount) > 0 ? ((Number(splitAmounts[split.teamMember.id] || split.amount) / Number(bill.amount)) * 100).toFixed(0) : 0}%
                                 </span>
 
                                 {/* Status Toggle */}
