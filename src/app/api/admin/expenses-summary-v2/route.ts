@@ -21,6 +21,65 @@ export async function GET(request: NextRequest) {
 
     const splitterCount = splitters.length
 
+    // Auto-generate missing bill instances for requested period from recurring bills
+    const recurringBills = await prisma.recurringBill.findMany({
+      where: { active: true }
+    })
+
+    const [year, month] = period.split('-').map(Number)
+
+    for (const recurring of recurringBills) {
+      // Handle frequencies
+      let shouldCreate = true
+      let effectivePeriod = period
+
+      if (recurring.frequency === 'QUARTERLY') {
+        const quarterStartMonths = [1, 4, 7, 10]
+        if (!quarterStartMonths.includes(month)) {
+          shouldCreate = false
+        } else {
+          const quarter = Math.floor((month - 1) / 3) + 1
+          effectivePeriod = `${year}-Q${quarter}`
+        }
+      } else if (recurring.frequency === 'ANNUAL') {
+        if (month !== 1) shouldCreate = false
+        else effectivePeriod = `${year}`
+      }
+
+      if (!shouldCreate) continue
+
+      // Check if instance exists
+      const existing = await prisma.billInstance.findFirst({
+        where: { recurringBillId: recurring.id, period: effectivePeriod }
+      })
+
+      if (existing) continue
+
+      // Create missing instance
+      const dueDate = new Date(year, month - 1, recurring.dueDay || 1)
+      const amount = recurring.amountType === 'FIXED' ? Number(recurring.fixedAmount) || 0 : 0
+      const perPersonAmount = splitterCount > 0 && amount > 0 ? amount / splitterCount : 0
+
+      await prisma.billInstance.create({
+        data: {
+          recurringBillId: recurring.id,
+          vendor: recurring.vendor,
+          vendorType: recurring.vendorType,
+          amount,
+          dueDate,
+          period: effectivePeriod,
+          status: 'PENDING',
+          billSplits: splitterCount > 0 ? {
+            create: splitters.map(s => ({
+              teamMemberId: s.id,
+              amount: perPersonAmount,
+              status: 'PENDING'
+            }))
+          } : undefined
+        }
+      })
+    }
+
     // Get current month's bill instances
     const currentMonthBills = await prisma.billInstance.findMany({
       where: { period },

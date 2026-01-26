@@ -92,51 +92,72 @@ async function scanBills() {
   }
 }
 
-// Generate bill instances for fixed-amount recurring bills
+// Generate bill instances for ALL active recurring bills (current month + next month)
 async function generateFixedBills() {
-  const period = new Date().toISOString().slice(0, 7) // YYYY-MM
+  const now = new Date()
 
-  // Get all active fixed recurring bills
-  const fixedBills = await prisma.recurringBill.findMany({
-    where: {
-      active: true,
-      amountType: 'FIXED'
-    }
+  // Generate for current month and next month
+  const periods = [
+    new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 7),
+    new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 7)
+  ]
+
+  // Get ALL active recurring bills (not just fixed)
+  const recurringBills = await prisma.recurringBill.findMany({
+    where: { active: true }
   })
 
-  const founders = await prisma.user.findMany({
-    where: { isFounder: true },
+  // Get team members who split expenses
+  const splitters = await prisma.teamMember.findMany({
+    where: { splitsExpenses: true, status: 'ACTIVE' },
     select: { id: true }
   })
 
-  const founderCount = founders.length
+  const splitterCount = splitters.length
+  let created = 0
 
-  for (const recurring of fixedBills) {
-    // Check if we already have an instance for this period
-    const existing = await prisma.billInstance.findFirst({
-      where: {
-        recurringBillId: recurring.id,
-        period
+  for (const period of periods) {
+    const [year, month] = period.split('-').map(Number)
+
+    for (const recurring of recurringBills) {
+      // Handle different frequencies
+      let shouldCreate = true
+      let effectivePeriod = period
+
+      if (recurring.frequency === 'QUARTERLY') {
+        const quarterStartMonths = [1, 4, 7, 10]
+        if (!quarterStartMonths.includes(month)) {
+          shouldCreate = false
+        } else {
+          const quarter = Math.floor((month - 1) / 3) + 1
+          effectivePeriod = `${year}-Q${quarter}`
+        }
+      } else if (recurring.frequency === 'ANNUAL') {
+        if (month !== 1) {
+          shouldCreate = false
+        } else {
+          effectivePeriod = `${year}`
+        }
       }
-    })
 
-    if (existing) continue
+      if (!shouldCreate) continue
 
-    // Check if it's time to create this bill (within 5 days of due date)
-    const now = new Date()
-    const dueDate = new Date(now.getFullYear(), now.getMonth(), recurring.dueDay)
+      // Check if we already have an instance for this period
+      const existing = await prisma.billInstance.findFirst({
+        where: {
+          recurringBillId: recurring.id,
+          period: effectivePeriod
+        }
+      })
 
-    // If due day has passed, it's for next month
-    if (dueDate < now && now.getDate() > recurring.dueDay + 5) {
-      dueDate.setMonth(dueDate.getMonth() + 1)
-    }
+      if (existing) continue
 
-    const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      // Calculate due date
+      const dueDate = new Date(year, month - 1, recurring.dueDay || 1)
 
-    // Create bill instance if within 5 days of due date
-    if (daysUntilDue <= 5 && daysUntilDue >= -2) {
-      const amount = Number(recurring.fixedAmount) || 0
-      const perPersonAmount = founderCount > 0 ? amount / founderCount : amount
+      // For fixed bills, use the fixed amount. For variable, set to 0 (awaiting data)
+      const amount = recurring.amountType === 'FIXED' ? Number(recurring.fixedAmount) || 0 : 0
+      const perPersonAmount = splitterCount > 0 && amount > 0 ? amount / splitterCount : 0
 
       await prisma.billInstance.create({
         data: {
@@ -145,27 +166,34 @@ async function generateFixedBills() {
           vendorType: recurring.vendorType,
           amount,
           dueDate,
-          period,
+          period: effectivePeriod,
           status: 'PENDING',
-          founderPayments: {
-            create: founders.map(founder => ({
-              userId: founder.id,
+          billSplits: splitterCount > 0 ? {
+            create: splitters.map(splitter => ({
+              teamMemberId: splitter.id,
               amount: perPersonAmount,
               status: 'PENDING'
             }))
-          }
+          } : undefined
         }
       })
 
-      console.log(`[CRON] Generated fixed bill: ${recurring.name} - $${amount}`)
+      created++
+      console.log(`[CRON] Generated bill: ${recurring.name} for ${effectivePeriod} - $${amount}`)
 
-      // Send notification
-      await pushService.sendBillNotification(
-        recurring.vendor,
-        amount,
-        dueDate.toISOString().split('T')[0]
-      )
+      // Send notification for fixed bills with amounts
+      if (amount > 0) {
+        await pushService.sendBillNotification(
+          recurring.vendor,
+          amount,
+          dueDate.toISOString().split('T')[0]
+        )
+      }
     }
+  }
+
+  if (created > 0) {
+    console.log(`[CRON] Generated ${created} recurring bill instance(s)`)
   }
 }
 

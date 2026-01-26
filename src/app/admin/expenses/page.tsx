@@ -368,6 +368,7 @@ export default function ExpensesPage() {
     }
   }
 
+
   const handleMarkBillPaid = async (billId: string) => {
     try {
       const res = await fetch(`/api/admin/bill-instances/${billId}`, {
