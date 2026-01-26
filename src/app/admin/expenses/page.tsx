@@ -880,7 +880,8 @@ export default function ExpensesPage() {
                 {bills.map(bill => {
                   const days = getDaysUntilDue(bill.dueDate)
                   const isOverdue = bill.status === 'PENDING' && days !== null && days < 0
-                  const isVariable = bill.amount === 0 || (bill.recurringBill?.amountType === 'VARIABLE' && bill.amount === 0)
+                  const isAwaitingAmount = bill.amount === 0
+                  const isEstimated = bill.recurringBill?.amountType === 'VARIABLE' && bill.amount > 0
                   const splitCount = bill.billSplits?.length || splitters.length || 1
                   const perPerson = Number(bill.amount) / splitCount
 
@@ -932,11 +933,11 @@ export default function ExpensesPage() {
                               style={{ cursor: 'pointer' }}
                               title="Click to edit amount"
                             >
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: isVariable ? '#f59e0b' : '#fff' }}>
-                                {isVariable ? 'Awaiting Amount' : formatCurrency(Number(bill.amount))}
+                              <div style={{ fontSize: '20px', fontWeight: 700, color: isAwaitingAmount ? '#f59e0b' : isEstimated ? '#a78bfa' : '#fff' }}>
+                                {isAwaitingAmount ? 'Awaiting Amount' : isEstimated ? `~${formatCurrency(Number(bill.amount))}` : formatCurrency(Number(bill.amount))}
                               </div>
-                              <div style={{ fontSize: '12px', color: '#3b82f6' }}>
-                                {!isVariable && `${formatCurrency(perPerson)} each`}
+                              <div style={{ fontSize: '12px', color: isEstimated ? '#a78bfa' : '#3b82f6' }}>
+                                {!isAwaitingAmount && (isEstimated ? `~${formatCurrency(perPerson)} each` : `${formatCurrency(perPerson)} each`)}
                               </div>
                             </div>
                           )}
