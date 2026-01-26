@@ -102,6 +102,10 @@ export default function ExpensesPage() {
   const [recurringTemplateFormData, setRecurringTemplateFormData] = useState<any>({})
   const [scanning, setScanning] = useState(false)
   const [scanResults, setScanResults] = useState<any>(null)
+  // Split editing modal
+  const [editingSplitBill, setEditingSplitBill] = useState<BillInstance | null>(null)
+  const [editingSplit, setEditingSplit] = useState<BillSplit | null>(null)
+  const [splitFormData, setSplitFormData] = useState<any>({})
 
   // Check permission on mount
   useEffect(() => {
@@ -236,6 +240,104 @@ export default function ExpensesPage() {
       }
     } catch (err) {
       setError('Failed to update payment')
+    }
+  }
+
+  const openSplitEditModal = (bill: BillInstance, split: BillSplit) => {
+    setEditingSplitBill(bill)
+    setEditingSplit(split)
+    setSplitFormData({
+      amount: split.amount.toString(),
+      status: split.status,
+      percent: ((Number(split.amount) / Number(bill.amount)) * 100).toFixed(1)
+    })
+  }
+
+  const handleUpdateSplit = async () => {
+    if (!editingSplitBill || !editingSplit) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/bill-instances/${editingSplitBill.id}/bill-splits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamMemberId: editingSplit.teamMember.id,
+          amount: parseFloat(splitFormData.amount),
+          status: splitFormData.status
+        })
+      })
+      if (res.ok) {
+        setSuccess('Split updated')
+        setEditingSplitBill(null)
+        setEditingSplit(null)
+        setSplitFormData({})
+        fetchData()
+      } else {
+        setError('Failed to update split')
+      }
+    } catch (err) {
+      setError('Failed to update split')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleMarkCompanyPaid = async (billId: string) => {
+    try {
+      const res = await fetch(`/api/admin/bill-instances/${billId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'PAID',
+          paidDate: new Date().toISOString(),
+          paidVia: 'Company Bank Account'
+        })
+      })
+      if (res.ok) {
+        // Also mark all splits as paid
+        const bill = bills.find(b => b.id === billId)
+        if (bill?.billSplits) {
+          for (const split of bill.billSplits) {
+            await fetch(`/api/admin/bill-instances/${billId}/bill-splits`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ teamMemberId: split.teamMember.id, status: 'PAID' })
+            })
+          }
+        }
+        setSuccess('Marked as paid by company')
+        fetchData()
+      }
+    } catch (err) {
+      setError('Failed to update bill')
+    }
+  }
+
+  const handleSetOnePays100 = async (billId: string, teamMemberId: string) => {
+    const bill = bills.find(b => b.id === billId)
+    if (!bill) return
+
+    try {
+      // Set this person to 100%, others to $0
+      for (const split of bill.billSplits) {
+        const amount = split.teamMember.id === teamMemberId ? Number(bill.amount) : 0
+        await fetch(`/api/admin/bill-instances/${billId}/bill-splits`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teamMemberId: split.teamMember.id,
+            amount,
+            status: split.status
+          })
+        })
+      }
+      setSuccess('Split updated - 100% assigned')
+      setEditingSplitBill(null)
+      setEditingSplit(null)
+      setSplitFormData({})
+      fetchData()
+    } catch (err) {
+      setError('Failed to update splits')
     }
   }
 
@@ -825,7 +927,7 @@ export default function ExpensesPage() {
                         {bill.billSplits?.map(split => (
                           <button
                             key={split.id}
-                            onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
+                            onClick={() => openSplitEditModal(bill, split)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',
                               padding: '6px 12px', borderRadius: '20px',
@@ -836,7 +938,7 @@ export default function ExpensesPage() {
                               fontSize: '13px',
                               transition: 'all 0.15s'
                             }}
-                            title={split.status === 'PAID' ? 'Click to mark as unpaid' : 'Click to mark as paid'}
+                            title="Click to edit split amount and status"
                           >
                             {split.teamMember.profileImageUrl ? (
                               <img
@@ -860,17 +962,31 @@ export default function ExpensesPage() {
                         ))}
 
                         {bill.status !== 'PAID' && (
-                          <button
-                            onClick={() => handleMarkBillPaid(bill.id)}
-                            style={{
-                              padding: '6px 12px', borderRadius: '20px',
-                              border: '1px solid rgba(16,185,129,0.3)',
-                              background: 'transparent', color: '#10b981',
-                              cursor: 'pointer', fontSize: '13px'
-                            }}
-                          >
-                            Mark All Paid
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleMarkBillPaid(bill.id)}
+                              style={{
+                                padding: '6px 12px', borderRadius: '20px',
+                                border: '1px solid rgba(16,185,129,0.3)',
+                                background: 'transparent', color: '#10b981',
+                                cursor: 'pointer', fontSize: '13px'
+                              }}
+                            >
+                              Mark All Paid
+                            </button>
+                            <button
+                              onClick={() => handleMarkCompanyPaid(bill.id)}
+                              style={{
+                                padding: '6px 12px', borderRadius: '20px',
+                                border: '1px solid rgba(59,130,246,0.3)',
+                                background: 'transparent', color: '#3b82f6',
+                                cursor: 'pointer', fontSize: '13px'
+                              }}
+                              title="Mark as paid by company bank account"
+                            >
+                              Company Paid
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -1542,6 +1658,146 @@ export default function ExpensesPage() {
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Split Edit Modal */}
+      {editingSplitBill && editingSplit && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}>
+          <div style={{ background: '#18181b', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '400px', border: '1px solid #27272a' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
+              Edit Split for {editingSplit.teamMember.name?.split(' ')[0] || editingSplit.teamMember.email}
+            </h2>
+            <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '20px' }}>
+              {editingSplitBill.vendor} - Total: {formatCurrency(Number(editingSplitBill.amount))}
+            </p>
+
+            {/* Quick Actions */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '8px' }}>Quick Actions</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleToggleSplitStatus(editingSplitBill.id, editingSplit.teamMember.id, editingSplit.status)}
+                  style={{
+                    padding: '8px 12px', borderRadius: '6px',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                    background: splitFormData.status === 'PAID' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
+                    color: splitFormData.status === 'PAID' ? '#f59e0b' : '#10b981',
+                    cursor: 'pointer', fontSize: '12px'
+                  }}
+                >
+                  {splitFormData.status === 'PAID' ? 'Mark Unpaid' : 'Mark Paid'}
+                </button>
+                <button
+                  onClick={() => handleSetOnePays100(editingSplitBill.id, editingSplit.teamMember.id)}
+                  style={{
+                    padding: '8px 12px', borderRadius: '6px',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    background: 'rgba(139,92,246,0.1)', color: '#a78bfa',
+                    cursor: 'pointer', fontSize: '12px'
+                  }}
+                >
+                  {editingSplit.teamMember.name?.split(' ')[0] || 'This person'} pays 100%
+                </button>
+                <button
+                  onClick={() => {
+                    const equalAmount = Number(editingSplitBill.amount) / (editingSplitBill.billSplits?.length || 1)
+                    setSplitFormData({ ...splitFormData, amount: equalAmount.toFixed(2), percent: (100 / (editingSplitBill.billSplits?.length || 1)).toFixed(1) })
+                  }}
+                  style={{
+                    padding: '8px 12px', borderRadius: '6px',
+                    border: '1px solid #3f3f46',
+                    background: 'transparent', color: '#a1a1aa',
+                    cursor: 'pointer', fontSize: '12px'
+                  }}
+                >
+                  Reset to Equal Split
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Amount */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Custom Amount</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#71717a' }}>$</span>
+                  <input
+                    type="number"
+                    value={splitFormData.amount || ''}
+                    onChange={e => {
+                      const amt = parseFloat(e.target.value) || 0
+                      const pct = editingSplitBill.amount ? (amt / Number(editingSplitBill.amount) * 100).toFixed(1) : '0'
+                      setSplitFormData({ ...splitFormData, amount: e.target.value, percent: pct })
+                    }}
+                    style={{ width: '100%', padding: '10px 12px 10px 26px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div style={{ position: 'relative', width: '100px' }}>
+                  <input
+                    type="number"
+                    value={splitFormData.percent || ''}
+                    onChange={e => {
+                      const pct = parseFloat(e.target.value) || 0
+                      const amt = editingSplitBill.amount ? (Number(editingSplitBill.amount) * pct / 100).toFixed(2) : '0'
+                      setSplitFormData({ ...splitFormData, percent: e.target.value, amount: amt })
+                    }}
+                    style={{ width: '100%', padding: '10px 12px 10px 12px', paddingRight: '30px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+                    step="0.1"
+                    min="0"
+                    max="100"
+                  />
+                  <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#71717a' }}>%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>Status</label>
+              <select
+                value={splitFormData.status || 'PENDING'}
+                onChange={e => setSplitFormData({ ...splitFormData, status: e.target.value })}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3f3f46', background: '#0a0a0a', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }}
+              >
+                <option value="PENDING">Pending</option>
+                <option value="PAID">Paid</option>
+              </select>
+            </div>
+
+            {/* Other Splits Preview */}
+            {editingSplitBill.billSplits && editingSplitBill.billSplits.length > 1 && (
+              <div style={{ marginBottom: '20px', padding: '12px', background: '#0a0a0a', borderRadius: '8px', border: '1px solid #27272a' }}>
+                <p style={{ fontSize: '12px', color: '#71717a', marginBottom: '8px' }}>Other splits:</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {editingSplitBill.billSplits.filter(s => s.id !== editingSplit.id).map(s => (
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                      <span style={{ color: '#a1a1aa' }}>{s.teamMember.name?.split(' ')[0] || s.teamMember.email}</span>
+                      <span style={{ color: s.status === 'PAID' ? '#10b981' : '#f59e0b' }}>{formatCurrency(Number(s.amount))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setEditingSplitBill(null); setEditingSplit(null); setSplitFormData({}) }}
+                style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #3f3f46', background: 'transparent', color: '#fff', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateSplit}
+                disabled={submitting}
+                style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 500, opacity: submitting ? 0.5 : 1 }}
+              >
+                {submitting ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>

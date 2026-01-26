@@ -31,7 +31,7 @@ export async function GET(
   }
 }
 
-// POST /api/admin/bill-instances/[id]/bill-splits - Mark a team member's split as paid
+// POST /api/admin/bill-instances/[id]/bill-splits - Update a team member's split (status, amount)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -45,7 +45,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { teamMemberId, status, paidDate } = body
+    const { teamMemberId, status, paidDate, amount, splitPercent } = body
 
     if (!teamMemberId) {
       return NextResponse.json({ error: 'teamMemberId is required' }, { status: 400 })
@@ -66,6 +66,10 @@ export async function POST(
     const splitCount = billInstance.billSplits.length || 1
     const defaultAmount = Number(billInstance.amount) / splitCount
 
+    // Determine the amount to use
+    const splitAmount = amount !== undefined ? parseFloat(amount) : (existingSplit?.amount || defaultAmount)
+    const percent = splitPercent !== undefined ? parseFloat(splitPercent) : existingSplit?.splitPercent
+
     // Update or create the bill split
     const split = await prisma.billSplit.upsert({
       where: {
@@ -75,15 +79,18 @@ export async function POST(
         }
       },
       update: {
-        status: status || 'PAID',
-        paidDate: paidDate ? new Date(paidDate) : new Date()
+        status: status || existingSplit?.status || 'PENDING',
+        paidDate: status === 'PAID' ? (paidDate ? new Date(paidDate) : new Date()) : (status === 'PENDING' ? null : undefined),
+        amount: splitAmount,
+        splitPercent: percent
       },
       create: {
         billInstanceId: id,
         teamMemberId,
-        amount: existingSplit?.amount || defaultAmount,
-        status: status || 'PAID',
-        paidDate: paidDate ? new Date(paidDate) : new Date()
+        amount: splitAmount,
+        splitPercent: percent,
+        status: status || 'PENDING',
+        paidDate: status === 'PAID' ? (paidDate ? new Date(paidDate) : new Date()) : null
       },
       include: {
         teamMember: {
