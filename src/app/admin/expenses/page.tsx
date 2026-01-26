@@ -439,13 +439,23 @@ export default function ExpensesPage() {
     }
   }
 
+  // Helper to format date as YYYY-MM-DD in local timezone (for date inputs)
+  const formatDateForInput = (dateStr: string | null) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const openBillDetailModal = (bill: BillInstance) => {
     setEditingBill(bill)
     setBillFormData({
       vendor: bill.vendor,
       vendorType: bill.vendorType,
       amount: bill.amount.toString(),
-      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().slice(0, 10) : '',
+      dueDate: formatDateForInput(bill.dueDate),
       status: bill.status,
       period: bill.period || '',
       paidVia: bill.paidVia || ''

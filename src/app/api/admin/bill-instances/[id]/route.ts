@@ -78,7 +78,17 @@ export async function PATCH(
 
     const updateData: any = {}
     if (amount !== undefined) updateData.amount = parseFloat(amount)
-    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
+    if (dueDate !== undefined) {
+      // Parse the date as local time (YYYY-MM-DD input) by appending T12:00:00 to avoid timezone shifts
+      const parsedDate = dueDate ? new Date(dueDate + 'T12:00:00') : null
+      updateData.dueDate = parsedDate
+      // Also update the period field to match the new due date's month
+      if (parsedDate) {
+        const year = parsedDate.getFullYear()
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+        updateData.period = `${year}-${month}`
+      }
+    }
     if (status !== undefined) updateData.status = status
     if (paidDate !== undefined) updateData.paidDate = paidDate ? new Date(paidDate) : null
     if (paidVia !== undefined) updateData.paidVia = paidVia
