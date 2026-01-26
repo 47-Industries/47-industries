@@ -102,9 +102,9 @@ async function generateFixedBills() {
     new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 7)
   ]
 
-  // Only auto-generate FIXED amount bills - variable bills come from email/bank scanning
+  // Auto-generate all recurring bills (use estimated amounts for variable)
   const recurringBills = await prisma.recurringBill.findMany({
-    where: { active: true, amountType: 'FIXED' }
+    where: { active: true }
   })
 
   // Get team members who split expenses
@@ -155,10 +155,24 @@ async function generateFixedBills() {
       // Calculate due date
       const dueDate = new Date(year, month - 1, recurring.dueDay || 1)
 
-      // Use fixed amount
-      const amount = Number(recurring.fixedAmount) || 0
+      // For VARIABLE bills, use last paid amount or fixedAmount as estimate
+      let amount = Number(recurring.fixedAmount) || 0
 
-      // Skip if no valid amount
+      if (recurring.amountType === 'VARIABLE') {
+        const lastPaidInstance = await prisma.billInstance.findFirst({
+          where: {
+            recurringBillId: recurring.id,
+            status: 'PAID',
+            amount: { gt: 0 }
+          },
+          orderBy: { period: 'desc' }
+        })
+        if (lastPaidInstance) {
+          amount = Number(lastPaidInstance.amount)
+        }
+      }
+
+      // Skip if no valid amount (can't estimate)
       if (amount <= 0) continue
 
       const perPersonAmount = splitterCount > 0 ? amount / splitterCount : 0
