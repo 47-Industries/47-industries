@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/admin/team/[id] - Get team member details
@@ -10,18 +9,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    })
-
-    if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const teamMember = await prisma.teamMember.findUnique({
@@ -103,18 +93,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    })
-
-    if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await req.json()
@@ -256,6 +237,14 @@ export async function PUT(
   }
 }
 
+// PATCH /api/admin/team/[id] - Update team member (alias for PUT)
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PUT(req, context)
+}
+
 // DELETE /api/admin/team/[id] - Delete team member (SUPER_ADMIN only)
 // This demotes any linked user to CUSTOMER and deletes the team member record
 export async function DELETE(
@@ -264,21 +253,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    })
-
-    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+    if (auth.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Only super admins can delete team members' }, { status: 403 })
     }
 
-    const teamMember = await prisma.teamMember.findUnique({
+    const teamMemberToDelete = await prisma.teamMember.findUnique({
       where: { id },
       include: {
         _count: {
@@ -291,16 +275,16 @@ export async function DELETE(
       },
     })
 
-    if (!teamMember) {
+    if (!teamMemberToDelete) {
       return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
     }
 
     // Use a transaction to demote user and delete team member
     await prisma.$transaction(async (tx) => {
       // If there's a linked user, demote them to CUSTOMER
-      if (teamMember.userId) {
+      if (teamMemberToDelete.userId) {
         await tx.user.update({
-          where: { id: teamMember.userId },
+          where: { id: teamMemberToDelete.userId },
           data: {
             role: 'CUSTOMER',
             permissions: [],
@@ -318,7 +302,7 @@ export async function DELETE(
     return NextResponse.json({
       success: true,
       message: 'Team member deleted successfully',
-      userDemoted: !!teamMember.userId,
+      userDemoted: !!teamMemberToDelete.userId,
     })
   } catch (error) {
     console.error('Error deleting team member:', error)
