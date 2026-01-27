@@ -91,9 +91,59 @@ export async function PATCH(
       data: updateData
     })
 
+    // Cascade relevant changes to all PENDING bill instances
+    const instanceUpdateData: any = {}
+    if (vendor !== undefined) instanceUpdateData.vendor = vendor
+    if (vendorType !== undefined) instanceUpdateData.vendorType = vendorType
+
+    // Update amounts for PENDING instances if fixedAmount changed and amountType is FIXED
+    const shouldUpdateAmounts = fixedAmount !== undefined &&
+      (amountType === 'FIXED' || (amountType === undefined && recurringBill.amountType === 'FIXED'))
+
+    let instancesUpdated = 0
+
+    if (Object.keys(instanceUpdateData).length > 0 || shouldUpdateAmounts) {
+      // Get all pending instances
+      const pendingInstances = await prisma.billInstance.findMany({
+        where: {
+          recurringBillId: id,
+          status: 'PENDING'
+        },
+        include: { billSplits: true }
+      })
+
+      for (const instance of pendingInstances) {
+        const updatePayload: any = { ...instanceUpdateData }
+
+        // Update amount if fixedAmount changed
+        if (shouldUpdateAmounts && fixedAmount) {
+          const newAmount = parseFloat(fixedAmount)
+          updatePayload.amount = newAmount
+
+          // Also update bill splits with new amounts (equal split)
+          if (instance.billSplits.length > 0) {
+            const splitAmount = newAmount / instance.billSplits.length
+            await prisma.billSplit.updateMany({
+              where: { billInstanceId: instance.id },
+              data: { amount: splitAmount }
+            })
+          }
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          await prisma.billInstance.update({
+            where: { id: instance.id },
+            data: updatePayload
+          })
+          instancesUpdated++
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      recurringBill
+      recurringBill,
+      instancesUpdated
     })
   } catch (error: any) {
     console.error('Error updating recurring bill:', error)
