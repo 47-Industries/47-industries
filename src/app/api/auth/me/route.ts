@@ -21,14 +21,25 @@ export async function GET(request: NextRequest) {
       process.env.NEXTAUTH_SECRET || 'fallback-secret'
     ) as { userId: string; email: string; role: string }
 
-    // Get user from database
+    // Get user from database with team member profile image fallback
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
         id: true,
         email: true,
         name: true,
+        image: true,
         role: true,
+        isFounder: true,
+        permissions: true,
+        partnerId: true,
+        clientId: true,
+        affiliateId: true,
+        teamMember: {
+          select: {
+            profileImageUrl: true,
+          },
+        },
       },
     })
 
@@ -39,7 +50,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ user })
+    // Use team member profile image if user image not set
+    const userWithImage = {
+      ...user,
+      image: user.image || user.teamMember?.profileImageUrl || null,
+      teamMember: undefined, // Remove nested teamMember from response
+    }
+
+    return NextResponse.json({ user: userWithImage })
   } catch (error) {
     console.error('Auth check error:', error)
     return NextResponse.json(
