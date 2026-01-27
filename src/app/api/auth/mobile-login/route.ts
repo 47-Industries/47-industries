@@ -29,6 +29,12 @@ export async function POST(request: NextRequest) {
             profileImageUrl: true,
           },
         },
+        userAffiliate: {
+          select: {
+            id: true,
+            affiliateCode: true,
+          },
+        },
       },
     })
 
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
         permissions: user.permissions,
         partnerId: user.partnerId,
         clientId: user.clientId,
-        affiliateId: user.affiliateId,
+        affiliateId: user.userAffiliate?.id || null,
       },
     })
   } catch (error) {
