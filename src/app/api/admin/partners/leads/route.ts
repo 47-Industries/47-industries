@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 import { validateInterests, LEAD_INTEREST_LABELS, LeadInterest } from '@/lib/lead-utils'
 
 // GET /api/admin/partners/leads - List all partner leads
 export async function GET(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -109,8 +109,8 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/partners/leads - Create a lead (admin can create on behalf of partner)
 export async function POST(req: NextRequest) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

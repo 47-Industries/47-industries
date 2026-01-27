@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminAuth } from '@/lib/auth-helper'
+import { getAdminAuthInfo } from '@/lib/auth-helper'
 
 // GET /api/admin/partners/[id] - Get partner details
 export async function GET(
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -113,8 +113,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -171,14 +171,22 @@ export async function PUT(
   }
 }
 
+// PATCH /api/admin/partners/[id] - Update partner (alias for PUT)
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PUT(req, context)
+}
+
 // DELETE /api/admin/partners/[id] - Delete partner
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAuthorized = await verifyAdminAuth(req)
-    if (!isAuthorized) {
+    const auth = await getAdminAuthInfo(req)
+    if (!auth.isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
