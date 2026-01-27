@@ -124,6 +124,10 @@ export async function POST(
     }
 
     // Create bill instance
+    // If there are splitters, bill starts as PENDING (until all splits are paid)
+    // If no splitters, bill is PAID since company paid it
+    const billStatus = splitters.length > 0 ? 'PENDING' : 'PAID'
+
     const billInstance = await prisma.billInstance.create({
       data: {
         vendor,
@@ -131,8 +135,8 @@ export async function POST(
         amount,
         dueDate: txnDate,
         period,
-        status: 'PAID', // Bank transactions are already paid
-        paidDate: txnDate,
+        status: billStatus,
+        paidDate: txnDate, // Track when company paid the vendor
         paidVia: `${transaction.financialAccount.institutionName} ****${transaction.financialAccount.accountLast4 || ''}`,
         stripeTransactionId: transaction.stripeTransactionId,
         recurringBillId
@@ -283,6 +287,9 @@ export async function POST(
           const txnPeriod = txnDate.toISOString().slice(0, 7)
 
           // Create bill instance for this transaction
+          // If there are splitters, bill starts as PENDING (until all splits are paid)
+          const newBillStatus = splitters.length > 0 ? 'PENDING' : 'PAID'
+
           const newBillInstance = await prisma.billInstance.create({
             data: {
               vendor,
@@ -290,8 +297,8 @@ export async function POST(
               amount: txnAmount,
               dueDate: txnDate,
               period: txnPeriod,
-              status: 'PAID',
-              paidDate: txnDate,
+              status: newBillStatus,
+              paidDate: txnDate, // Track when company paid the vendor
               paidVia: `${txn.financialAccount.institutionName} ****${txn.financialAccount.accountLast4 || ''}`,
               stripeTransactionId: txn.stripeTransactionId,
               recurringBillId
