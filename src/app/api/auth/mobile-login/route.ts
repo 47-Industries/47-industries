@@ -23,6 +23,13 @@ export async function POST(request: NextRequest) {
       where: isEmail
         ? { email: identifier }
         : { username: identifier },
+      include: {
+        teamMember: {
+          select: {
+            profileImageUrl: true,
+          },
+        },
+      },
     })
 
     if (!user || !user.password) {
@@ -70,6 +77,11 @@ export async function POST(request: NextRequest) {
         username: user.username,
         role: user.role,
         isFounder: user.isFounder,
+        image: user.image || user.teamMember?.profileImageUrl || null,
+        permissions: user.permissions,
+        partnerId: user.partnerId,
+        clientId: user.clientId,
+        affiliateId: user.affiliateId,
       },
     })
   } catch (error) {
