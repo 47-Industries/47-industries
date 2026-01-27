@@ -33,6 +33,7 @@ interface TeamMember {
   phone: string | null
   address: string | null
   dateOfBirth: string | null
+  gender: string | null
   profileImageUrl: string | null
   title: string
   department: string | null
@@ -590,6 +591,12 @@ export default function TeamMemberDetailPage() {
                 <label className="text-sm text-zinc-500">Date of Birth</label>
                 <p className="text-white">
                   {teamMember.dateOfBirth ? formatDate(teamMember.dateOfBirth) : '-'}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm text-zinc-500">Gender</label>
+                <p className="text-white">
+                  {teamMember.gender ? teamMember.gender.charAt(0) + teamMember.gender.slice(1).toLowerCase() : '-'}
                 </p>
               </div>
               <div>
@@ -1361,6 +1368,7 @@ function EditTeamMemberModal({
     phone: teamMember.phone || '',
     address: teamMember.address || '',
     dateOfBirth: teamMember.dateOfBirth ? teamMember.dateOfBirth.split('T')[0] : '',
+    gender: teamMember.gender || '',
     title: teamMember.title,
     department: teamMember.department || '',
     startDate: teamMember.startDate.split('T')[0],
@@ -1465,6 +1473,19 @@ function EditTeamMemberModal({
                   onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                   className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
                 />
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1">Gender</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white"
+                >
+                  <option value="">Select...</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
               </div>
             </div>
             <div className="mt-4">

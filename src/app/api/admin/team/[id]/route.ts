@@ -137,6 +137,7 @@ export async function PUT(
     if (body.dateOfBirth !== undefined) {
       updateData.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null
     }
+    if (body.gender !== undefined) updateData.gender = body.gender || null
     if (body.profileImageUrl !== undefined) updateData.profileImageUrl = body.profileImageUrl || null
 
     // Employment

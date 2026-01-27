@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
       include: {
         teamMember: {
           select: {
+            id: true,
+            name: true,
+            gender: true,
             profileImageUrl: true,
           },
         },
@@ -98,6 +101,11 @@ export async function POST(request: NextRequest) {
         partnerId: user.partner?.id || null,
         clientId: user.client?.id || null,
         affiliateId: user.userAffiliate?.id || null,
+        teamMember: user.teamMember ? {
+          id: user.teamMember.id,
+          name: user.teamMember.name,
+          gender: user.teamMember.gender,
+        } : null,
       },
     })
   } catch (error) {
