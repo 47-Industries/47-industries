@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
         permissions: true,
         teamMember: {
           select: {
+            id: true,
+            name: true,
+            gender: true,
             profileImageUrl: true,
           },
         },
@@ -69,8 +72,13 @@ export async function GET(request: NextRequest) {
       partnerId: user.partner?.id || null,
       clientId: user.client?.id || null,
       affiliateId: user.userAffiliate?.id || null,
-      // Remove nested relations from response
-      teamMember: undefined,
+      // Include team member data for greeting
+      teamMember: user.teamMember ? {
+        id: user.teamMember.id,
+        name: user.teamMember.name,
+        gender: user.teamMember.gender,
+      } : null,
+      // Remove other nested relations from response
       partner: undefined,
       client: undefined,
       userAffiliate: undefined,
