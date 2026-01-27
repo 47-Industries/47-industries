@@ -32,11 +32,19 @@ export async function GET(request: NextRequest) {
         role: true,
         isFounder: true,
         permissions: true,
-        partnerId: true,
-        clientId: true,
         teamMember: {
           select: {
             profileImageUrl: true,
+          },
+        },
+        partner: {
+          select: {
+            id: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
           },
         },
         userAffiliate: {
@@ -58,9 +66,14 @@ export async function GET(request: NextRequest) {
     const userWithImage = {
       ...user,
       image: user.image || user.teamMember?.profileImageUrl || null,
+      partnerId: user.partner?.id || null,
+      clientId: user.client?.id || null,
       affiliateId: user.userAffiliate?.id || null,
-      teamMember: undefined, // Remove nested teamMember from response
-      userAffiliate: undefined, // Remove nested userAffiliate from response
+      // Remove nested relations from response
+      teamMember: undefined,
+      partner: undefined,
+      client: undefined,
+      userAffiliate: undefined,
     }
 
     return NextResponse.json({ user: userWithImage })

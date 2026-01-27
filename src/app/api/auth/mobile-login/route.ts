@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
             profileImageUrl: true,
           },
         },
+        partner: {
+          select: {
+            id: true,
+          },
+        },
+        client: {
+          select: {
+            id: true,
+          },
+        },
         userAffiliate: {
           select: {
             id: true,
@@ -85,8 +95,8 @@ export async function POST(request: NextRequest) {
         isFounder: user.isFounder,
         image: user.image || user.teamMember?.profileImageUrl || null,
         permissions: user.permissions,
-        partnerId: user.partnerId,
-        clientId: user.clientId,
+        partnerId: user.partner?.id || null,
+        clientId: user.client?.id || null,
         affiliateId: user.userAffiliate?.id || null,
       },
     })
