@@ -1,19 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import jwt from 'jsonwebtoken'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+
+// Helper to get user ID from either NextAuth session or bearer token
+async function getUserId(request: NextRequest): Promise<string | null> {
+  // First try NextAuth session (web)
+  const session = await getServerSession(authOptions)
+  if (session?.user?.id) {
+    return session.user.id
+  }
+
+  // Then try JWT token (mobile)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.substring(7)
+      const decoded = jwt.verify(
+        token,
+        process.env.NEXTAUTH_SECRET || 'fallback-secret'
+      ) as { userId: string }
+      return decoded.userId
+    } catch {
+      return null
+    }
+  }
+  return null
+}
 
 // GET /api/admin/team - List all team members
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = await getUserId(req)
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Check if user is admin
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { role: true },
     })
 
