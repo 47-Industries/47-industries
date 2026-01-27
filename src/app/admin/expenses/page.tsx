@@ -220,28 +220,51 @@ export default function ExpensesPage() {
 
   const handleToggleSplitStatus = async (billId: string, teamMemberId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'PAID' ? 'PENDING' : 'PAID'
+
+    // Optimistic update - update UI immediately
+    setBills(prevBills => prevBills.map(bill => {
+      if (bill.id !== billId) return bill
+      const updatedSplits = bill.billSplits.map(split =>
+        split.teamMember.id === teamMemberId
+          ? { ...split, status: newStatus, paidDate: newStatus === 'PAID' ? new Date().toISOString() : null }
+          : split
+      )
+      // Check if all splits are now paid
+      const allPaid = updatedSplits.every(s => s.status === 'PAID')
+      return {
+        ...bill,
+        billSplits: updatedSplits,
+        status: allPaid ? 'PAID' : 'PENDING'
+      }
+    }))
+
+    // Update editing bill if modal is open
+    if (editingBill && editingBill.id === billId) {
+      setEditingBill({
+        ...editingBill,
+        billSplits: editingBill.billSplits.map(split =>
+          split.teamMember.id === teamMemberId
+            ? { ...split, status: newStatus, paidDate: newStatus === 'PAID' ? new Date().toISOString() : null }
+            : split
+        )
+      })
+    }
+
+    // Send to API in background
     try {
       const res = await fetch(`/api/admin/bill-instances/${billId}/bill-splits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamMemberId, status: newStatus })
       })
-      if (res.ok) {
-        setSuccess(newStatus === 'PAID' ? 'Marked as paid' : 'Marked as unpaid')
-        // Update the editing bill if modal is open
-        if (editingBill && editingBill.id === billId) {
-          setEditingBill({
-            ...editingBill,
-            billSplits: editingBill.billSplits.map(split =>
-              split.teamMember.id === teamMemberId
-                ? { ...split, status: newStatus, paidDate: newStatus === 'PAID' ? new Date().toISOString() : null }
-                : split
-            )
-          })
-        }
+      if (!res.ok) {
+        // Revert on error
         fetchData()
+        setError('Failed to update payment')
       }
     } catch (err) {
+      // Revert on error
+      fetchData()
       setError('Failed to update payment')
     }
   }
