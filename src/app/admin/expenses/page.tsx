@@ -193,7 +193,11 @@ export default function ExpensesPage() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    // Extract date parts to avoid timezone shift
+    const dateOnly = dateStr.split('T')[0] // Get YYYY-MM-DD part
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    const d = new Date(year, month - 1, day) // Create as local date
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const formatPeriod = (period: string) => {
