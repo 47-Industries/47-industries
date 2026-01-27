@@ -999,42 +999,51 @@ export default function ExpensesPage() {
                           </div>
                         ) : (
                           <>
-                            {bill.billSplits?.map(split => (
-                              <button
-                                key={split.id}
-                                onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: '8px',
-                                  padding: '6px 12px', borderRadius: '20px',
-                                  border: split.status === 'PAID' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
-                                  background: split.status === 'PAID' ? 'rgba(16,185,129,0.1)' : 'transparent',
-                                  color: split.status === 'PAID' ? '#10b981' : '#fff',
-                                  cursor: 'pointer',
-                                  fontSize: '13px',
-                                  transition: 'all 0.15s'
-                                }}
-                                title="Click to toggle paid/unpaid"
-                              >
-                                {split.teamMember.profileImageUrl ? (
-                                  <img
-                                    src={split.teamMember.profileImageUrl}
-                                    alt={split.teamMember.name}
-                                    style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
-                                  />
-                                ) : (
-                                  <span style={{
-                                    width: '20px', height: '20px', borderRadius: '50%',
-                                    background: split.status === 'PAID' ? '#10b981' : '#3b82f6',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '10px', fontWeight: 600
-                                  }}>
-                                    {split.status === 'PAID' ? 'OK' : (split.teamMember.name || split.teamMember.email || '?').charAt(0).toUpperCase()}
-                                  </span>
-                                )}
-                                <span>{split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}</span>
-                                <span style={{ color: '#71717a' }}>{formatCurrency(Number(split.amount))}</span>
-                              </button>
-                            ))}
+                            {bill.billSplits?.map(split => {
+                              const hasNoAllocation = Number(split.amount) === 0
+                              const isPaid = split.status === 'PAID'
+                              return (
+                                <button
+                                  key={split.id}
+                                  onClick={() => !hasNoAllocation && handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    padding: '6px 12px', borderRadius: '20px',
+                                    border: hasNoAllocation ? '1px solid #27272a' : isPaid ? '1px solid rgba(16,185,129,0.3)' : '1px solid #3f3f46',
+                                    background: hasNoAllocation ? '#1a1a1a' : isPaid ? 'rgba(16,185,129,0.1)' : 'transparent',
+                                    color: hasNoAllocation ? '#52525b' : isPaid ? '#10b981' : '#fff',
+                                    cursor: hasNoAllocation ? 'default' : 'pointer',
+                                    fontSize: '13px',
+                                    transition: 'all 0.15s',
+                                    opacity: hasNoAllocation ? 0.5 : 1
+                                  }}
+                                  title={hasNoAllocation ? 'No allocation' : 'Click to toggle paid/unpaid'}
+                                >
+                                  {split.teamMember.profileImageUrl ? (
+                                    <img
+                                      src={split.teamMember.profileImageUrl}
+                                      alt={split.teamMember.name}
+                                      style={{
+                                        width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover',
+                                        filter: hasNoAllocation ? 'grayscale(100%)' : 'none',
+                                        opacity: hasNoAllocation ? 0.5 : 1
+                                      }}
+                                    />
+                                  ) : (
+                                    <span style={{
+                                      width: '20px', height: '20px', borderRadius: '50%',
+                                      background: hasNoAllocation ? '#3f3f46' : isPaid ? '#10b981' : '#3b82f6',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: '10px', fontWeight: 600
+                                    }}>
+                                      {isPaid && !hasNoAllocation ? 'OK' : (split.teamMember.name || split.teamMember.email || '?').charAt(0).toUpperCase()}
+                                    </span>
+                                  )}
+                                  <span>{split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}</span>
+                                  <span style={{ color: hasNoAllocation ? '#3f3f46' : '#71717a' }}>{formatCurrency(Number(split.amount))}</span>
+                                </button>
+                              )
+                            })}
 
                             {bill.status !== 'PAID' && (
                               <button
