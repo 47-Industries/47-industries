@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import jwt from 'jsonwebtoken'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import {
@@ -7,13 +8,38 @@ import {
   getRecentPointTransactions,
 } from '@/lib/user-affiliate-points'
 
+// Helper to get user ID from either NextAuth session or bearer token
+async function getUserId(request: NextRequest): Promise<string | null> {
+  // First try NextAuth session (web)
+  const session = await getServerSession(authOptions)
+  if (session?.user?.id) {
+    return session.user.id
+  }
+
+  // Then try JWT token (mobile)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.substring(7)
+      const decoded = jwt.verify(
+        token,
+        process.env.NEXTAUTH_SECRET || 'fallback-secret'
+      ) as { userId: string }
+      return decoded.userId
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 // GET /api/account/affiliate
 // Get affiliate dashboard data with points stats and partner info
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const userId = await getUserId(request)
 
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -22,7 +48,7 @@ export async function GET() {
 
     // Check if user has a UserAffiliate record
     const userAffiliate = await prisma.userAffiliate.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
       select: { id: true },
     })
 
@@ -48,7 +74,7 @@ export async function GET() {
 
     // Get partner info (if user is a partner or store affiliate)
     const partner = await prisma.partner.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
       select: {
         partnerType: true,
         shopCommissionRate: true,
@@ -59,7 +85,7 @@ export async function GET() {
     // Check for pending applications
     const pendingApplication = await prisma.partnerApplication.findFirst({
       where: {
-        userId: session.user.id,
+        userId,
         status: 'PENDING',
       },
       select: {

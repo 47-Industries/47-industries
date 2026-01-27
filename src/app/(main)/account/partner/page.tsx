@@ -110,6 +110,45 @@ interface Payout {
   paidAt?: string
 }
 
+interface MotorevAffiliate {
+  affiliateCode: string
+  points: {
+    total: number
+    available: number
+    redeemed: number
+    toNextReward: number
+    progressPercent: number
+  }
+  stats: {
+    totalReferrals: number
+    proConversions: number
+    proDaysEarned: number
+    totalTransactions: number
+    totalRedemptions: number
+  }
+  motorev: {
+    userId: string
+    email: string | null
+    username: string | null
+    profilePicture: string | null
+    badge: {
+      name: string
+      icon: string | null
+      color: string | null
+    } | null
+  } | null
+  shareLink: string
+}
+
+interface MotorevTransaction {
+  id: string
+  type: string
+  points: number
+  description: string | null
+  motorevEmail: string | null
+  createdAt: string
+}
+
 function PartnerDashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -123,6 +162,9 @@ function PartnerDashboardContent() {
   const [phoneSaving, setPhoneSaving] = useState(false)
   const [phoneError, setPhoneError] = useState('')
   const [stripeStatusMessage, setStripeStatusMessage] = useState('')
+  const [motorevAffiliate, setMotorevAffiliate] = useState<MotorevAffiliate | null>(null)
+  const [motorevActivity, setMotorevActivity] = useState<MotorevTransaction[]>([])
+  const [motorevCopied, setMotorevCopied] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -185,6 +227,8 @@ function PartnerDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setPartner(data.partner)
+        setMotorevAffiliate(data.motorevAffiliate || null)
+        setMotorevActivity(data.motorevRecentActivity || [])
       } else if (res.status === 404) {
         setError('not_partner')
       }
@@ -193,6 +237,17 @@ function PartnerDashboardContent() {
       setError('error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function copyMotorevLink() {
+    if (!motorevAffiliate?.shareLink) return
+    try {
+      await navigator.clipboard.writeText(motorevAffiliate.shareLink)
+      setMotorevCopied(true)
+      setTimeout(() => setMotorevCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
     }
   }
 
@@ -651,6 +706,144 @@ function PartnerDashboardContent() {
             <p className="text-xs text-text-secondary">{partner.contract?.status || 'View'}</p>
           </Link>
         </div>
+
+        {/* MotoRev Affiliate Section */}
+        {motorevAffiliate && (
+          <div className="border border-[#0066FF]/30 rounded-xl overflow-hidden mb-8 bg-gradient-to-br from-[#0066FF]/5 to-transparent">
+            <div className="p-5 border-b border-[#0066FF]/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {motorevAffiliate.motorev?.profilePicture ? (
+                    <img
+                      src={motorevAffiliate.motorev.profilePicture}
+                      alt="Profile"
+                      className="w-12 h-12 rounded-full object-cover border-2 border-[#0066FF]/50"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-[#0066FF] flex items-center justify-center text-white font-bold">
+                      {motorevAffiliate.motorev?.username?.[0]?.toUpperCase() || 'M'}
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="font-bold text-lg">MotoRev Affiliate</h2>
+                    <p className="text-sm text-text-secondary">
+                      {motorevAffiliate.motorev?.username ? `@${motorevAffiliate.motorev.username}` : 'Points-based referral program'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-[#0066FF]">{motorevAffiliate.points.available}</p>
+                  <p className="text-xs text-text-secondary">points</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5">
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div className="h-3 bg-surface rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#0066FF] to-[#00AAFF] rounded-full transition-all duration-500"
+                    style={{ width: `${motorevAffiliate.points.progressPercent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-text-secondary mt-2">
+                  <span>
+                    {motorevAffiliate.points.toNextReward === 0
+                      ? 'Ready to redeem!'
+                      : `${motorevAffiliate.points.toNextReward} to next reward`}
+                  </span>
+                  <span>10 pts = 7 days Pro</span>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                <div className="text-center p-3 bg-surface/50 rounded-lg">
+                  <p className="text-xl font-bold">{motorevAffiliate.stats.totalReferrals}</p>
+                  <p className="text-xs text-text-secondary">Signups</p>
+                </div>
+                <div className="text-center p-3 bg-surface/50 rounded-lg">
+                  <p className="text-xl font-bold text-[#0066FF]">{motorevAffiliate.stats.proConversions}</p>
+                  <p className="text-xs text-text-secondary">Pro Conv.</p>
+                </div>
+                <div className="text-center p-3 bg-surface/50 rounded-lg">
+                  <p className="text-xl font-bold text-green-500">{motorevAffiliate.stats.proDaysEarned}d</p>
+                  <p className="text-xs text-text-secondary">Pro Earned</p>
+                </div>
+                <div className="text-center p-3 bg-surface/50 rounded-lg">
+                  <p className="text-xl font-bold">{motorevAffiliate.points.total}</p>
+                  <p className="text-xs text-text-secondary">Total Pts</p>
+                </div>
+              </div>
+
+              {/* Share Link */}
+              <div className="p-4 bg-surface rounded-lg">
+                <p className="text-xs text-text-secondary mb-2">Share your MotoRev referral link:</p>
+                <div className="flex gap-2">
+                  <div className="flex-1 px-3 py-2 bg-background rounded font-mono text-sm truncate border border-border">
+                    {motorevAffiliate.shareLink}
+                  </div>
+                  <button
+                    onClick={copyMotorevLink}
+                    className="px-4 py-2 bg-[#0066FF] text-white rounded hover:bg-[#0052CC] transition-colors text-sm font-medium flex items-center gap-2"
+                  >
+                    {motorevCopied ? (
+                      <>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-text-secondary mt-2">
+                  Code: <span className="font-mono font-bold">{motorevAffiliate.affiliateCode}</span>
+                </p>
+              </div>
+
+              {/* Recent Activity */}
+              {motorevActivity.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-sm font-medium mb-3">Recent Activity</p>
+                  <div className="space-y-2">
+                    {motorevActivity.slice(0, 3).map((tx) => (
+                      <div key={tx.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                            tx.type === 'PRO_CONVERSION' ? 'bg-[#0066FF]/20 text-[#0066FF]' : 'bg-green-500/20 text-green-500'
+                          }`}>
+                            {tx.type === 'PRO_CONVERSION' ? (
+                              <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
+                            ) : (
+                              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-text-secondary">
+                            {tx.type === 'PRO_CONVERSION' ? 'Pro Conversion' : 'Signup'}
+                          </span>
+                        </div>
+                        <span className="font-medium text-green-500">+{tx.points} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Payout Setup Banner - if not connected */}
         {partner.stripeConnectStatus !== 'CONNECTED' && partner.stripeConnectStatus !== 'PENDING_VERIFICATION' && (

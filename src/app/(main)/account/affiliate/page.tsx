@@ -288,6 +288,16 @@ export default function UserAffiliateDashboardPage() {
     )
   }
 
+  // If user is a partner, redirect to partner dashboard (which now includes MotoRev affiliate)
+  if (stats?.isPartner) {
+    router.push('/account/partner')
+    return (
+      <div className="min-h-screen py-20 flex items-center justify-center">
+        <div className="animate-pulse text-text-secondary">Redirecting to Partner Dashboard...</div>
+      </div>
+    )
+  }
+
   // No affiliate account yet
   if (error === 'no-affiliate') {
     return (
