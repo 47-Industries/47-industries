@@ -1130,88 +1130,105 @@ export default function ExpensesPage() {
 
                           {/* Individual Split Editors */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {bill.billSplits?.map(split => (
-                              <div key={split.id} style={{
-                                display: 'flex', alignItems: 'center', gap: '12px',
-                                padding: '10px 12px', background: '#18181b', borderRadius: '8px',
-                                border: '1px solid #27272a'
-                              }}>
-                                {/* Avatar and Name */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
-                                  {split.teamMember.profileImageUrl ? (
-                                    <img
-                                      src={split.teamMember.profileImageUrl}
-                                      alt={split.teamMember.name}
-                                      style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                            {bill.billSplits?.map(split => {
+                              const hasNoAllocation = Number(split.amount) === 0
+                              return (
+                                <div key={split.id} style={{
+                                  display: 'flex', alignItems: 'center', gap: '12px',
+                                  padding: '10px 12px', background: hasNoAllocation ? '#121212' : '#18181b', borderRadius: '8px',
+                                  border: '1px solid #27272a',
+                                  opacity: hasNoAllocation ? 0.5 : 1
+                                }}>
+                                  {/* Avatar and Name */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
+                                    {split.teamMember.profileImageUrl ? (
+                                      <img
+                                        src={split.teamMember.profileImageUrl}
+                                        alt={split.teamMember.name}
+                                        style={{
+                                          width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover',
+                                          filter: hasNoAllocation ? 'grayscale(100%)' : 'none'
+                                        }}
+                                      />
+                                    ) : (
+                                      <div style={{
+                                        width: '28px', height: '28px', borderRadius: '50%',
+                                        background: hasNoAllocation ? '#3f3f46' : '#3b82f6',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '12px', fontWeight: 600
+                                      }}>
+                                        {(split.teamMember.name || '?').charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span style={{ fontSize: '14px', fontWeight: 500, color: hasNoAllocation ? '#71717a' : '#fff' }}>
+                                      {split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}
+                                    </span>
+                                  </div>
+
+                                  {/* Amount Input */}
+                                  <div style={{ position: 'relative', width: '100px' }}>
+                                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '13px' }}>$</span>
+                                    <input
+                                      type="number"
+                                      value={splitAmounts[split.teamMember.id] || split.amount}
+                                      onChange={e => setSplitAmounts({ ...splitAmounts, [split.teamMember.id]: e.target.value })}
+                                      onBlur={e => {
+                                        if (e.target.value !== split.amount.toString()) {
+                                          handleUpdateSplitAmount(bill.id, split.teamMember.id, e.target.value, split.status)
+                                        }
+                                      }}
+                                      style={{
+                                        width: '100%', padding: '8px 10px 8px 24px',
+                                        borderRadius: '6px', border: '1px solid #3f3f46',
+                                        background: '#0a0a0a', color: '#fff', fontSize: '13px'
+                                      }}
+                                      step="0.01" min="0"
                                     />
-                                  ) : (
-                                    <div style={{
-                                      width: '28px', height: '28px', borderRadius: '50%',
-                                      background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      fontSize: '12px', fontWeight: 600
-                                    }}>
-                                      {(split.teamMember.name || '?').charAt(0).toUpperCase()}
-                                    </div>
-                                  )}
-                                  <span style={{ fontSize: '14px', fontWeight: 500 }}>
-                                    {split.teamMember.name?.split(' ')[0] || split.teamMember.email?.split('@')[0]}
+                                  </div>
+
+                                  {/* Percentage Display */}
+                                  <span style={{ fontSize: '12px', color: '#71717a', minWidth: '45px' }}>
+                                    {Number(bill.amount) > 0 ? ((Number(splitAmounts[split.teamMember.id] || split.amount) / Number(bill.amount)) * 100).toFixed(0) : 0}%
                                   </span>
-                                </div>
 
-                                {/* Amount Input */}
-                                <div style={{ position: 'relative', width: '100px' }}>
-                                  <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#71717a', fontSize: '13px' }}>$</span>
-                                  <input
-                                    type="number"
-                                    value={splitAmounts[split.teamMember.id] || split.amount}
-                                    onChange={e => setSplitAmounts({ ...splitAmounts, [split.teamMember.id]: e.target.value })}
-                                    onBlur={e => {
-                                      if (e.target.value !== split.amount.toString()) {
-                                        handleUpdateSplitAmount(bill.id, split.teamMember.id, e.target.value, split.status)
-                                      }
-                                    }}
+                                  {/* Status Toggle - disabled for $0 allocations */}
+                                  {hasNoAllocation ? (
+                                    <span style={{
+                                      padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                                      background: '#27272a', color: '#52525b'
+                                    }}>
+                                      N/A
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
+                                      style={{
+                                        padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
+                                        border: 'none', cursor: 'pointer',
+                                        background: split.status === 'PAID' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
+                                        color: split.status === 'PAID' ? '#10b981' : '#f59e0b'
+                                      }}
+                                    >
+                                      {split.status === 'PAID' ? 'Paid' : 'Pending'}
+                                    </button>
+                                  )}
+
+                                  {/* 100% Button */}
+                                  <button
+                                    onClick={() => handleSetOnePays100(bill.id, split.teamMember.id)}
                                     style={{
-                                      width: '100%', padding: '8px 10px 8px 24px',
-                                      borderRadius: '6px', border: '1px solid #3f3f46',
-                                      background: '#0a0a0a', color: '#fff', fontSize: '13px'
+                                      padding: '6px 10px', borderRadius: '6px', fontSize: '11px',
+                                      border: '1px solid rgba(139,92,246,0.3)',
+                                      background: 'transparent', color: '#a78bfa',
+                                      cursor: 'pointer'
                                     }}
-                                    step="0.01" min="0"
-                                  />
+                                    title={`${split.teamMember.name?.split(' ')[0] || 'This person'} pays 100%`}
+                                  >
+                                    100%
+                                  </button>
                                 </div>
-
-                                {/* Percentage Display */}
-                                <span style={{ fontSize: '12px', color: '#71717a', minWidth: '45px' }}>
-                                  {Number(bill.amount) > 0 ? ((Number(splitAmounts[split.teamMember.id] || split.amount) / Number(bill.amount)) * 100).toFixed(0) : 0}%
-                                </span>
-
-                                {/* Status Toggle */}
-                                <button
-                                  onClick={() => handleToggleSplitStatus(bill.id, split.teamMember.id, split.status)}
-                                  style={{
-                                    padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-                                    border: 'none', cursor: 'pointer',
-                                    background: split.status === 'PAID' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)',
-                                    color: split.status === 'PAID' ? '#10b981' : '#f59e0b'
-                                  }}
-                                >
-                                  {split.status === 'PAID' ? 'Paid' : 'Pending'}
-                                </button>
-
-                                {/* 100% Button */}
-                                <button
-                                  onClick={() => handleSetOnePays100(bill.id, split.teamMember.id)}
-                                  style={{
-                                    padding: '6px 10px', borderRadius: '6px', fontSize: '11px',
-                                    border: '1px solid rgba(139,92,246,0.3)',
-                                    background: 'transparent', color: '#a78bfa',
-                                    cursor: 'pointer'
-                                  }}
-                                  title={`${split.teamMember.name?.split(' ')[0] || 'This person'} pays 100%`}
-                                >
-                                  100%
-                                </button>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         </div>
                       )}
