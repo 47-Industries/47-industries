@@ -99,6 +99,14 @@ export async function PUT(
   }
 }
 
+// PATCH /api/admin/custom-requests/[id] - Update custom request (alias for PUT)
+export async function PATCH(
+  req: NextRequest,
+  context: RouteContext
+) {
+  return PUT(req, context)
+}
+
 // DELETE /api/admin/custom-requests/[id] - Delete custom request
 export async function DELETE(
   req: NextRequest,
