@@ -12,7 +12,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const authUrl = getZohoAuthUrl(auth.userId)
+    // Check if this is a mobile request
+    const source = req.nextUrl.searchParams.get('source')
+
+    // Create state with userId and source for the callback
+    const state = Buffer.from(JSON.stringify({
+      userId: auth.userId,
+      source: source || undefined,
+      timestamp: Date.now()
+    })).toString('base64')
+
+    const authUrl = getZohoAuthUrl(state)
 
     return NextResponse.json({ authUrl })
   } catch (error) {
