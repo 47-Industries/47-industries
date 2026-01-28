@@ -58,10 +58,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is an admin
-    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+    // Determine portal access
+    const portalAccess = {
+      admin: user.role === 'ADMIN' || user.role === 'SUPER_ADMIN',
+      partner: !!user.partner,
+      client: !!user.client,
+      affiliate: !!user.userAffiliate,
+    }
+
+    // Check if user has access to at least one portal
+    const hasAnyAccess = portalAccess.admin || portalAccess.partner || portalAccess.client || portalAccess.affiliate
+    if (!hasAnyAccess) {
       return NextResponse.json(
-        { error: 'Admin access required' },
+        { error: 'No portal access. Contact support if you believe this is an error.' },
         { status: 403 }
       )
     }
@@ -107,6 +116,7 @@ export async function POST(request: NextRequest) {
           gender: user.teamMember.gender,
         } : null,
       },
+      portalAccess,
     })
   } catch (error) {
     console.error('Mobile login error:', error)
