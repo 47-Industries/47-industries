@@ -112,7 +112,7 @@ export default function NewProductPage() {
     try {
       const res = await fetch(`/api/admin/categories?productType=${productType}`)
       const data = await res.json()
-      setCategories(data || [])
+      setCategories(data.categories || [])
       // Reset category selection when product type changes
       setFormData(prev => ({ ...prev, categoryId: '' }))
     } catch (error) {

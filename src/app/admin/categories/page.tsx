@@ -52,7 +52,7 @@ export default function CategoriesPage() {
       const res = await fetch(`/api/admin/categories?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setCategories(data)
+        setCategories(data.categories || [])
       }
     } catch (error) {
       console.error('Failed to fetch categories:', error)

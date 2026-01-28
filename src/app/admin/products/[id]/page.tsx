@@ -141,7 +141,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     try {
       const res = await fetch('/api/admin/categories')
       const data = await res.json()
-      setCategories(data || [])
+      setCategories(data.categories || [])
     } catch (error) {
       console.error('Failed to fetch categories:', error)
     }
@@ -154,7 +154,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         router.push('/admin/products')
         return
       }
-      const data: Product = await res.json()
+      const responseData = await res.json()
+      const data: Product = responseData.product
       setProduct(data)
 
       setFormData({
