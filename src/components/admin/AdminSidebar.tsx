@@ -35,6 +35,7 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
       items: [
         { label: 'Dashboard', href: '/admin' },
         { label: 'Analytics', href: '/admin/analytics' },
+        { label: 'Documents', href: '/admin/documents' },
       ],
     },
     {
