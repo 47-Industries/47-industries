@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { uploadToR2 } from '@/lib/r2'
+import { sendContractSignedConfirmation, sendContractSignedAdminNotification } from '@/lib/email'
 
 // Helper to get client IP
 function getClientIp(req: NextRequest): string {
@@ -116,8 +117,34 @@ export async function POST(
       },
     })
 
-    // TODO: Send confirmation email to signer and admin
-    // This can be implemented using Resend
+    // Send confirmation email to signer
+    const signerEmailResult = await sendContractSignedConfirmation({
+      to: signerEmail,
+      signerName,
+      contractNumber,
+      contractTitle: contract.title || `Contract ${contractNumber}`,
+      signedAt: now,
+    })
+
+    if (!signerEmailResult.success) {
+      console.error('Failed to send contract signed confirmation email to signer')
+    }
+
+    // Send notification email to admin
+    const adminEmailResult = await sendContractSignedAdminNotification({
+      contractNumber,
+      contractTitle: contract.title || `Contract ${contractNumber}`,
+      signerName,
+      signerEmail,
+      signerIp: clientIp,
+      signedAt: now,
+      clientName: updatedContract.client?.name || 'Unknown Client',
+      clientId: contract.clientId,
+    })
+
+    if (!adminEmailResult.success) {
+      console.error('Failed to send contract signed notification email to admin')
+    }
 
     return NextResponse.json({
       success: true,

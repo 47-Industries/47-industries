@@ -1673,6 +1673,195 @@ export async function sendContractFullyExecutedToClient(data: {
   }
 }
 
+// Send confirmation to signer after contract is signed
+export async function sendContractSignedConfirmation(data: {
+  to: string
+  signerName: string
+  contractNumber: string
+  contractTitle: string
+  signedAt: Date
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+
+  const signedDate = data.signedAt.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  const content = `
+    <div style="text-align: center; margin: 0 0 32px 0;">
+      <div style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; border-radius: 20px;">
+        <p style="margin: 0 0 12px 0; font-size: 48px; line-height: 1;">
+          <span style="display: inline-block; width: 56px; height: 56px; background-color: rgba(255,255,255,0.2); border-radius: 50%; line-height: 56px; font-size: 28px;">&#10003;</span>
+        </p>
+        <p style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 1px;">SIGNED</p>
+      </div>
+    </div>
+
+    <h1 style="margin: 0 0 16px 0; color: #18181b; font-size: 32px; font-weight: 700; text-align: center; line-height: 1.2;" class="text-primary">
+      Contract Successfully Signed
+    </h1>
+    <p style="margin: 0 0 8px 0; color: #52525b; font-size: 16px; line-height: 1.6; text-align: center;" class="text-secondary">
+      Thank you, ${data.signerName}! Your signature has been recorded.
+    </p>
+
+    ${getAccentBox('Contract Number', data.contractNumber)}
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Document', data.contractTitle)}
+        ${getDetailRow('Signed By', data.signerName)}
+        ${getDetailRow('Signed At', signedDate, true)}
+      </table>
+    `)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 15px; line-height: 1.6; text-align: center;" class="text-secondary">
+      A copy of the signed contract has been recorded. Once countersigned by 47 Industries, you will receive a fully executed copy.
+    </p>
+
+    <p style="margin: 24px 0 0 0; color: #71717a; font-size: 13px; text-align: center; line-height: 1.6;" class="text-muted">
+      If you have any questions, contact us at <a href="mailto:support@47industries.com" style="color: #3b82f6; text-decoration: none;">support@47industries.com</a>
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Contract Signed Successfully - ${data.contractNumber}`,
+      html: getEmailTemplate(content, 'Contract Signed'),
+    })
+    console.log(`Contract signed confirmation email sent to ${data.to} for contract ${data.contractNumber}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send contract signed confirmation:', error)
+    return { success: false, error }
+  }
+}
+
+// Send notification to admin when a contract is signed
+export async function sendContractSignedAdminNotification(data: {
+  contractNumber: string
+  contractTitle: string
+  signerName: string
+  signerEmail: string
+  signerIp: string
+  signedAt: Date
+  clientName: string
+  clientId: string
+}) {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://47industries.com'
+  const contractUrl = `${APP_URL}/admin/clients/${data.clientId}`
+
+  const signedDate = data.signedAt.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Contract Signed
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      A contract has been signed and is awaiting countersignature.
+    </p>
+
+    ${getAccentBox('Contract Number', data.contractNumber)}
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Client', data.clientName)}
+        ${getDetailRow('Document', data.contractTitle)}
+        ${getDetailRow('Signed By', data.signerName)}
+        ${getDetailRow('Signer Email', data.signerEmail)}
+        ${getDetailRow('Signed At', signedDate)}
+        ${getDetailRow('IP Address', data.signerIp, true)}
+      </table>
+    `)}
+
+    ${getButton('View Client Details', contractUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #71717a; font-size: 14px; text-align: center; line-height: 1.6;" class="text-muted">
+      Please countersign this contract to make it fully executed.
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      bcc: BCC_EMAIL,
+      subject: `Contract Signed - ${data.contractNumber} - ${data.clientName}`,
+      html: getEmailTemplate(content, 'Contract Signed'),
+    })
+    console.log(`Contract signed admin notification sent for contract ${data.contractNumber}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send contract signed admin notification:', error)
+    return { success: false, error }
+  }
+}
+
+// Send notification when amendment is ready for signature
+export async function sendAmendmentReadyToSign(data: {
+  to: string
+  recipientName: string
+  amendmentNumber: string
+  amendmentTitle: string
+  originalContractNumber: string
+  signUrl: string
+}) {
+  const content = `
+    <h1 style="margin: 0 0 12px 0; color: #18181b; font-size: 28px; font-weight: 700; line-height: 1.3;" class="text-primary">
+      Contract Amendment Ready for Signature
+    </h1>
+    <p style="margin: 0 0 24px 0; color: #52525b; font-size: 16px; line-height: 1.6;" class="text-secondary">
+      Hi ${data.recipientName}, an amendment to your contract is ready for your electronic signature.
+    </p>
+
+    ${getAccentBox('Amendment Number', data.amendmentNumber)}
+
+    ${getCard(`
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        ${getDetailRow('Amendment', data.amendmentTitle)}
+        ${getDetailRow('Original Contract', data.originalContractNumber, true)}
+      </table>
+    `)}
+
+    ${getButton('Review & Sign Amendment', data.signUrl)}
+
+    <p style="margin: 32px 0 0 0; color: #52525b; font-size: 14px; line-height: 1.6;" class="text-secondary">
+      Please review the amendment carefully before signing. This amendment modifies the terms of your existing contract.
+    </p>
+
+    <p style="margin: 16px 0 0 0; color: #71717a; font-size: 13px; line-height: 1.6;" class="text-muted">
+      If you have any questions about this amendment, please contact us at <a href="mailto:support@47industries.com" style="color: #3b82f6; text-decoration: none;">support@47industries.com</a>
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: data.to,
+      bcc: CONFIRMATION_BCC,
+      subject: `Contract Amendment Ready to Sign - ${data.amendmentNumber}`,
+      html: getEmailTemplate(content, 'Amendment Ready to Sign'),
+    })
+    console.log(`Amendment ready to sign email sent to ${data.to} for amendment ${data.amendmentNumber}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send amendment ready to sign email:', error)
+    return { success: false, error }
+  }
+}
+
 // Helper function for carrier tracking URLs
 function getCarrierTrackingUrl(carrier: string, trackingNumber: string): string {
   const carrierLower = carrier.toLowerCase()
