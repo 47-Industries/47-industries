@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import jwt from 'jsonwebtoken'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Stripe from 'stripe'
@@ -18,17 +19,42 @@ function getStripe(): Stripe {
   return _stripe
 }
 
+// Helper to get user ID from either NextAuth session or bearer token (mobile)
+async function getUserId(request: NextRequest): Promise<string | null> {
+  // First try NextAuth session (web)
+  const session = await getServerSession(authOptions)
+  if (session?.user?.id) {
+    return session.user.id
+  }
+
+  // Then try JWT token (mobile)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.substring(7)
+      const decoded = jwt.verify(
+        token,
+        process.env.NEXTAUTH_SECRET || 'fallback-secret'
+      ) as { userId: string }
+      return decoded.userId
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 // POST /api/account/partner/stripe-connect - Setup Stripe Connect for the logged-in partner
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = await getUserId(req)
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Find the partner associated with this user
     const partner = await prisma.partner.findFirst({
-      where: { userId: session.user.id },
+      where: { userId },
     })
 
     if (!partner) {
@@ -134,14 +160,14 @@ export async function POST(req: NextRequest) {
 // GET /api/account/partner/stripe-connect - Check Stripe Connect status
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = await getUserId(req)
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Find the partner associated with this user
     const partner = await prisma.partner.findFirst({
-      where: { userId: session.user.id },
+      where: { userId },
     })
 
     if (!partner) {
