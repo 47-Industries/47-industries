@@ -3419,3 +3419,62 @@ model PartnerApplication {
   @@index([type])
   @@index([status])
 }
+
+// ============================================
+// DOCUMENT MANAGEMENT
+// ============================================
+
+model DocumentFolder {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  parentId      String?
+  parent        DocumentFolder? @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children      DocumentFolder[] @relation("FolderHierarchy")
+  documents     CompanyDocument[]
+  color         String?  // optional folder color
+  icon          String?  // optional icon name
+  sortOrder     Int      @default(0)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([createdBy])
+}
+
+model CompanyDocument {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+
+  folderId      String?
+  folder        DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  fileUrl       String
+  fileKey       String   // R2 key for deletion
+  fileName      String   // original filename
+  fileSize      Int      // bytes
+  fileType      String   // MIME type
+
+  category      String?  // TAX, LEGAL, CONTRACT, HR, FINANCE, OPERATIONS, OTHER
+  tags          Json?    // JSON array of searchable tags
+  year          Int?     // for tax docs etc
+
+  // Association with team member (optional)
+  teamMemberId  String?
+
+  // Access control
+  visibility    String   @default("ADMIN") // ADMIN, TEAM, ALL
+
+  uploadedBy    String   // user ID
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([folderId])
+  @@index([category])
+  @@index([teamMemberId])
+  @@index([uploadedBy])
+  @@index([year])
+}
