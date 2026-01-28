@@ -32,7 +32,9 @@ export async function getOAuthKeys() {
   }
 
   // Generate new keys (only in development)
-  console.warn('⚠️ OAuth keys not found in environment, generating temporary keys (NOT RECOMMENDED FOR PRODUCTION)')
+  if (process.env.NODE_ENV === 'development') {
+    console.error('[OAUTH] Keys not found in environment, generating temporary keys')
+  }
   cachedKeys = await generateOAuthKeys()
   return cachedKeys
 }

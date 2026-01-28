@@ -107,7 +107,6 @@ export class GmailScanner {
     const afterTimestamp = Math.floor(afterDate.getTime() / 1000)
 
     const query = `${this.buildSearchQuery()} after:${afterTimestamp}`
-    console.log(`[GMAIL] Search query: ${query.substring(0, 200)}...`)
 
     try {
       // First try to get tokens to verify auth works
@@ -116,15 +115,12 @@ export class GmailScanner {
         console.error('[GMAIL] Failed to get access token')
         return []
       }
-      console.log('[GMAIL] OAuth token obtained successfully')
 
       const response = await gmail.users.messages.list({
         userId: 'me',
         q: query,
         maxResults: 50 // Increased from 20
       })
-
-      console.log(`[GMAIL] API returned ${response.data.messages?.length || 0} messages`)
 
       const messages = response.data.messages || []
       const emails: EmailMessage[] = []
@@ -163,16 +159,13 @@ export class GmailScanner {
             this.processedEmailIds = new Set(arr.slice(-500))
           }
         } catch (err) {
-          console.error(`Error fetching email ${msg.id}:`, err)
+          console.error('[GMAIL] Error fetching email details')
         }
       }
 
       return emails
     } catch (error: any) {
-      console.error('[GMAIL] Error fetching emails:', error.message)
-      if (error.response?.data) {
-        console.error('[GMAIL] API error details:', JSON.stringify(error.response.data))
-      }
+      console.error('[GMAIL] Error fetching emails')
       return []
     }
   }
@@ -216,7 +209,6 @@ export class GmailScanner {
     // First try database accounts
     const dbAccounts = await this.getEmailAccountsFromDb()
     if (dbAccounts.length > 0) {
-      console.log(`[GMAIL] Fetching from ${dbAccounts.length} database accounts`)
       for (const account of dbAccounts) {
         try {
           const emails = await this.fetchRecentEmails(account.refreshToken, daysBack)
@@ -228,10 +220,10 @@ export class GmailScanner {
             data: { lastSyncAt: new Date(), lastSyncError: null }
           })
         } catch (error: any) {
-          console.error(`[GMAIL] Error fetching from ${account.email}:`, error.message)
+          console.error('[GMAIL] Error fetching from account')
           await prisma.emailAccount.update({
             where: { id: account.id },
-            data: { lastSyncError: error.message }
+            data: { lastSyncError: 'Failed to fetch emails' }
           })
         }
       }
@@ -240,13 +232,12 @@ export class GmailScanner {
     // Fall back to env var tokens if no database accounts
     if (dbAccounts.length === 0) {
       const tokens = await this.getRefreshTokens()
-      console.log(`[GMAIL] Fetching from ${tokens.length} env var accounts`)
       for (const token of tokens) {
         try {
           const emails = await this.fetchRecentEmails(token, daysBack)
           allEmails.push(...emails)
         } catch (error: any) {
-          console.error('[GMAIL] Error fetching from env account:', error.message)
+          console.error('[GMAIL] Error fetching from env account')
         }
       }
     }
@@ -277,10 +268,10 @@ export class GmailScanner {
           data: { lastSyncAt: new Date(), lastSyncError: null }
         })
       } catch (error: any) {
-        console.error(`[GMAIL] Error fetching from ${account.email}:`, error.message)
+        console.error('[GMAIL] Error fetching from account')
         await prisma.emailAccount.update({
           where: { id: account.id },
-          data: { lastSyncError: error.message }
+          data: { lastSyncError: 'Failed to fetch emails' }
         })
       }
     }
@@ -293,7 +284,7 @@ export class GmailScanner {
           const emails = await this.fetchRecentEmails(token, daysBack)
           results.push({ emails, source: 'GMAIL' })
         } catch (error: any) {
-          console.error('[GMAIL] Error fetching from env account:', error.message)
+          console.error('[GMAIL] Error fetching from env account')
         }
       }
     }

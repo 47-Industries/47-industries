@@ -77,7 +77,6 @@ If this is not a bill or payment, return confidence: 0.`
 
       // Skip low confidence results
       if (parsed.confidence < 50) {
-        console.log(`[PARSER] Low confidence (${parsed.confidence}) for: ${email.subject}`)
         return null
       }
 
@@ -90,10 +89,9 @@ If this is not a bill or payment, return confidence: 0.`
         }
       }
 
-      console.log(`[PARSER] Parsed: ${parsed.vendor} - $${parsed.amount} - ${parsed.isPaid ? 'PAID' : 'DUE'}`)
       return parsed
     } catch (error: any) {
-      console.error('[PARSER] Error parsing email:', error.message)
+      console.error('[PARSER] Error parsing email')
       return null
     }
   }
@@ -130,10 +128,6 @@ If this is not a bill or payment, return confidence: 0.`
       }
     }
 
-    if (bestMatch) {
-      console.log(`[PARSER] Matched recurring bill: ${bestMatch.name} (score: ${(bestScore * 100).toFixed(0)}%)`)
-    }
-
     return bestMatch
   }
 
@@ -168,8 +162,6 @@ If this is not a bill or payment, return confidence: 0.`
       // Last resort: current date
       period = new Date().toISOString().slice(0, 7)
     }
-
-    console.log(`[PARSER] Processing ${parsed.vendor} for period ${period}`)
 
     // Get team members who split expenses
     const splitters = await prisma.teamMember.findMany({
@@ -248,7 +240,6 @@ If this is not a bill or payment, return confidence: 0.`
       })
 
       await this.markProcessed(email.id, parsed.vendor, existingBill.id)
-      console.log(`[PARSER] Marked bill as paid: ${parsed.vendor}`)
       return { created: false, billId: existingBill.id, action: 'marked_paid' }
     } else {
       // Create a new bill instance marked as already paid
@@ -336,7 +327,6 @@ If this is not a bill or payment, return confidence: 0.`
           }
         }
 
-        console.log(`[PARSER] Updated ${parsed.vendor} amount to $${parsed.amount}`)
       }
 
       await this.markProcessed(email.id, parsed.vendor, existingBill.id)
@@ -453,10 +443,9 @@ If this is not a bill or payment, return confidence: 0.`
       }
 
       await this.markProcessed(email.id, parsed.vendor, billInstance.id)
-      console.log(`[PARSER] Created bill instance: ${parsed.vendor} - $${amount}`)
       return billInstance
     } catch (error: any) {
-      console.error('[PARSER] Error creating bill instance:', error.message)
+      console.error('[PARSER] Error creating bill instance')
       return null
     }
   }
@@ -511,7 +500,6 @@ If this is not a bill or payment, return confidence: 0.`
       const result = await this.processEmail(email)
       // Mark as processed
       await this.markProcessed(email.id, parsed?.vendor || recurringBill.name)
-      console.log(`[PARSER] Auto-approved bill for recurring: ${recurringBill.name}`)
       return {
         created: result.created,
         action: result.created ? 'auto_approved' : 'auto_approve_failed'
@@ -554,11 +542,10 @@ If this is not a bill or payment, return confidence: 0.`
       // Mark email as processed
       await this.markProcessed(email.id, parsed?.vendor || 'Unknown')
 
-      console.log(`[PARSER] Created proposed bill: ${parsed?.vendor || 'Unknown'} - confidence: ${parsed?.confidence || 0}`)
       return { created: true, proposedBillId: proposedBill.id, action: 'proposed' }
     } catch (error: any) {
-      console.error('[PARSER] Error creating proposed bill:', error.message)
-      return { created: false, action: `error: ${error.message}` }
+      console.error('[PARSER] Error creating proposed bill')
+      return { created: false, action: 'error' }
     }
   }
 
@@ -733,7 +720,6 @@ If this is not a bill or payment, return confidence: 0.`
             where: { id: recurringBillId },
             data: { autoApprove: true }
           })
-          console.log(`[PARSER] Enabled auto-approve for recurring bill ${recurringBillId}`)
         } else {
           // Create a new recurring bill with auto-approve enabled
           const newRecurring = await prisma.recurringBill.create({
@@ -759,15 +745,12 @@ If this is not a bill or payment, return confidence: 0.`
             where: { id: billInstance.id },
             data: { recurringBillId: newRecurring.id }
           })
-
-          console.log(`[PARSER] Created new recurring bill ${newRecurring.id} with auto-approve`)
         }
       }
 
-      console.log(`[PARSER] Approved proposed bill ${proposedBillId} -> BillInstance ${billInstance.id}`)
       return { success: true, billInstanceId: billInstance.id, recurringBillId }
     } catch (error: any) {
-      console.error('[PARSER] Error approving proposed bill:', error.message)
+      console.error('[PARSER] Error approving proposed bill')
       return { success: false, error: error.message }
     }
   }
@@ -803,10 +786,9 @@ If this is not a bill or payment, return confidence: 0.`
         }
       })
 
-      console.log(`[PARSER] Rejected proposed bill ${proposedBillId}: ${reason || 'No reason provided'}`)
       return { success: true }
     } catch (error: any) {
-      console.error('[PARSER] Error rejecting proposed bill:', error.message)
+      console.error('[PARSER] Error rejecting proposed bill')
       return { success: false, error: error.message }
     }
   }

@@ -129,7 +129,7 @@ export class ZohoMailClient {
       const data = await this.request(`/accounts/${accId}/sendmaildetails`)
       return data.data?.sendMailDetails || []
     } catch (e) {
-      console.error('Error getting from addresses:', e)
+      console.error('[ZOHO] Error getting from addresses')
       return []
     }
   }
@@ -179,7 +179,7 @@ export class ZohoMailClient {
           params.append('folderId', folder.folderId)
         }
       } catch (e) {
-        console.error('Error getting folders:', e)
+        console.error('[ZOHO] Error getting folders')
         // Continue without folder filter
       }
     }
@@ -208,7 +208,7 @@ export class ZohoMailClient {
         const inbox = folders.find((f: any) => f.folderName?.toLowerCase() === 'inbox')
         folderIdToUse = inbox?.folderId
       } catch (e) {
-        console.error('Error getting folders for content:', e)
+        console.error('[ZOHO] Error getting folders for content')
       }
     }
 
@@ -219,7 +219,7 @@ export class ZohoMailClient {
         return data.data
       }
     } catch (e) {
-      console.error('Error with folder path, trying direct:', e)
+      console.error('[ZOHO] Error with folder path, trying direct')
     }
 
     // Fallback to direct message content endpoint
@@ -352,7 +352,7 @@ export class ZohoMailClient {
       const data = await this.request(`/accounts/${accId}/folders/${folderId}/messages/${messageId}/attachmentinfo`)
       return data.data?.attachments || []
     } catch (e) {
-      console.error('Error getting attachments:', e)
+      console.error('[ZOHO] Error getting attachments')
       return []
     }
   }
@@ -432,7 +432,7 @@ export class ZohoMailClient {
       const data = await this.request(`/accounts/${accId}/tags`)
       return data.data || []
     } catch (e) {
-      console.error('Error getting labels:', e)
+      console.error('[ZOHO] Error getting labels')
       return []
     }
   }
