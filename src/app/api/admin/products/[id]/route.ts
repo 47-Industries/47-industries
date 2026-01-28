@@ -51,8 +51,10 @@ export async function GET(
     }
 
     return NextResponse.json({
-      ...product,
-      linkedProduct,
+      product: {
+        ...product,
+        linkedProduct,
+      },
     })
   } catch (error) {
     console.error('Error fetching product:', error)
