@@ -507,19 +507,23 @@ export async function GET(req: NextRequest) {
     if (flat) {
       result = folders.map(f => ({ ...f, children: [] }))
       if (includeVirtual) {
-        const virtualFolders = await generateVirtualFolders()
-        // Flatten virtual folders
-        const flattenVirtual = (nodes: FolderNode[]): FolderNode[] => {
-          const flat: FolderNode[] = []
-          for (const node of nodes) {
-            flat.push({ ...node, children: [] })
-            if (node.children.length > 0) {
-              flat.push(...flattenVirtual(node.children))
+        try {
+          const virtualFolders = await generateVirtualFolders()
+          // Flatten virtual folders
+          const flattenVirtual = (nodes: FolderNode[]): FolderNode[] => {
+            const flat: FolderNode[] = []
+            for (const node of nodes) {
+              flat.push({ ...node, children: [] })
+              if (node.children.length > 0) {
+                flat.push(...flattenVirtual(node.children))
+              }
             }
+            return flat
           }
-          return flat
+          result.push(...flattenVirtual(virtualFolders))
+        } catch (err) {
+          console.error('Error generating virtual folders (flat):', err)
         }
-        result.push(...flattenVirtual(virtualFolders))
       }
       return NextResponse.json({ folders: result })
     }
@@ -527,8 +531,12 @@ export async function GET(req: NextRequest) {
     const tree = buildFolderTree(folders)
 
     if (includeVirtual) {
-      const virtualFolders = await generateVirtualFolders()
-      tree.push(...virtualFolders)
+      try {
+        const virtualFolders = await generateVirtualFolders()
+        tree.push(...virtualFolders)
+      } catch (err) {
+        console.error('Error generating virtual folders (tree):', err)
+      }
     }
 
     return NextResponse.json({ folders: tree })
