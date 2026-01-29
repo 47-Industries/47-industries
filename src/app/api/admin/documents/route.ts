@@ -5,6 +5,16 @@ import { uploadToR2, generateFileKey, isR2Configured } from '@/lib/r2'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB for documents
 
+// Virtual folder structure for auto-organization
+interface VirtualFolder {
+  id: string        // e.g., "virtual_client_contracts" or "virtual_client_contracts_acme"
+  name: string      // Display name
+  path: string      // Full path like "Client Contracts / Acme Corp"
+  parentId: string | null
+  color: string | null
+  isVirtual: true
+}
+
 // Normalized document type for aggregated response
 interface NormalizedDocument {
   id: string
@@ -25,12 +35,27 @@ interface NormalizedDocument {
   partnerName?: string
   teamMemberName?: string
   status?: string
-  // Original folder info (for company documents)
+  contractValue?: number
+  contractId?: string
+  // Folder info (real for company docs, virtual for others)
   folder?: {
     id: string
     name: string
     color: string | null
+    path?: string
+    parentId?: string | null
+    isVirtual?: boolean
   } | null
+}
+
+// System folder colors
+const SYSTEM_FOLDER_COLORS: Record<string, string> = {
+  'client_contracts': '#8b5cf6',    // Purple
+  'partner_contracts': '#10b981',   // Green
+  'team_documents': '#f59e0b',      // Amber
+  'taxes': '#3b82f6',               // Blue
+  'requests': '#06b6d4',            // Cyan
+  'proposals': '#ec4899',           // Pink
 }
 
 // Helper to infer file type from extension if MIME type not available
@@ -238,6 +263,29 @@ export async function GET(req: NextRequest) {
         counts.company = companyDocs.length
 
         for (const doc of companyDocs) {
+          // For TAX category documents, create virtual Taxes/Year folder structure
+          let folderInfo = doc.folder
+          if (doc.category === 'TAX' && doc.year) {
+            const subfolderId = `virtual_taxes_${doc.year}`
+            folderInfo = {
+              id: subfolderId,
+              name: `${doc.year}`,
+              color: SYSTEM_FOLDER_COLORS.taxes,
+              path: `Taxes / ${doc.year}`,
+              parentId: 'virtual_taxes',
+              isVirtual: true,
+            }
+          } else if (doc.category === 'TAX' && !doc.year) {
+            folderInfo = {
+              id: 'virtual_taxes',
+              name: 'Taxes',
+              color: SYSTEM_FOLDER_COLORS.taxes,
+              path: 'Taxes',
+              parentId: null,
+              isVirtual: true,
+            }
+          }
+
           allDocuments.push({
             id: `company_${doc.id}`,
             name: doc.name,
@@ -252,7 +300,7 @@ export async function GET(req: NextRequest) {
             year: doc.year,
             createdAt: doc.createdAt,
             updatedAt: doc.updatedAt,
-            folder: doc.folder,
+            folder: folderInfo,
           })
         }
       } catch (err) {
@@ -296,6 +344,8 @@ export async function GET(req: NextRequest) {
 
         for (const contract of contracts) {
           if (contract.fileUrl) {
+            const clientDisplayName = contract.client?.company || contract.client?.name || 'Unknown Client'
+            const subfolderId = `virtual_client_contracts_${contract.clientId}`
             allDocuments.push({
               id: `contract_${contract.id}`,
               name: contract.title,
@@ -310,8 +360,17 @@ export async function GET(req: NextRequest) {
               year: extractYear(contract.createdAt),
               createdAt: contract.createdAt,
               updatedAt: contract.updatedAt,
-              clientName: contract.client?.company || contract.client?.name || 'Unknown Client',
+              clientName: clientDisplayName,
               status: contract.status,
+              contractId: contract.id,
+              folder: {
+                id: subfolderId,
+                name: clientDisplayName,
+                color: SYSTEM_FOLDER_COLORS.client_contracts,
+                path: `Client Contracts / ${clientDisplayName}`,
+                parentId: 'virtual_client_contracts',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -355,6 +414,9 @@ export async function GET(req: NextRequest) {
 
         for (const amendment of amendments) {
           if (amendment.fileUrl) {
+            const clientDisplayName = amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client'
+            const clientId = amendment.clientContract?.clientId || 'unknown'
+            const subfolderId = `virtual_client_contracts_${clientId}`
             allDocuments.push({
               id: `amendment_${amendment.id}`,
               name: `Amendment: ${amendment.title}`,
@@ -369,8 +431,17 @@ export async function GET(req: NextRequest) {
               year: extractYear(amendment.createdAt),
               createdAt: amendment.createdAt,
               updatedAt: amendment.updatedAt,
-              clientName: amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client',
+              clientName: clientDisplayName,
               status: amendment.status,
+              contractId: amendment.clientContractId,
+              folder: {
+                id: subfolderId,
+                name: clientDisplayName,
+                color: SYSTEM_FOLDER_COLORS.client_contracts,
+                path: `Client Contracts / ${clientDisplayName}`,
+                parentId: 'virtual_client_contracts',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -416,6 +487,8 @@ export async function GET(req: NextRequest) {
 
         for (const contract of partnerContracts) {
           if (contract.fileUrl) {
+            const partnerDisplayName = contract.partner?.company || contract.partner?.name || 'Unknown Partner'
+            const subfolderId = `virtual_partner_contracts_${contract.partnerId}`
             allDocuments.push({
               id: `partner_contract_${contract.id}`,
               name: contract.title,
@@ -430,8 +503,17 @@ export async function GET(req: NextRequest) {
               year: extractYear(contract.createdAt),
               createdAt: contract.createdAt,
               updatedAt: contract.updatedAt,
-              partnerName: contract.partner?.company || contract.partner?.name || 'Unknown Partner',
+              partnerName: partnerDisplayName,
               status: contract.status,
+              contractId: contract.id,
+              folder: {
+                id: subfolderId,
+                name: partnerDisplayName,
+                color: SYSTEM_FOLDER_COLORS.partner_contracts,
+                path: `Partner Contracts / ${partnerDisplayName}`,
+                parentId: 'virtual_partner_contracts',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -475,6 +557,9 @@ export async function GET(req: NextRequest) {
 
         for (const amendment of partnerAmendments) {
           if (amendment.fileUrl) {
+            const partnerDisplayName = amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name || 'Unknown Partner'
+            const partnerId = amendment.partnerContract?.partnerId || 'unknown'
+            const subfolderId = `virtual_partner_contracts_${partnerId}`
             allDocuments.push({
               id: `partner_amendment_${amendment.id}`,
               name: `Amendment: ${amendment.title}`,
@@ -489,8 +574,17 @@ export async function GET(req: NextRequest) {
               year: extractYear(amendment.createdAt),
               createdAt: amendment.createdAt,
               updatedAt: amendment.updatedAt,
-              partnerName: amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name || 'Unknown Partner',
+              partnerName: partnerDisplayName,
               status: amendment.status,
+              contractId: amendment.partnerContractId,
+              folder: {
+                id: subfolderId,
+                name: partnerDisplayName,
+                color: SYSTEM_FOLDER_COLORS.partner_contracts,
+                path: `Partner Contracts / ${partnerDisplayName}`,
+                parentId: 'virtual_partner_contracts',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -538,6 +632,8 @@ export async function GET(req: NextRequest) {
         })
 
         for (const doc of teamDocuments) {
+          const teamMemberName = doc.teamMember?.name || 'Unknown'
+          const subfolderId = `virtual_team_documents_${doc.teamMemberId}`
           allDocuments.push({
             id: `team_doc_${doc.id}`,
             name: doc.name,
@@ -552,7 +648,15 @@ export async function GET(req: NextRequest) {
             year: extractYear(doc.createdAt),
             createdAt: doc.createdAt,
             updatedAt: doc.updatedAt,
-            teamMemberName: doc.teamMember?.name || 'Unknown',
+            teamMemberName: teamMemberName,
+            folder: {
+              id: subfolderId,
+              name: teamMemberName,
+              color: SYSTEM_FOLDER_COLORS.team_documents,
+              path: `Team Documents / ${teamMemberName}`,
+              parentId: 'virtual_team_documents',
+              isVirtual: true,
+            },
           })
         }
 
@@ -591,6 +695,8 @@ export async function GET(req: NextRequest) {
 
         for (const contract of teamContracts) {
           if (contract.fileUrl) {
+            const teamMemberName = contract.teamMember?.name || 'Unknown'
+            const subfolderId = `virtual_team_documents_${contract.teamMemberId}`
             allDocuments.push({
               id: `team_contract_${contract.id}`,
               name: contract.title,
@@ -605,8 +711,16 @@ export async function GET(req: NextRequest) {
               year: extractYear(contract.createdAt),
               createdAt: contract.createdAt,
               updatedAt: contract.updatedAt,
-              teamMemberName: contract.teamMember?.name || 'Unknown',
+              teamMemberName: teamMemberName,
               status: contract.status,
+              folder: {
+                id: subfolderId,
+                name: teamMemberName,
+                color: SYSTEM_FOLDER_COLORS.team_documents,
+                path: `Team Documents / ${teamMemberName}`,
+                parentId: 'virtual_team_documents',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -645,6 +759,10 @@ export async function GET(req: NextRequest) {
 
         for (const request of customRequests) {
           if (request.fileUrl) {
+            const docYear = extractYear(request.createdAt)
+            const subfolderId = docYear ? `virtual_requests_3d_prints_${docYear}` : 'virtual_requests_3d_prints'
+            const subfolderName = docYear ? `${docYear}` : '3D Prints'
+            const folderPath = docYear ? `Requests / 3D Prints / ${docYear}` : 'Requests / 3D Prints'
             allDocuments.push({
               id: `custom_request_${request.id}`,
               name: `3D Print Request: ${request.requestNumber}`,
@@ -656,11 +774,19 @@ export async function GET(req: NextRequest) {
               category: '3D_PRINT',
               source: 'custom_request',
               sourceId: request.id,
-              year: extractYear(request.createdAt),
+              year: docYear,
               createdAt: request.createdAt,
               updatedAt: request.updatedAt,
               clientName: request.company || request.name,
               status: request.status,
+              folder: {
+                id: subfolderId,
+                name: subfolderName,
+                color: SYSTEM_FOLDER_COLORS.requests,
+                path: folderPath,
+                parentId: docYear ? 'virtual_requests_3d_prints' : 'virtual_requests',
+                isVirtual: true,
+              },
             })
           }
         }
@@ -691,6 +817,10 @@ export async function GET(req: NextRequest) {
 
         for (const inquiry of inquiries) {
           if (inquiry.proposalUrl) {
+            const docYear = extractYear(inquiry.createdAt)
+            const subfolderId = docYear ? `virtual_proposals_${docYear}` : 'virtual_proposals'
+            const subfolderName = docYear ? `${docYear}` : 'Proposals'
+            const folderPath = docYear ? `Proposals / ${docYear}` : 'Proposals'
             allDocuments.push({
               id: `proposal_${inquiry.id}`,
               name: `Proposal: ${inquiry.inquiryNumber}`,
@@ -702,11 +832,19 @@ export async function GET(req: NextRequest) {
               category: 'PROPOSAL',
               source: 'proposal',
               sourceId: inquiry.id,
-              year: extractYear(inquiry.createdAt),
+              year: docYear,
               createdAt: inquiry.createdAt,
               updatedAt: inquiry.updatedAt,
               clientName: inquiry.company || inquiry.name,
               status: inquiry.status,
+              folder: {
+                id: subfolderId,
+                name: subfolderName,
+                color: SYSTEM_FOLDER_COLORS.proposals,
+                path: folderPath,
+                parentId: docYear ? 'virtual_proposals' : null,
+                isVirtual: true,
+              },
             })
           }
         }
