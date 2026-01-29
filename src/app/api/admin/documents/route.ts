@@ -265,10 +265,12 @@ export async function GET(req: NextRequest) {
         })
 
         counts.company = companyDocs.length
+        console.log(`[Documents API] Fetched ${companyDocs.length} company documents`)
+        console.log(`[Documents API] TAX category docs:`, companyDocs.filter(d => d.category === 'TAX').length)
 
         for (const doc of companyDocs) {
           // For TAX category documents, create virtual Taxes/Year folder structure
-          let folderInfo = doc.folder
+          let folderInfo: any = doc.folder
           if (doc.category === 'TAX' && doc.year) {
             const subfolderId = `virtual_taxes_${doc.year}`
             folderInfo = {
@@ -865,6 +867,11 @@ export async function GET(req: NextRequest) {
     // Filter by virtual folder if specified
     let filteredDocuments = allDocuments
     if (folderId && folderId.startsWith('virtual_')) {
+      console.log(`[Documents API] Filtering by virtual folder: ${folderId}`)
+      console.log(`[Documents API] Total documents before filter: ${allDocuments.length}`)
+      console.log(`[Documents API] Documents with folders:`, allDocuments.filter(d => d.folder).length)
+      console.log(`[Documents API] Sample folders:`, allDocuments.slice(0, 5).map(d => ({ name: d.name, folderId: d.folder?.id, parentId: d.folder?.parentId })))
+
       filteredDocuments = allDocuments.filter(doc => {
         if (!doc.folder) return false
         // Match exact folder ID
@@ -876,6 +883,8 @@ export async function GET(req: NextRequest) {
         if (doc.folder.id.startsWith(folderId + '_')) return true
         return false
       })
+
+      console.log(`[Documents API] Documents after filter: ${filteredDocuments.length}`)
     }
 
     // Apply pagination
