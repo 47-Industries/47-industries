@@ -31,15 +31,6 @@ export async function GET(
           },
         },
         referrals: {
-          include: {
-            referredUser: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
