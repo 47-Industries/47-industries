@@ -36,378 +36,410 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
   const virtualFolders: FolderNode[] = []
 
   // Client Contracts folder
-  const clientContracts = await prisma.contract.findMany({
-    where: { fileUrl: { not: null } },
-    include: {
-      client: { select: { id: true, name: true, company: true } },
-    },
-  })
-
-  if (clientContracts.length > 0) {
-    const clientContractsFolder: FolderNode = {
-      id: 'virtual_client_contracts',
-      name: 'Client Contracts',
-      description: 'Contracts with clients',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.client_contracts,
-      icon: null,
-      sortOrder: 100,
-      isVirtual: true,
-      path: 'Client Contracts',
-      _count: { documents: 0 },
-      children: [],
-    }
-
-    // Group by client
-    const clientMap = new Map<string, { name: string; count: number }>()
-    for (const contract of clientContracts) {
-      const clientId = contract.clientId
-      const clientName = contract.client?.company || contract.client?.name || 'Unknown Client'
-      if (!clientMap.has(clientId)) {
-        clientMap.set(clientId, { name: clientName, count: 0 })
-      }
-      clientMap.get(clientId)!.count++
-    }
-
-    // Also count amendments
-    const amendments = await prisma.contractAmendment.findMany({
-      where: { fileUrl: { not: null }, clientContractId: { not: null } },
+  try {
+    const clientContracts = await prisma.contract.findMany({
+      where: { fileUrl: { not: null } },
       include: {
-        clientContract: {
-          include: { client: { select: { id: true, name: true, company: true } } },
-        },
+        client: { select: { id: true, name: true, company: true } },
       },
     })
 
-    for (const amendment of amendments) {
-      const clientId = amendment.clientContract?.clientId
-      if (clientId) {
+    if (clientContracts.length > 0) {
+      const clientContractsFolder: FolderNode = {
+        id: 'virtual_client_contracts',
+        name: 'Client Contracts',
+        description: 'Contracts with clients',
+        parentId: null,
+        color: SYSTEM_FOLDER_COLORS.client_contracts,
+        icon: null,
+        sortOrder: 100,
+        isVirtual: true,
+        path: 'Client Contracts',
+        _count: { documents: 0 },
+        children: [],
+      }
+
+      // Group by client
+      const clientMap = new Map<string, { name: string; count: number }>()
+      for (const contract of clientContracts) {
+        const clientId = contract.clientId
+        const clientName = contract.client?.company || contract.client?.name || 'Unknown Client'
         if (!clientMap.has(clientId)) {
-          const clientName = amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client'
           clientMap.set(clientId, { name: clientName, count: 0 })
         }
         clientMap.get(clientId)!.count++
       }
-    }
 
-    // Create subfolders for each client
-    for (const [clientId, info] of clientMap) {
-      clientContractsFolder.children.push({
-        id: `virtual_client_contracts_${clientId}`,
-        name: info.name,
-        description: null,
-        parentId: 'virtual_client_contracts',
-        color: SYSTEM_FOLDER_COLORS.client_contracts,
-        icon: null,
-        sortOrder: 0,
-        isVirtual: true,
-        path: `Client Contracts / ${info.name}`,
-        _count: { documents: info.count },
-        children: [],
-      })
-    }
+      // Also count amendments
+      try {
+        const amendments = await prisma.contractAmendment.findMany({
+          where: { fileUrl: { not: null }, clientContractId: { not: null } },
+          include: {
+            clientContract: {
+              include: { client: { select: { id: true, name: true, company: true } } },
+            },
+          },
+        })
 
-    clientContractsFolder._count.documents = clientContracts.length + amendments.length
-    clientContractsFolder.children.sort((a, b) => a.name.localeCompare(b.name))
-    virtualFolders.push(clientContractsFolder)
+        for (const amendment of amendments) {
+          const clientId = amendment.clientContract?.clientId
+          if (clientId) {
+            if (!clientMap.has(clientId)) {
+              const clientName = amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client'
+              clientMap.set(clientId, { name: clientName, count: 0 })
+            }
+            clientMap.get(clientId)!.count++
+          }
+        }
+        clientContractsFolder._count.documents = clientContracts.length + amendments.length
+      } catch {
+        clientContractsFolder._count.documents = clientContracts.length
+      }
+
+      // Create subfolders for each client
+      for (const [clientId, info] of clientMap) {
+        clientContractsFolder.children.push({
+          id: `virtual_client_contracts_${clientId}`,
+          name: info.name,
+          description: null,
+          parentId: 'virtual_client_contracts',
+          color: SYSTEM_FOLDER_COLORS.client_contracts,
+          icon: null,
+          sortOrder: 0,
+          isVirtual: true,
+          path: `Client Contracts / ${info.name}`,
+          _count: { documents: info.count },
+          children: [],
+        })
+      }
+
+      clientContractsFolder.children.sort((a, b) => a.name.localeCompare(b.name))
+      virtualFolders.push(clientContractsFolder)
+    }
+  } catch (err) {
+    console.error('Error generating client contracts folder:', err)
   }
 
   // Partner Contracts folder
-  const partnerContracts = await prisma.partnerContract.findMany({
-    where: { fileUrl: { not: null } },
-    include: {
-      partner: { select: { id: true, name: true, company: true } },
-    },
-  })
-
-  if (partnerContracts.length > 0) {
-    const partnerContractsFolder: FolderNode = {
-      id: 'virtual_partner_contracts',
-      name: 'Partner Contracts',
-      description: 'Contracts with partners',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.partner_contracts,
-      icon: null,
-      sortOrder: 101,
-      isVirtual: true,
-      path: 'Partner Contracts',
-      _count: { documents: 0 },
-      children: [],
-    }
-
-    // Group by partner
-    const partnerMap = new Map<string, { name: string; count: number }>()
-    for (const contract of partnerContracts) {
-      const partnerId = contract.partnerId
-      const partnerName = contract.partner?.company || contract.partner?.name || 'Unknown Partner'
-      if (!partnerMap.has(partnerId)) {
-        partnerMap.set(partnerId, { name: partnerName, count: 0 })
-      }
-      partnerMap.get(partnerId)!.count++
-    }
-
-    // Also count partner amendments
-    const partnerAmendments = await prisma.contractAmendment.findMany({
-      where: { fileUrl: { not: null }, partnerContractId: { not: null } },
+  try {
+    const partnerContracts = await prisma.partnerContract.findMany({
+      where: { fileUrl: { not: null } },
       include: {
-        partnerContract: {
-          include: { partner: { select: { id: true, name: true, company: true } } },
-        },
+        partner: { select: { id: true, name: true, company: true } },
       },
     })
 
-    for (const amendment of partnerAmendments) {
-      const partnerId = amendment.partnerContract?.partnerId
-      if (partnerId) {
+    if (partnerContracts.length > 0) {
+      const partnerContractsFolder: FolderNode = {
+        id: 'virtual_partner_contracts',
+        name: 'Partner Contracts',
+        description: 'Contracts with partners',
+        parentId: null,
+        color: SYSTEM_FOLDER_COLORS.partner_contracts,
+        icon: null,
+        sortOrder: 101,
+        isVirtual: true,
+        path: 'Partner Contracts',
+        _count: { documents: 0 },
+        children: [],
+      }
+
+      // Group by partner
+      const partnerMap = new Map<string, { name: string; count: number }>()
+      for (const contract of partnerContracts) {
+        const partnerId = contract.partnerId
+        const partnerName = contract.partner?.company || contract.partner?.name || 'Unknown Partner'
         if (!partnerMap.has(partnerId)) {
-          const partnerName = amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name || 'Unknown Partner'
           partnerMap.set(partnerId, { name: partnerName, count: 0 })
         }
         partnerMap.get(partnerId)!.count++
       }
-    }
 
-    // Create subfolders for each partner
-    for (const [partnerId, info] of partnerMap) {
-      partnerContractsFolder.children.push({
-        id: `virtual_partner_contracts_${partnerId}`,
-        name: info.name,
-        description: null,
-        parentId: 'virtual_partner_contracts',
-        color: SYSTEM_FOLDER_COLORS.partner_contracts,
-        icon: null,
-        sortOrder: 0,
-        isVirtual: true,
-        path: `Partner Contracts / ${info.name}`,
-        _count: { documents: info.count },
-        children: [],
-      })
-    }
+      // Also count partner amendments
+      try {
+        const partnerAmendments = await prisma.contractAmendment.findMany({
+          where: { fileUrl: { not: null }, partnerContractId: { not: null } },
+          include: {
+            partnerContract: {
+              include: { partner: { select: { id: true, name: true, company: true } } },
+            },
+          },
+        })
 
-    partnerContractsFolder._count.documents = partnerContracts.length + partnerAmendments.length
-    partnerContractsFolder.children.sort((a, b) => a.name.localeCompare(b.name))
-    virtualFolders.push(partnerContractsFolder)
+        for (const amendment of partnerAmendments) {
+          const partnerId = amendment.partnerContract?.partnerId
+          if (partnerId) {
+            if (!partnerMap.has(partnerId)) {
+              const partnerName = amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name || 'Unknown Partner'
+              partnerMap.set(partnerId, { name: partnerName, count: 0 })
+            }
+            partnerMap.get(partnerId)!.count++
+          }
+        }
+        partnerContractsFolder._count.documents = partnerContracts.length + partnerAmendments.length
+      } catch {
+        partnerContractsFolder._count.documents = partnerContracts.length
+      }
+
+      // Create subfolders for each partner
+      for (const [partnerId, info] of partnerMap) {
+        partnerContractsFolder.children.push({
+          id: `virtual_partner_contracts_${partnerId}`,
+          name: info.name,
+          description: null,
+          parentId: 'virtual_partner_contracts',
+          color: SYSTEM_FOLDER_COLORS.partner_contracts,
+          icon: null,
+          sortOrder: 0,
+          isVirtual: true,
+          path: `Partner Contracts / ${info.name}`,
+          _count: { documents: info.count },
+          children: [],
+        })
+      }
+
+      partnerContractsFolder.children.sort((a, b) => a.name.localeCompare(b.name))
+      virtualFolders.push(partnerContractsFolder)
+    }
+  } catch (err) {
+    console.error('Error generating partner contracts folder:', err)
   }
 
   // Team Documents folder
-  const teamDocs = await prisma.teamMemberDocument.findMany({
-    include: { teamMember: { select: { id: true, name: true } } },
-  })
-  const teamContracts = await prisma.teamMemberContract.findMany({
-    where: { fileUrl: { not: null } },
-    include: { teamMember: { select: { id: true, name: true } } },
-  })
+  try {
+    const teamDocs = await prisma.teamMemberDocument.findMany({
+      include: { teamMember: { select: { id: true, name: true } } },
+    })
+    const teamContracts = await prisma.teamMemberContract.findMany({
+      where: { fileUrl: { not: null } },
+      include: { teamMember: { select: { id: true, name: true } } },
+    })
 
-  if (teamDocs.length > 0 || teamContracts.length > 0) {
-    const teamFolder: FolderNode = {
-      id: 'virtual_team_documents',
-      name: 'Team Documents',
-      description: 'Team member documents and contracts',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.team_documents,
-      icon: null,
-      sortOrder: 102,
-      isVirtual: true,
-      path: 'Team Documents',
-      _count: { documents: teamDocs.length + teamContracts.length },
-      children: [],
-    }
-
-    // Group by team member
-    const memberMap = new Map<string, { name: string; count: number }>()
-    for (const doc of teamDocs) {
-      const memberId = doc.teamMemberId
-      const memberName = doc.teamMember?.name || 'Unknown'
-      if (!memberMap.has(memberId)) {
-        memberMap.set(memberId, { name: memberName, count: 0 })
-      }
-      memberMap.get(memberId)!.count++
-    }
-    for (const contract of teamContracts) {
-      const memberId = contract.teamMemberId
-      const memberName = contract.teamMember?.name || 'Unknown'
-      if (!memberMap.has(memberId)) {
-        memberMap.set(memberId, { name: memberName, count: 0 })
-      }
-      memberMap.get(memberId)!.count++
-    }
-
-    for (const [memberId, info] of memberMap) {
-      teamFolder.children.push({
-        id: `virtual_team_documents_${memberId}`,
-        name: info.name,
-        description: null,
-        parentId: 'virtual_team_documents',
+    if (teamDocs.length > 0 || teamContracts.length > 0) {
+      const teamFolder: FolderNode = {
+        id: 'virtual_team_documents',
+        name: 'Team Documents',
+        description: 'Team member documents and contracts',
+        parentId: null,
         color: SYSTEM_FOLDER_COLORS.team_documents,
         icon: null,
-        sortOrder: 0,
+        sortOrder: 102,
         isVirtual: true,
-        path: `Team Documents / ${info.name}`,
-        _count: { documents: info.count },
+        path: 'Team Documents',
+        _count: { documents: teamDocs.length + teamContracts.length },
         children: [],
-      })
-    }
+      }
 
-    teamFolder.children.sort((a, b) => a.name.localeCompare(b.name))
-    virtualFolders.push(teamFolder)
+      // Group by team member
+      const memberMap = new Map<string, { name: string; count: number }>()
+      for (const doc of teamDocs) {
+        const memberId = doc.teamMemberId
+        const memberName = doc.teamMember?.name || 'Unknown'
+        if (!memberMap.has(memberId)) {
+          memberMap.set(memberId, { name: memberName, count: 0 })
+        }
+        memberMap.get(memberId)!.count++
+      }
+      for (const contract of teamContracts) {
+        const memberId = contract.teamMemberId
+        const memberName = contract.teamMember?.name || 'Unknown'
+        if (!memberMap.has(memberId)) {
+          memberMap.set(memberId, { name: memberName, count: 0 })
+        }
+        memberMap.get(memberId)!.count++
+      }
+
+      for (const [memberId, info] of memberMap) {
+        teamFolder.children.push({
+          id: `virtual_team_documents_${memberId}`,
+          name: info.name,
+          description: null,
+          parentId: 'virtual_team_documents',
+          color: SYSTEM_FOLDER_COLORS.team_documents,
+          icon: null,
+          sortOrder: 0,
+          isVirtual: true,
+          path: `Team Documents / ${info.name}`,
+          _count: { documents: info.count },
+          children: [],
+        })
+      }
+
+      teamFolder.children.sort((a, b) => a.name.localeCompare(b.name))
+      virtualFolders.push(teamFolder)
+    }
+  } catch (err) {
+    console.error('Error generating team documents folder:', err)
   }
 
   // Taxes folder (from company documents with TAX category)
-  const taxDocs = await prisma.companyDocument.findMany({
-    where: { category: 'TAX' },
-  })
+  try {
+    const taxDocs = await prisma.companyDocument.findMany({
+      where: { category: 'TAX' },
+    })
 
-  if (taxDocs.length > 0) {
-    const taxesFolder: FolderNode = {
-      id: 'virtual_taxes',
-      name: 'Taxes',
-      description: 'Tax documents by year',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.taxes,
-      icon: null,
-      sortOrder: 103,
-      isVirtual: true,
-      path: 'Taxes',
-      _count: { documents: taxDocs.length },
-      children: [],
-    }
-
-    // Group by year
-    const yearMap = new Map<number, number>()
-    for (const doc of taxDocs) {
-      if (doc.year) {
-        yearMap.set(doc.year, (yearMap.get(doc.year) || 0) + 1)
-      }
-    }
-
-    for (const [year, count] of yearMap) {
-      taxesFolder.children.push({
-        id: `virtual_taxes_${year}`,
-        name: `${year}`,
-        description: null,
-        parentId: 'virtual_taxes',
+    if (taxDocs.length > 0) {
+      const taxesFolder: FolderNode = {
+        id: 'virtual_taxes',
+        name: 'Taxes',
+        description: 'Tax documents by year',
+        parentId: null,
         color: SYSTEM_FOLDER_COLORS.taxes,
         icon: null,
-        sortOrder: year,
+        sortOrder: 103,
         isVirtual: true,
-        path: `Taxes / ${year}`,
-        _count: { documents: count },
+        path: 'Taxes',
+        _count: { documents: taxDocs.length },
         children: [],
-      })
-    }
+      }
 
-    taxesFolder.children.sort((a, b) => b.sortOrder - a.sortOrder) // Newest year first
-    virtualFolders.push(taxesFolder)
+      // Group by year
+      const yearMap = new Map<number, number>()
+      for (const doc of taxDocs) {
+        if (doc.year) {
+          yearMap.set(doc.year, (yearMap.get(doc.year) || 0) + 1)
+        }
+      }
+
+      for (const [year, count] of yearMap) {
+        taxesFolder.children.push({
+          id: `virtual_taxes_${year}`,
+          name: `${year}`,
+          description: null,
+          parentId: 'virtual_taxes',
+          color: SYSTEM_FOLDER_COLORS.taxes,
+          icon: null,
+          sortOrder: year,
+          isVirtual: true,
+          path: `Taxes / ${year}`,
+          _count: { documents: count },
+          children: [],
+        })
+      }
+
+      taxesFolder.children.sort((a, b) => b.sortOrder - a.sortOrder) // Newest year first
+      virtualFolders.push(taxesFolder)
+    }
+  } catch (err) {
+    console.error('Error generating taxes folder:', err)
   }
 
   // Requests folder (3D Prints and other requests)
-  const customRequests = await prisma.customRequest.findMany({
-    where: { fileUrl: { not: null } },
-  })
+  try {
+    const customRequests = await prisma.customRequest.findMany({
+      where: { fileUrl: { not: null } },
+    })
 
-  if (customRequests.length > 0) {
-    const requestsFolder: FolderNode = {
-      id: 'virtual_requests',
-      name: 'Requests',
-      description: 'Customer requests with files',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.requests,
-      icon: null,
-      sortOrder: 104,
-      isVirtual: true,
-      path: 'Requests',
-      _count: { documents: customRequests.length },
-      children: [],
-    }
-
-    // 3D Prints subfolder
-    const prints3DFolder: FolderNode = {
-      id: 'virtual_requests_3d_prints',
-      name: '3D Prints',
-      description: null,
-      parentId: 'virtual_requests',
-      color: SYSTEM_FOLDER_COLORS.requests,
-      icon: null,
-      sortOrder: 0,
-      isVirtual: true,
-      path: 'Requests / 3D Prints',
-      _count: { documents: customRequests.length },
-      children: [],
-    }
-
-    // Group by year
-    const yearMap = new Map<number, number>()
-    for (const req of customRequests) {
-      const year = new Date(req.createdAt).getFullYear()
-      yearMap.set(year, (yearMap.get(year) || 0) + 1)
-    }
-
-    for (const [year, count] of yearMap) {
-      prints3DFolder.children.push({
-        id: `virtual_requests_3d_prints_${year}`,
-        name: `${year}`,
-        description: null,
-        parentId: 'virtual_requests_3d_prints',
+    if (customRequests.length > 0) {
+      const requestsFolder: FolderNode = {
+        id: 'virtual_requests',
+        name: 'Requests',
+        description: 'Customer requests with files',
+        parentId: null,
         color: SYSTEM_FOLDER_COLORS.requests,
         icon: null,
-        sortOrder: year,
+        sortOrder: 104,
         isVirtual: true,
-        path: `Requests / 3D Prints / ${year}`,
-        _count: { documents: count },
+        path: 'Requests',
+        _count: { documents: customRequests.length },
         children: [],
-      })
-    }
+      }
 
-    prints3DFolder.children.sort((a, b) => b.sortOrder - a.sortOrder)
-    requestsFolder.children.push(prints3DFolder)
-    virtualFolders.push(requestsFolder)
+      // 3D Prints subfolder
+      const prints3DFolder: FolderNode = {
+        id: 'virtual_requests_3d_prints',
+        name: '3D Prints',
+        description: null,
+        parentId: 'virtual_requests',
+        color: SYSTEM_FOLDER_COLORS.requests,
+        icon: null,
+        sortOrder: 0,
+        isVirtual: true,
+        path: 'Requests / 3D Prints',
+        _count: { documents: customRequests.length },
+        children: [],
+      }
+
+      // Group by year
+      const yearMap = new Map<number, number>()
+      for (const req of customRequests) {
+        const year = new Date(req.createdAt).getFullYear()
+        yearMap.set(year, (yearMap.get(year) || 0) + 1)
+      }
+
+      for (const [year, count] of yearMap) {
+        prints3DFolder.children.push({
+          id: `virtual_requests_3d_prints_${year}`,
+          name: `${year}`,
+          description: null,
+          parentId: 'virtual_requests_3d_prints',
+          color: SYSTEM_FOLDER_COLORS.requests,
+          icon: null,
+          sortOrder: year,
+          isVirtual: true,
+          path: `Requests / 3D Prints / ${year}`,
+          _count: { documents: count },
+          children: [],
+        })
+      }
+
+      prints3DFolder.children.sort((a, b) => b.sortOrder - a.sortOrder)
+      requestsFolder.children.push(prints3DFolder)
+      virtualFolders.push(requestsFolder)
+    }
+  } catch (err) {
+    console.error('Error generating requests folder:', err)
   }
 
   // Proposals folder
-  const proposals = await prisma.serviceInquiry.findMany({
-    where: { proposalUrl: { not: null } },
-  })
+  try {
+    const proposals = await prisma.serviceInquiry.findMany({
+      where: { proposalUrl: { not: null } },
+    })
 
-  if (proposals.length > 0) {
-    const proposalsFolder: FolderNode = {
-      id: 'virtual_proposals',
-      name: 'Proposals',
-      description: 'Service proposals',
-      parentId: null,
-      color: SYSTEM_FOLDER_COLORS.proposals,
-      icon: null,
-      sortOrder: 105,
-      isVirtual: true,
-      path: 'Proposals',
-      _count: { documents: proposals.length },
-      children: [],
-    }
-
-    // Group by year
-    const yearMap = new Map<number, number>()
-    for (const proposal of proposals) {
-      const year = new Date(proposal.createdAt).getFullYear()
-      yearMap.set(year, (yearMap.get(year) || 0) + 1)
-    }
-
-    for (const [year, count] of yearMap) {
-      proposalsFolder.children.push({
-        id: `virtual_proposals_${year}`,
-        name: `${year}`,
-        description: null,
-        parentId: 'virtual_proposals',
+    if (proposals.length > 0) {
+      const proposalsFolder: FolderNode = {
+        id: 'virtual_proposals',
+        name: 'Proposals',
+        description: 'Service proposals',
+        parentId: null,
         color: SYSTEM_FOLDER_COLORS.proposals,
         icon: null,
-        sortOrder: year,
+        sortOrder: 105,
         isVirtual: true,
-        path: `Proposals / ${year}`,
-        _count: { documents: count },
+        path: 'Proposals',
+        _count: { documents: proposals.length },
         children: [],
-      })
-    }
+      }
 
-    proposalsFolder.children.sort((a, b) => b.sortOrder - a.sortOrder)
-    virtualFolders.push(proposalsFolder)
+      // Group by year
+      const yearMap = new Map<number, number>()
+      for (const proposal of proposals) {
+        const year = new Date(proposal.createdAt).getFullYear()
+        yearMap.set(year, (yearMap.get(year) || 0) + 1)
+      }
+
+      for (const [year, count] of yearMap) {
+        proposalsFolder.children.push({
+          id: `virtual_proposals_${year}`,
+          name: `${year}`,
+          description: null,
+          parentId: 'virtual_proposals',
+          color: SYSTEM_FOLDER_COLORS.proposals,
+          icon: null,
+          sortOrder: year,
+          isVirtual: true,
+          path: `Proposals / ${year}`,
+          _count: { documents: count },
+          children: [],
+        })
+      }
+
+      proposalsFolder.children.sort((a, b) => b.sortOrder - a.sortOrder)
+      virtualFolders.push(proposalsFolder)
+    }
+  } catch (err) {
+    console.error('Error generating proposals folder:', err)
   }
 
   return virtualFolders
