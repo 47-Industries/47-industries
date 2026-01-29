@@ -339,7 +339,6 @@ export async function GET(req: NextRequest) {
             client: {
               select: {
                 name: true,
-                company: true,
               },
             },
           },
@@ -348,7 +347,7 @@ export async function GET(req: NextRequest) {
 
         for (const contract of contracts) {
           if (contract.fileUrl) {
-            const clientDisplayName = contract.client?.company || contract.client?.name || 'Unknown Client'
+            const clientDisplayName = contract.client?.name || 'Unknown Client'
             const subfolderId = `virtual_client_contracts_${contract.clientId}`
             allDocuments.push({
               id: `contract_${contract.id}`,
@@ -407,7 +406,6 @@ export async function GET(req: NextRequest) {
                 client: {
                   select: {
                     name: true,
-                    company: true,
                   },
                 },
               },
@@ -418,7 +416,7 @@ export async function GET(req: NextRequest) {
 
         for (const amendment of amendments) {
           if (amendment.fileUrl) {
-            const clientDisplayName = amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client'
+            const clientDisplayName = amendment.clientContract?.client?.name || 'Unknown Client'
             const clientId = amendment.clientContract?.clientId || 'unknown'
             const subfolderId = `virtual_client_contracts_${clientId}`
             allDocuments.push({

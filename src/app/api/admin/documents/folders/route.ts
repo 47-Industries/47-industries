@@ -37,23 +37,15 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
 
   // Client Contracts folder
   try {
-    // First check total contracts
-    const allContracts = await prisma.contract.findMany({
-      select: { id: true, fileUrl: true, title: true }
-    })
-    console.log(`[Folders API] Total contracts: ${allContracts.length}`)
-    console.log(`[Folders API] Contract fileUrls:`, allContracts.map(c => ({ title: c.title, fileUrl: c.fileUrl ? 'has url' : 'no url' })))
-
     const clientContracts = await prisma.contract.findMany({
       where: {
         fileUrl: { not: null },
         NOT: { fileUrl: '' }
       },
       include: {
-        client: { select: { id: true, name: true, company: true } },
+        client: { select: { id: true, name: true } },
       },
     })
-    console.log(`[Folders API] Client contracts with files: ${clientContracts.length}`)
 
     if (clientContracts.length > 0) {
       const clientContractsFolder: FolderNode = {
@@ -74,7 +66,7 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
       const clientMap = new Map<string, { name: string; count: number }>()
       for (const contract of clientContracts) {
         const clientId = contract.clientId
-        const clientName = contract.client?.company || contract.client?.name || 'Unknown Client'
+        const clientName = contract.client?.name || 'Unknown Client'
         if (!clientMap.has(clientId)) {
           clientMap.set(clientId, { name: clientName, count: 0 })
         }
@@ -87,7 +79,7 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
           where: { fileUrl: { not: null }, clientContractId: { not: null } },
           include: {
             clientContract: {
-              include: { client: { select: { id: true, name: true, company: true } } },
+              include: { client: { select: { id: true, name: true } } },
             },
           },
         })
@@ -96,7 +88,7 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
           const clientId = amendment.clientContract?.clientId
           if (clientId) {
             if (!clientMap.has(clientId)) {
-              const clientName = amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client'
+              const clientName = amendment.clientContract?.client?.name || 'Unknown Client'
               clientMap.set(clientId, { name: clientName, count: 0 })
             }
             clientMap.get(clientId)!.count++
@@ -129,7 +121,6 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
     }
   } catch (err) {
     console.error('Error generating client contracts folder:', err)
-    console.error('Stack:', err instanceof Error ? err.stack : 'No stack')
   }
 
   // Partner Contracts folder
