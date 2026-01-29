@@ -50,21 +50,26 @@ export async function GET(
       return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
     }
 
+    // Calculate stats from referrals
+    const proConversions = affiliate.referrals.filter(r => r.eventType === 'PRO_CONVERSION').length
+    const successfulReferrals = affiliate.referrals.filter(r => r.convertedAt !== null).length
+
     return NextResponse.json({
       affiliate: {
         id: affiliate.id,
         affiliateCode: affiliate.affiliateCode,
-        customCode: affiliate.customCode,
+        customCode: null, // Not in schema
         totalPoints: affiliate.totalPoints,
         availablePoints: affiliate.availablePoints,
-        redeemedPoints: affiliate.redeemedPoints,
-        totalReferrals: affiliate.referrals.length,
-        successfulReferrals: affiliate.successfulReferrals,
-        proConversions: affiliate.proConversions,
-        proDaysEarned: affiliate.proDaysEarned,
-        totalEarnings: affiliate.totalEarnings,
-        tier: affiliate.tier,
-        partnerEligible: affiliate.partnerEligible,
+        redeemedPoints: affiliate.pointsRedeemed,
+        totalReferrals: affiliate.totalReferrals,
+        successfulReferrals,
+        proConversions,
+        proDaysEarned: affiliate.proTimeEarnedDays,
+        totalEarnings: Number(affiliate.totalEarnings),
+        tier: 'BRONZE', // Not in schema - default
+        partnerEligible: affiliate.isPartner,
+        isPartner: affiliate.isPartner,
         createdAt: affiliate.createdAt,
         user: affiliate.user,
         referrals: affiliate.referrals,
@@ -90,7 +95,7 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { customCode, tier, totalPoints, availablePoints } = body
+    const { totalPoints, availablePoints, isPartner } = body
 
     const affiliate = await prisma.userAffiliate.findUnique({
       where: { id },
@@ -100,24 +105,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Affiliate not found' }, { status: 404 })
     }
 
-    // If setting a custom code, check it's unique
-    if (customCode && customCode !== affiliate.customCode) {
-      const existing = await prisma.userAffiliate.findFirst({
-        where: {
-          customCode: customCode.toUpperCase(),
-          NOT: { id },
-        },
-      })
-      if (existing) {
-        return NextResponse.json({ error: 'Custom code already in use' }, { status: 400 })
-      }
-    }
-
     const updateData: any = {}
-    if (customCode !== undefined) updateData.customCode = customCode ? customCode.toUpperCase() : null
-    if (tier !== undefined) updateData.tier = tier
     if (totalPoints !== undefined) updateData.totalPoints = parseInt(totalPoints) || 0
     if (availablePoints !== undefined) updateData.availablePoints = parseInt(availablePoints) || 0
+    if (isPartner !== undefined) updateData.isPartner = isPartner
 
     const updated = await prisma.userAffiliate.update({
       where: { id },
