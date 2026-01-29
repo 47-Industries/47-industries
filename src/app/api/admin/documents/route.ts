@@ -214,9 +214,6 @@ export async function GET(req: NextRequest) {
     // Check if filtering by virtual folder (don't pass to DB queries)
     const isVirtualFolder = folderId && folderId.startsWith('virtual_')
 
-    console.log(`[Documents API] Starting aggregated fetch. folderId=${folderId}, isVirtualFolder=${isVirtualFolder}`)
-    console.log(`[Documents API] Fetch flags: company=${fetchCompany}, contracts=${fetchContracts}, team=${fetchTeam}, requests=${fetchRequests}`)
-
     // Fetch Company Documents
     if (fetchCompany) {
       try {
@@ -268,8 +265,6 @@ export async function GET(req: NextRequest) {
         })
 
         counts.company = companyDocs.length
-        console.log(`[Documents API] Fetched ${companyDocs.length} company documents`)
-        console.log(`[Documents API] TAX category docs:`, companyDocs.filter(d => d.category === 'TAX').length)
 
         for (const doc of companyDocs) {
           // For TAX category documents, create virtual Taxes/Year folder structure
@@ -314,11 +309,8 @@ export async function GET(req: NextRequest) {
         }
       } catch (err) {
         console.error('Error fetching company documents:', err)
-        console.error('Company docs error stack:', err instanceof Error ? err.stack : 'No stack')
       }
     }
-
-    console.log(`[Documents API] After company docs, allDocuments length: ${allDocuments.length}`)
 
     // Fetch Client Contracts
     if (fetchContracts) {
@@ -870,17 +862,9 @@ export async function GET(req: NextRequest) {
     // Sort all documents by createdAt descending
     allDocuments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-    console.log(`[Documents API] Total documents collected: ${allDocuments.length}`)
-    console.log(`[Documents API] Counts:`, counts)
-
     // Filter by virtual folder if specified
     let filteredDocuments = allDocuments
     if (folderId && folderId.startsWith('virtual_')) {
-      console.log(`[Documents API] Filtering by virtual folder: ${folderId}`)
-      console.log(`[Documents API] Total documents before filter: ${allDocuments.length}`)
-      console.log(`[Documents API] Documents with folders:`, allDocuments.filter(d => d.folder).length)
-      console.log(`[Documents API] Sample folders:`, allDocuments.slice(0, 5).map(d => ({ name: d.name, folderId: d.folder?.id, parentId: d.folder?.parentId })))
-
       filteredDocuments = allDocuments.filter(doc => {
         if (!doc.folder) return false
         // Match exact folder ID
@@ -892,8 +876,6 @@ export async function GET(req: NextRequest) {
         if (doc.folder.id.startsWith(folderId + '_')) return true
         return false
       })
-
-      console.log(`[Documents API] Documents after filter: ${filteredDocuments.length}`)
     }
 
     // Apply pagination

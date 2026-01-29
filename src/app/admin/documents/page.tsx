@@ -731,32 +731,8 @@ export default function AdminDocumentsPage() {
               <span style={{ flex: 1 }}>Overview</span>
             </button>
 
-            {/* All Documents */}
-            <button
-              onClick={() => handleFolderSelect('__all__')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 10px',
-                background: selectedFolderId === '__all__' ? '#27272a' : 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                color: selectedFolderId === '__all__' ? '#ffffff' : '#a1a1aa',
-                fontSize: '13px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s',
-              }}
-            >
-              <AllDocumentsIcon size={16} />
-              <span style={{ flex: 1 }}>All Documents</span>
-              <span style={{ fontSize: '11px', color: '#71717a' }}>{pagination.total}</span>
-            </button>
-
-            {/* Folder Tree */}
-            {folders.map(folder => (
+            {/* Folder Tree - Only show virtual folders (auto-organized) */}
+            {folders.filter(f => f.isVirtual).map(folder => (
               <FolderTreeItem
                 key={folder.id}
                 folder={folder}
@@ -1048,29 +1024,9 @@ export default function AdminDocumentsPage() {
               {/* Recent Documents Section */}
               {documents.length > 0 && (
                 <>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '16px',
-                  }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#a1a1aa', margin: 0 }}>
-                      Recent Documents
-                    </h3>
-                    <button
-                      onClick={() => setSelectedFolderId('__all__')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#3b82f6',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      View all
-                    </button>
-                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#a1a1aa', marginBottom: '16px' }}>
+                    Recent Documents
+                  </h3>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
