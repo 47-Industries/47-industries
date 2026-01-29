@@ -14,9 +14,11 @@ interface DocumentFolder {
   color: string | null
   icon: string | null
   sortOrder: number
-  createdBy: string
-  createdAt: string
-  updatedAt: string
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+  isVirtual?: boolean
+  path?: string
   _count: {
     documents: number
   }
@@ -45,6 +47,9 @@ interface CompanyDocument {
     id: string
     name: string
     color: string | null
+    path?: string
+    parentId?: string | null
+    isVirtual?: boolean
   } | null
   downloadUrl?: string
 }
@@ -1388,26 +1393,29 @@ function FolderTreeItem({
         <span style={{ fontSize: '10px', color: '#52525b' }}>
           {folder._count.documents}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onMenuOpen(folder.id, e)
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#52525b',
-            cursor: 'pointer',
-            padding: '2px',
-            display: 'flex',
-            alignItems: 'center',
-            opacity: 0.6,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6' }}
-        >
-          <MoreIcon size={12} />
-        </button>
+        {/* Only show menu for non-virtual folders */}
+        {!folder.isVirtual && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onMenuOpen(folder.id, e)
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#52525b',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              opacity: 0.6,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6' }}
+          >
+            <MoreIcon size={12} />
+          </button>
+        )}
       </div>
 
       {/* Children */}

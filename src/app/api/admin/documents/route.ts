@@ -858,9 +858,25 @@ export async function GET(req: NextRequest) {
     // Sort all documents by createdAt descending
     allDocuments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+    // Filter by virtual folder if specified
+    let filteredDocuments = allDocuments
+    if (folderId && folderId.startsWith('virtual_')) {
+      filteredDocuments = allDocuments.filter(doc => {
+        if (!doc.folder) return false
+        // Match exact folder ID
+        if (doc.folder.id === folderId) return true
+        // Match documents in subfolders (parentId matches)
+        if (doc.folder.parentId === folderId) return true
+        // For top-level virtual folders, check if the doc's folder starts with the same prefix
+        // e.g., folderId="virtual_client_contracts" should match folder.id="virtual_client_contracts_xyz"
+        if (doc.folder.id.startsWith(folderId + '_')) return true
+        return false
+      })
+    }
+
     // Apply pagination
-    const total = allDocuments.length
-    const paginatedDocuments = allDocuments.slice(skip, skip + limit)
+    const total = filteredDocuments.length
+    const paginatedDocuments = filteredDocuments.slice(skip, skip + limit)
 
     const response: any = {
       documents: paginatedDocuments,
