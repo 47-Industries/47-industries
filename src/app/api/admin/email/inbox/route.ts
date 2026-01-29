@@ -82,69 +82,49 @@ export async function GET(req: NextRequest) {
         // Search across all accounts
         emails = await client.searchEmails(search, { limit, start })
       } else if (mailbox) {
-        // Specific mailbox selected - find the matching account and fetch from it
-        const matchingAccount = accounts.find((account: any) =>
-          account.emailAddress?.toLowerCase() === mailbox.toLowerCase() ||
-          account.primaryEmailAddress?.toLowerCase() === mailbox.toLowerCase() ||
-          account.incomingEmailAddress?.toLowerCase() === mailbox.toLowerCase()
-        )
+        // Specific mailbox selected
+        const primaryAccount = accounts[0]
+        const isPrimaryEmail = primaryAccount?.primaryEmailAddress?.toLowerCase() === mailbox.toLowerCase() ||
+                               primaryAccount?.mailboxAddress?.toLowerCase() === mailbox.toLowerCase()
 
-        if (matchingAccount) {
+        if (isPrimaryEmail) {
+          // Primary email - fetch normally
           emails = await client.getEmails({
-            accountId: matchingAccount.accountId,
+            accountId: primaryAccount.accountId,
             folderId,
             limit,
             start
           })
         } else {
-          // Fallback: fetch from all accounts and filter
-          const emailPromises = accounts.map(async (account: any) => {
-            try {
-              return await client.getEmails({
-                accountId: account.accountId,
-                folderId,
-                limit,
-                start: 0
-              })
-            } catch (e) {
-              return []
-            }
-          })
-          const allEmailArrays = await Promise.all(emailPromises)
-          emails = allEmailArrays.flat().filter((email: any) =>
-            email.toAddress?.toLowerCase().includes(mailbox.toLowerCase()) ||
-            email.fromAddress?.toLowerCase().includes(mailbox.toLowerCase())
-          )
-        }
-      } else if (accounts.length > 1) {
-        // "All Inboxes" - fetch from ALL accounts and combine
-        const emailPromises = accounts.map(async (account: any) => {
+          // Group/shared email - search for emails sent TO this address
+          // Use Zoho search to find emails where this address is in To/Cc
           try {
-            return await client.getEmails({
-              accountId: account.accountId,
-              folderId,
-              limit: Math.ceil(limit / accounts.length) + 10,
-              start: 0
-            })
+            emails = await client.searchEmails(`toAddress:${mailbox}`, { limit, start })
           } catch (e) {
-            console.error(`Failed to fetch from account ${account.accountId}:`, e)
-            return []
+            console.error('Search failed, falling back to filter:', e)
+            // Fallback: fetch all and filter by toAddress
+            const allEmails = await client.getEmails({
+              accountId: primaryAccount.accountId,
+              folderId,
+              limit: limit * 3, // Fetch more to filter
+              start
+            })
+            emails = allEmails.filter((email: any) =>
+              email.toAddress?.toLowerCase().includes(mailbox.toLowerCase())
+            ).slice(0, limit)
           }
-        })
-
-        const allEmailArrays = await Promise.all(emailPromises)
-        emails = allEmailArrays.flat()
-
-        // Sort by date (most recent first) and apply limit
-        emails.sort((a: any, b: any) => {
-          const dateA = a.receivedTime ? parseInt(a.receivedTime) : 0
-          const dateB = b.receivedTime ? parseInt(b.receivedTime) : 0
-          return dateB - dateA
-        })
-        emails = emails.slice(start, start + limit)
+        }
       } else {
-        // Only one account
-        emails = await client.getEmails({ folderId, limit, start })
+        // "All Inboxes" or single account - fetch all emails from primary account
+        const primaryAccount = accounts[0]
+        if (primaryAccount) {
+          emails = await client.getEmails({
+            accountId: primaryAccount.accountId,
+            folderId,
+            limit,
+            start
+          })
+        }
       }
     } catch (apiError) {
       console.error('Zoho API error:', apiError)
