@@ -37,8 +37,18 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
 
   // Client Contracts folder
   try {
+    // First check total contracts
+    const allContracts = await prisma.contract.findMany({
+      select: { id: true, fileUrl: true, title: true }
+    })
+    console.log(`[Folders API] Total contracts: ${allContracts.length}`)
+    console.log(`[Folders API] Contract fileUrls:`, allContracts.map(c => ({ title: c.title, fileUrl: c.fileUrl ? 'has url' : 'no url' })))
+
     const clientContracts = await prisma.contract.findMany({
-      where: { fileUrl: { not: null } },
+      where: {
+        fileUrl: { not: null },
+        NOT: { fileUrl: '' }
+      },
       include: {
         client: { select: { id: true, name: true, company: true } },
       },
