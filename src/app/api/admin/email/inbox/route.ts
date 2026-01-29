@@ -115,15 +115,58 @@ export async function GET(req: NextRequest) {
           }
         }
       } else {
-        // "All Inboxes" or single account - fetch all emails from primary account
+        // "All Inboxes" - fetch emails from inbox + all group emails
         const primaryAccount = accounts[0]
         if (primaryAccount) {
-          emails = await client.getEmails({
+          // Get all email addresses user has access to (includes group emails)
+          const fromAddresses = await client.getFromAddresses(primaryAccount.accountId)
+          const groupEmails = fromAddresses
+            .map((addr: any) => addr.fromAddress)
+            .filter((email: string) =>
+              email &&
+              email.toLowerCase() !== primaryAccount.primaryEmailAddress?.toLowerCase() &&
+              email.toLowerCase() !== primaryAccount.mailboxAddress?.toLowerCase()
+            )
+
+          // Fetch personal inbox
+          const inboxEmails = await client.getEmails({
             accountId: primaryAccount.accountId,
             folderId,
-            limit,
-            start
+            limit: limit * 2, // Fetch extra for combining
+            start: 0
           })
+
+          // If there are group emails, search for emails sent to them
+          if (groupEmails.length > 0) {
+            try {
+              // Build search query for all group addresses
+              const searchQuery = groupEmails.map((email: string) => `toAddress:${email}`).join(' OR ')
+              const groupEmailResults = await client.searchEmails(searchQuery, { limit: limit * 2, start: 0 })
+
+              // Combine and dedupe by messageId
+              const emailMap = new Map()
+              for (const email of [...inboxEmails, ...groupEmailResults]) {
+                const id = email.messageId || email.mailId
+                if (!emailMap.has(id)) {
+                  emailMap.set(id, email)
+                }
+              }
+              emails = Array.from(emailMap.values())
+            } catch (e) {
+              console.error('Group email search failed:', e)
+              emails = inboxEmails
+            }
+          } else {
+            emails = inboxEmails
+          }
+
+          // Sort by date (most recent first) and apply pagination
+          emails.sort((a: any, b: any) => {
+            const dateA = a.receivedTime ? parseInt(a.receivedTime) : 0
+            const dateB = b.receivedTime ? parseInt(b.receivedTime) : 0
+            return dateB - dateA
+          })
+          emails = emails.slice(start, start + limit)
         }
       }
     } catch (apiError) {
