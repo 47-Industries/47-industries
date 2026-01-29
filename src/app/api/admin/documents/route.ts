@@ -214,6 +214,9 @@ export async function GET(req: NextRequest) {
     // Check if filtering by virtual folder (don't pass to DB queries)
     const isVirtualFolder = folderId && folderId.startsWith('virtual_')
 
+    console.log(`[Documents API] Starting aggregated fetch. folderId=${folderId}, isVirtualFolder=${isVirtualFolder}`)
+    console.log(`[Documents API] Fetch flags: company=${fetchCompany}, contracts=${fetchContracts}, team=${fetchTeam}, requests=${fetchRequests}`)
+
     // Fetch Company Documents
     if (fetchCompany) {
       try {
@@ -311,8 +314,11 @@ export async function GET(req: NextRequest) {
         }
       } catch (err) {
         console.error('Error fetching company documents:', err)
+        console.error('Company docs error stack:', err instanceof Error ? err.stack : 'No stack')
       }
     }
+
+    console.log(`[Documents API] After company docs, allDocuments length: ${allDocuments.length}`)
 
     // Fetch Client Contracts
     if (fetchContracts) {
