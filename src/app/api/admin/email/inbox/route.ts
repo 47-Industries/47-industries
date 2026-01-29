@@ -81,14 +81,49 @@ export async function GET(req: NextRequest) {
       if (search) {
         // Search across all accounts
         emails = await client.searchEmails(search, { limit, start })
-      } else if (!mailbox && accounts.length > 1) {
+      } else if (mailbox) {
+        // Specific mailbox selected - find the matching account and fetch from it
+        const matchingAccount = accounts.find((account: any) =>
+          account.emailAddress?.toLowerCase() === mailbox.toLowerCase() ||
+          account.primaryEmailAddress?.toLowerCase() === mailbox.toLowerCase() ||
+          account.incomingEmailAddress?.toLowerCase() === mailbox.toLowerCase()
+        )
+
+        if (matchingAccount) {
+          emails = await client.getEmails({
+            accountId: matchingAccount.accountId,
+            folderId,
+            limit,
+            start
+          })
+        } else {
+          // Fallback: fetch from all accounts and filter
+          const emailPromises = accounts.map(async (account: any) => {
+            try {
+              return await client.getEmails({
+                accountId: account.accountId,
+                folderId,
+                limit,
+                start: 0
+              })
+            } catch (e) {
+              return []
+            }
+          })
+          const allEmailArrays = await Promise.all(emailPromises)
+          emails = allEmailArrays.flat().filter((email: any) =>
+            email.toAddress?.toLowerCase().includes(mailbox.toLowerCase()) ||
+            email.fromAddress?.toLowerCase().includes(mailbox.toLowerCase())
+          )
+        }
+      } else if (accounts.length > 1) {
         // "All Inboxes" - fetch from ALL accounts and combine
         const emailPromises = accounts.map(async (account: any) => {
           try {
             return await client.getEmails({
               accountId: account.accountId,
               folderId,
-              limit: Math.ceil(limit / accounts.length) + 10, // Fetch extra to ensure we have enough after sorting
+              limit: Math.ceil(limit / accounts.length) + 10,
               start: 0
             })
           } catch (e) {
@@ -108,21 +143,13 @@ export async function GET(req: NextRequest) {
         })
         emails = emails.slice(start, start + limit)
       } else {
-        // Single mailbox selected or only one account
+        // Only one account
         emails = await client.getEmails({ folderId, limit, start })
       }
     } catch (apiError) {
       console.error('Zoho API error:', apiError)
       // Return empty array instead of crashing
       emails = []
-    }
-
-    // Filter by mailbox (email address) if specified
-    if (mailbox && emails.length > 0) {
-      emails = emails.filter((email: any) =>
-        email.toAddress?.toLowerCase().includes(mailbox.toLowerCase()) ||
-        email.fromAddress?.toLowerCase().includes(mailbox.toLowerCase())
-      )
     }
 
     // Transform Zoho email format to mobile app expected format
