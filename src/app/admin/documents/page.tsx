@@ -1020,6 +1020,7 @@ export default function AdminDocumentsPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #27272a' }}>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Name</th>
+                    {!isMobile && <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Source</th>}
                     {!isMobile && <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Category</th>}
                     {!isMobile && <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Folder</th>}
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Size</th>
@@ -1027,59 +1028,100 @@ export default function AdminDocumentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {documents.map(doc => (
-                    <tr
-                      key={doc.id}
-                      onClick={() => handleDocumentClick(doc)}
-                      style={{
-                        borderBottom: '1px solid #27272a',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#1f1f1f' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                    >
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <FileTypeIcon fileType={doc.fileType} size={20} />
-                          <div>
-                            <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '2px' }}>{doc.name}</div>
-                            <div style={{ fontSize: '12px', color: '#71717a' }}>{doc.fileName}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {!isMobile && (
+                  {documents.map(doc => {
+                    const sourceColors = doc.source ? SOURCE_COLORS[doc.source] : null
+                    const statusColors = doc.contractStatus ? CONTRACT_STATUS_COLORS[doc.contractStatus] : null
+                    const subtitle = doc.clientName || doc.partnerName || doc.teamMemberName || doc.fileName
+                    return (
+                      <tr
+                        key={doc.id}
+                        onClick={() => handleDocumentClick(doc)}
+                        style={{
+                          borderBottom: '1px solid #27272a',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#1f1f1f' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                      >
                         <td style={{ padding: '12px 16px' }}>
-                          {doc.category && (
-                            <span style={{
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: 500,
-                              background: CATEGORY_COLORS[doc.category]?.bg || CATEGORY_COLORS.OTHER.bg,
-                              color: CATEGORY_COLORS[doc.category]?.text || CATEGORY_COLORS.OTHER.text,
-                            }}>
-                              {doc.category}
-                            </span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <FileTypeIcon fileType={doc.fileType} size={20} />
+                            <div>
+                              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '2px' }}>{doc.name}</div>
+                              <div style={{ fontSize: '12px', color: '#71717a' }}>{subtitle}</div>
+                            </div>
+                          </div>
                         </td>
-                      )}
-                      {!isMobile && (
-                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>
-                          {doc.folder ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <FolderIcon size={12} color={doc.folder.color} />
-                              {doc.folder.name}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#52525b' }}>--</span>
-                          )}
-                        </td>
-                      )}
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>{formatFileSize(doc.fileSize)}</td>
-                      <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>{formatDate(doc.createdAt)}</td>
-                    </tr>
-                  ))}
+                        {!isMobile && (
+                          <td style={{ padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {doc.source && sourceColors && (
+                                <span style={{
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                  background: sourceColors.bg,
+                                  color: sourceColors.text,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  width: 'fit-content',
+                                }}>
+                                  <SourceIcon source={doc.source} size={10} />
+                                  {sourceColors.label}
+                                </span>
+                              )}
+                              {doc.contractStatus && statusColors && (
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: 500,
+                                  background: statusColors.bg,
+                                  color: statusColors.text,
+                                  width: 'fit-content',
+                                }}>
+                                  {doc.contractStatus}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                        {!isMobile && (
+                          <td style={{ padding: '12px 16px' }}>
+                            {doc.category && (
+                              <span style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                background: CATEGORY_COLORS[doc.category]?.bg || CATEGORY_COLORS.OTHER.bg,
+                                color: CATEGORY_COLORS[doc.category]?.text || CATEGORY_COLORS.OTHER.text,
+                              }}>
+                                {doc.category}
+                              </span>
+                            )}
+                          </td>
+                        )}
+                        {!isMobile && (
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>
+                            {doc.folder ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <FolderIcon size={12} color={doc.folder.color} />
+                                {doc.folder.name}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#52525b' }}>--</span>
+                            )}
+                          </td>
+                        )}
+                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>{formatFileSize(doc.fileSize)}</td>
+                        <td style={{ padding: '12px 16px', fontSize: '13px', color: '#a1a1aa' }}>{formatDate(doc.createdAt)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1145,6 +1187,7 @@ export default function AdminDocumentsPage() {
             setShowUploadModal(false)
             fetchDocuments(1)
             fetchFolders()
+            fetchSourceCounts()
           }}
         />
       )}
@@ -2322,6 +2365,77 @@ function DocumentDetailModal({
           </button>
         </div>
 
+        {/* Source Badge (if from multi-source) */}
+        {doc.source && SOURCE_COLORS[doc.source] && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+            padding: '10px 14px',
+            background: SOURCE_COLORS[doc.source].bg,
+            borderRadius: '8px',
+            border: `1px solid ${SOURCE_COLORS[doc.source].text}20`,
+          }}>
+            <span style={{ color: SOURCE_COLORS[doc.source].text }}>
+              <SourceIcon source={doc.source} size={18} />
+            </span>
+            <span style={{ color: SOURCE_COLORS[doc.source].text, fontWeight: 500, fontSize: '13px' }}>
+              {SOURCE_OPTIONS.find(s => s.value === doc.source)?.label || doc.source}
+            </span>
+            {doc.contractStatus && (
+              <span style={{
+                marginLeft: 'auto',
+                padding: '3px 10px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 600,
+                background: CONTRACT_STATUS_COLORS[doc.contractStatus]?.bg || '#27272a',
+                color: CONTRACT_STATUS_COLORS[doc.contractStatus]?.text || '#a1a1aa',
+              }}>
+                {doc.contractStatus}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Contract/Partner/Team Info Section */}
+        {(doc.clientName || doc.partnerName || doc.teamMemberName || doc.contractValue) && (
+          <div style={{
+            background: '#0a0a0a',
+            borderRadius: '10px',
+            padding: '14px',
+            marginBottom: '16px',
+          }}>
+            {doc.clientName && (
+              <div style={{ marginBottom: doc.contractValue ? '10px' : 0 }}>
+                <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Client</p>
+                <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>{doc.clientName}</p>
+              </div>
+            )}
+            {doc.partnerName && (
+              <div style={{ marginBottom: doc.contractValue ? '10px' : 0 }}>
+                <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Partner</p>
+                <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>{doc.partnerName}</p>
+              </div>
+            )}
+            {doc.teamMemberName && (
+              <div style={{ marginBottom: doc.contractValue ? '10px' : 0 }}>
+                <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Team Member</p>
+                <p style={{ fontSize: '14px', margin: 0, fontWeight: 500 }}>{doc.teamMemberName}</p>
+              </div>
+            )}
+            {doc.contractValue !== undefined && doc.contractValue > 0 && (
+              <div>
+                <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Contract Value</p>
+                <p style={{ fontSize: '14px', margin: 0, fontWeight: 600, color: '#10b981' }}>
+                  ${doc.contractValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* File Info */}
         <div style={{
           background: '#0a0a0a',
@@ -2547,43 +2661,75 @@ function DocumentDetailModal({
                 <DownloadIcon size={14} />
                 Download
               </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                style={{
-                  padding: '10px 20px',
-                  background: '#27272a',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <EditIcon size={14} />
-                Edit
-              </button>
-              <button
-                onClick={onDelete}
-                style={{
-                  padding: '10px 20px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#ef4444',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginLeft: 'auto',
-                }}
-              >
-                <TrashIcon size={14} />
-                Delete
-              </button>
+              {/* View Full Contract button for contract documents */}
+              {doc.contractId && (doc.source === 'contracts' || doc.source === 'partner-contracts') && (
+                <button
+                  onClick={() => {
+                    const contractPath = doc.source === 'partner-contracts'
+                      ? `/admin/partners/contracts/${doc.contractId}`
+                      : `/admin/contracts/${doc.contractId}`
+                    window.open(contractPath, '_blank')
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    background: SOURCE_COLORS[doc.source]?.bg || '#27272a',
+                    color: SOURCE_COLORS[doc.source]?.text || '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <ExternalLinkIcon size={14} />
+                  View Full Contract
+                </button>
+              )}
+              {/* Only show Edit for company documents */}
+              {(!doc.source || doc.source === 'company') && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#27272a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <EditIcon size={14} />
+                  Edit
+                </button>
+              )}
+              {/* Only show Delete for company documents */}
+              {(!doc.source || doc.source === 'company') && (
+                <button
+                  onClick={onDelete}
+                  style={{
+                    padding: '10px 20px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#ef4444',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginLeft: 'auto',
+                  }}
+                >
+                  <TrashIcon size={14} />
+                  Delete
+                </button>
+              )}
             </>
           )}
         </div>
