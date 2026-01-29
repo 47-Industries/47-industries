@@ -43,6 +43,7 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
         client: { select: { id: true, name: true, company: true } },
       },
     })
+    console.log(`[Folders API] Client contracts with files: ${clientContracts.length}`)
 
     if (clientContracts.length > 0) {
       const clientContractsFolder: FolderNode = {
@@ -118,6 +119,7 @@ async function generateVirtualFolders(): Promise<FolderNode[]> {
     }
   } catch (err) {
     console.error('Error generating client contracts folder:', err)
+    console.error('Stack:', err instanceof Error ? err.stack : 'No stack')
   }
 
   // Partner Contracts folder
