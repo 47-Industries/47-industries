@@ -2639,6 +2639,50 @@ model PartnerLead {
   @@index([source])
 }
 
+// ============================================
+// PARTNER INQUIRY (Public submission for potential partners)
+// ============================================
+
+model PartnerInquiry {
+  id              String   @id @default(cuid())
+  inquiryNumber   String   @unique // PTI-260129-A4K8
+
+  // Contact Info
+  name            String
+  email           String
+  phone           String?
+  company         String?  // Agency/business name
+  website         String?
+
+  // Partner Details
+  socialMedia     String?  // Primary social handle
+  audience        String   @db.Text // How they'll promote (audience, platforms)
+  reason          String   @db.Text // Why they want to partner
+
+  // Status tracking
+  status          String   @default("NEW") // NEW, CONTACTED, APPROVED, REJECTED
+
+  // LeadChopper Integration
+  leadchopperId   String?  // LeadChopper Lead ID
+  leadchopperOrgId String? // LeadChopper Organization ID
+
+  // Review/decision
+  reviewedBy      String?  // Admin user ID who reviewed
+  reviewedAt      DateTime?
+  reviewNotes     String?  @db.Text
+
+  // Conversion - if approved, links to Partner
+  partnerId       String?  @unique // Links to Partner when approved
+  convertedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([leadchopperId])
+}
+
 model PartnerCommission {
   id            String   @id @default(cuid())
   partnerId     String

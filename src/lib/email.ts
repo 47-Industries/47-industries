@@ -478,7 +478,7 @@ export async function sendServiceInquiryConfirmation(data: {
 
 // 4. Admin Notification
 export async function sendAdminNotification(data: {
-  type: 'custom_request' | 'contact' | 'order' | 'service_inquiry'
+  type: 'custom_request' | 'contact' | 'order' | 'service_inquiry' | 'partner_inquiry'
   title: string
   details: string
   link: string
@@ -488,6 +488,7 @@ export async function sendAdminNotification(data: {
     contact: 'Contact Message',
     order: 'Order',
     service_inquiry: 'Service Inquiry',
+    partner_inquiry: 'Partner Inquiry',
   }
 
   const content = `

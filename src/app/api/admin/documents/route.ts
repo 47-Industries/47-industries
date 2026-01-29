@@ -305,7 +305,7 @@ export async function GET(req: NextRequest) {
             year: extractYear(contract.createdAt),
             createdAt: contract.createdAt,
             updatedAt: contract.updatedAt,
-            clientName: contract.client.company || contract.client.name,
+            clientName: contract.client?.company || contract.client?.name || 'Unknown Client',
             status: contract.status,
           })
         }
@@ -364,7 +364,7 @@ export async function GET(req: NextRequest) {
             year: extractYear(amendment.createdAt),
             createdAt: amendment.createdAt,
             updatedAt: amendment.updatedAt,
-            clientName: amendment.clientContract?.client?.company || amendment.clientContract?.client?.name,
+            clientName: amendment.clientContract?.client?.company || amendment.clientContract?.client?.name || 'Unknown Client',
             status: amendment.status,
           })
         }
@@ -421,7 +421,7 @@ export async function GET(req: NextRequest) {
             year: extractYear(contract.createdAt),
             createdAt: contract.createdAt,
             updatedAt: contract.updatedAt,
-            partnerName: contract.partner.company || contract.partner.name,
+            partnerName: contract.partner?.company || contract.partner?.name || 'Unknown Partner',
             status: contract.status,
           })
         }
@@ -480,7 +480,7 @@ export async function GET(req: NextRequest) {
             year: extractYear(amendment.createdAt),
             createdAt: amendment.createdAt,
             updatedAt: amendment.updatedAt,
-            partnerName: amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name,
+            partnerName: amendment.partnerContract?.partner?.company || amendment.partnerContract?.partner?.name || 'Unknown Partner',
             status: amendment.status,
           })
         }
@@ -539,7 +539,7 @@ export async function GET(req: NextRequest) {
           year: extractYear(doc.createdAt),
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
-          teamMemberName: doc.teamMember.name,
+          teamMemberName: doc.teamMember?.name || 'Unknown',
         })
       }
 
@@ -592,7 +592,7 @@ export async function GET(req: NextRequest) {
             year: extractYear(contract.createdAt),
             createdAt: contract.createdAt,
             updatedAt: contract.updatedAt,
-            teamMemberName: contract.teamMember.name,
+            teamMemberName: contract.teamMember?.name || 'Unknown',
             status: contract.status,
           })
         }
