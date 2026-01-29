@@ -527,7 +527,7 @@ export default function TeamMemberDetailPage() {
       {/* Tabs */}
       <div className="border-b border-zinc-800 mb-6">
         <div className="flex gap-6">
-          {['overview', 'account', 'orders', 'contracts', 'documents', 'payments'].map((tab) => (
+          {['overview', 'account', 'orders', 'documents', 'payments'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -539,8 +539,7 @@ export default function TeamMemberDetailPage() {
             >
               {tab === 'account' ? 'Account Access' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               {tab === 'orders' && teamMember.user && ` (${teamMember.user._count?.orders || 0})`}
-              {tab === 'contracts' && ` (${teamMember.contracts.length})`}
-              {tab === 'documents' && ` (${teamMember.documents.length})`}
+              {tab === 'documents' && ` (${teamMember.contracts.length + teamMember.documents.length})`}
               {tab === 'payments' && ` (${teamMember.payments.length})`}
             </button>
           ))}
@@ -1038,120 +1037,122 @@ export default function TeamMemberDetailPage() {
         </div>
       )}
 
-      {/* Contracts Tab */}
-      {activeTab === 'contracts' && (
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-white">Contracts</h2>
-            <button
-              onClick={() => setShowContractModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-            >
-              Add Contract
-            </button>
-          </div>
-          {teamMember.contracts.length === 0 ? (
-            <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-8 text-center">
-              <p className="text-zinc-400">No contracts found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {teamMember.contracts.map((contract) => (
-                <div
-                  key={contract.id}
-                  className="bg-[#18181b] border border-zinc-800 rounded-xl p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-white">{contract.title}</h3>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-zinc-400">
-                          {getContractTypeLabel(contract.type)}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-xs ${getContractStatusColor(contract.status)}`}>
-                          {contract.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right text-sm text-zinc-400">
-                      {contract.effectiveDate && (
-                        <p>Effective: {formatDate(contract.effectiveDate)}</p>
-                      )}
-                      {contract.expirationDate && (
-                        <p>Expires: {formatDate(contract.expirationDate)}</p>
-                      )}
-                    </div>
-                  </div>
-                  {contract.fileUrl && (
-                    <div className="mt-3 pt-3 border-t border-zinc-800">
-                      <a
-                        href={contract.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-400 hover:text-blue-300 text-sm inline-flex items-center gap-1"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        {contract.fileName || 'View Document'}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Documents Tab */}
+      {/* Documents Tab (includes contracts) */}
       {activeTab === 'documents' && (
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-white">Documents</h2>
-            <button
-              onClick={() => setShowDocumentModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-            >
-              Upload Document
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowContractModal(true)}
+                className="px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-600 transition-colors text-sm"
+              >
+                Add Contract
+              </button>
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                Upload Document
+              </button>
+            </div>
           </div>
-          {teamMember.documents.length === 0 ? (
+
+          {/* Contracts Section */}
+          {teamMember.contracts.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wide mb-3">Contracts</h3>
+              <div className="space-y-3">
+                {teamMember.contracts.map((contract) => (
+                  <div
+                    key={contract.id}
+                    className="bg-[#18181b] border border-zinc-800 rounded-xl p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-white">{contract.title}</h3>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-sm text-zinc-400">
+                            {getContractTypeLabel(contract.type)}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-xs ${getContractStatusColor(contract.status)}`}>
+                            {contract.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-sm text-zinc-400">
+                          {contract.effectiveDate && (
+                            <p>Effective: {formatDate(contract.effectiveDate)}</p>
+                          )}
+                          {contract.expirationDate && (
+                            <p>Expires: {formatDate(contract.expirationDate)}</p>
+                          )}
+                        </div>
+                        {contract.fileUrl && (
+                          <a
+                            href={contract.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300"
+                            title="Download"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Documents Section */}
+          {teamMember.documents.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wide mb-3">Documents</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {teamMember.documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="bg-[#18181b] border border-zinc-800 rounded-xl p-4"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium text-white">{doc.name}</h3>
+                        <span className="text-sm text-zinc-400">
+                          {getDocumentTypeLabel(doc.type)}
+                        </span>
+                      </div>
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </a>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-zinc-800">
+                      <p className="text-xs text-zinc-500">
+                        Uploaded {formatDate(doc.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {teamMember.contracts.length === 0 && teamMember.documents.length === 0 && (
             <div className="bg-[#18181b] border border-zinc-800 rounded-xl p-8 text-center">
               <p className="text-zinc-400">No documents found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teamMember.documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="bg-[#18181b] border border-zinc-800 rounded-xl p-4"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-white">{doc.name}</h3>
-                      <span className="text-sm text-zinc-400">
-                        {getDocumentTypeLabel(doc.type)}
-                      </span>
-                    </div>
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </a>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-zinc-800">
-                    <p className="text-xs text-zinc-500">
-                      Uploaded {formatDate(doc.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
