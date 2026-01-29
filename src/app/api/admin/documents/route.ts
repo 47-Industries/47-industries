@@ -211,11 +211,15 @@ export async function GET(req: NextRequest) {
     const fetchTeam = source === 'all' || source === 'team'
     const fetchRequests = source === 'all' || source === 'requests'
 
+    // Check if filtering by virtual folder (don't pass to DB queries)
+    const isVirtualFolder = folderId && folderId.startsWith('virtual_')
+
     // Fetch Company Documents
     if (fetchCompany) {
       try {
         const companyWhere: any = {}
-        if (folderId) {
+        // Only filter by real folder IDs, not virtual ones
+        if (folderId && !isVirtualFolder) {
           companyWhere.folderId = folderId === 'root' ? null : folderId
         }
         if (category) {

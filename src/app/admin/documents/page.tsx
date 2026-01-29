@@ -449,7 +449,8 @@ export default function AdminDocumentsPage() {
       params.set('page', String(page))
       params.set('limit', '20')
 
-      if (selectedFolderId) {
+      // Don't pass __all__ as folderId - it means show all documents
+      if (selectedFolderId && selectedFolderId !== '__all__') {
         params.set('folderId', selectedFolderId)
       }
       if (searchQuery.trim()) {
@@ -589,9 +590,10 @@ export default function AdminDocumentsPage() {
 
   // ---- Find current folder name ----
   const getCurrentFolderName = (): string => {
-    if (!selectedFolderId) return 'All Documents'
+    if (!selectedFolderId) return 'Overview'
+    if (selectedFolderId === '__all__') return 'All Documents'
     const found = flatFolders.find(f => f.id === selectedFolderId)
-    return found?.name || 'All Documents'
+    return found?.path || found?.name || 'Documents'
   }
 
   return (
@@ -701,7 +703,7 @@ export default function AdminDocumentsPage() {
               Folders
             </p>
 
-            {/* All Documents */}
+            {/* Overview */}
             <button
               onClick={() => handleFolderSelect(null)}
               style={{
@@ -714,6 +716,34 @@ export default function AdminDocumentsPage() {
                 border: 'none',
                 borderRadius: '6px',
                 color: selectedFolderId === null ? '#ffffff' : '#a1a1aa',
+                fontSize: '13px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+              </svg>
+              <span style={{ flex: 1 }}>Overview</span>
+            </button>
+
+            {/* All Documents */}
+            <button
+              onClick={() => handleFolderSelect('__all__')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 10px',
+                background: selectedFolderId === '__all__' ? '#27272a' : 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: selectedFolderId === '__all__' ? '#ffffff' : '#a1a1aa',
                 fontSize: '13px',
                 cursor: 'pointer',
                 textAlign: 'left',
@@ -945,8 +975,118 @@ export default function AdminDocumentsPage() {
             </div>
           )}
 
-          {/* Empty State */}
-          {!loading && documents.length === 0 && (
+          {/* Folder Overview - Show when no folder selected and no filters */}
+          {!loading && !selectedFolderId && !searchQuery && !categoryFilter && !yearFilter && !visibilityFilter && folders.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#a1a1aa', marginBottom: '16px' }}>
+                Browse by Category
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '12px',
+                marginBottom: '32px',
+              }}>
+                {folders.filter(f => !f.parentId).map(folder => (
+                  <button
+                    key={folder.id}
+                    onClick={() => handleFolderSelect(folder.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '16px',
+                      background: '#18181b',
+                      border: '1px solid #27272a',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#1f1f1f'
+                      e.currentTarget.style.borderColor = '#3f3f46'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#18181b'
+                      e.currentTarget.style.borderColor = '#27272a'
+                    }}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      background: folder.color ? `${folder.color}20` : '#27272a',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <FolderIcon size={20} color={folder.color} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#ffffff',
+                        marginBottom: '2px',
+                      }}>
+                        {folder.name}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#71717a',
+                      }}>
+                        {folder._count.documents} {folder._count.documents === 1 ? 'document' : 'documents'}
+                        {folder.children && folder.children.length > 0 && ` in ${folder.children.length} subfolders`}
+                      </div>
+                    </div>
+                    <ChevronIcon direction="right" size={16} />
+                  </button>
+                ))}
+              </div>
+
+              {/* Recent Documents Section */}
+              {documents.length > 0 && (
+                <>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px',
+                  }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#a1a1aa', margin: 0 }}>
+                      Recent Documents
+                    </h3>
+                    <button
+                      onClick={() => setSelectedFolderId('__all__')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#3b82f6',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      View all
+                    </button>
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '12px',
+                  }}>
+                    {documents.slice(0, 6).map(doc => (
+                      <DocumentCard key={doc.id} document={doc} onClick={() => handleDocumentClick(doc)} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Empty State - Only show when filters active or no folders */}
+          {!loading && documents.length === 0 && (selectedFolderId || searchQuery || categoryFilter || yearFilter || visibilityFilter || folders.length === 0) && (
             <div style={{
               background: '#18181b',
               border: '1px solid #27272a',
@@ -973,7 +1113,9 @@ export default function AdminDocumentsPage() {
               <p style={{ color: '#71717a', margin: '0 0 24px 0', fontSize: '14px' }}>
                 {searchQuery || categoryFilter || yearFilter || visibilityFilter
                   ? 'Try adjusting your filters or search query'
-                  : 'Upload your first document to get started'
+                  : selectedFolderId
+                    ? 'This folder is empty'
+                    : 'Upload your first document to get started'
                 }
               </p>
               {!searchQuery && !categoryFilter && !yearFilter && !visibilityFilter && (
@@ -1000,8 +1142,8 @@ export default function AdminDocumentsPage() {
             </div>
           )}
 
-          {/* Documents Grid */}
-          {!loading && documents.length > 0 && viewMode === 'grid' && (
+          {/* Documents Grid - Show when folder selected, filters active, or __all__ */}
+          {!loading && documents.length > 0 && (selectedFolderId || searchQuery || categoryFilter || yearFilter || visibilityFilter) && viewMode === 'grid' && (
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -1013,8 +1155,8 @@ export default function AdminDocumentsPage() {
             </div>
           )}
 
-          {/* Documents List */}
-          {!loading && documents.length > 0 && viewMode === 'list' && (
+          {/* Documents List - Show when folder selected, filters active, or __all__ */}
+          {!loading && documents.length > 0 && (selectedFolderId || searchQuery || categoryFilter || yearFilter || visibilityFilter) && viewMode === 'list' && (
             <div style={{
               background: '#18181b',
               border: '1px solid #27272a',
