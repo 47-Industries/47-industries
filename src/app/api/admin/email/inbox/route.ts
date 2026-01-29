@@ -73,11 +73,42 @@ export async function GET(req: NextRequest) {
 
     const client = new ZohoMailClient(accessToken)
 
-    let emails = []
+    let emails: any[] = []
     try {
+      // Get all accounts first
+      const accounts = await client.getAccounts()
+
       if (search) {
+        // Search across all accounts
         emails = await client.searchEmails(search, { limit, start })
+      } else if (!mailbox && accounts.length > 1) {
+        // "All Inboxes" - fetch from ALL accounts and combine
+        const emailPromises = accounts.map(async (account: any) => {
+          try {
+            return await client.getEmails({
+              accountId: account.accountId,
+              folderId,
+              limit: Math.ceil(limit / accounts.length) + 10, // Fetch extra to ensure we have enough after sorting
+              start: 0
+            })
+          } catch (e) {
+            console.error(`Failed to fetch from account ${account.accountId}:`, e)
+            return []
+          }
+        })
+
+        const allEmailArrays = await Promise.all(emailPromises)
+        emails = allEmailArrays.flat()
+
+        // Sort by date (most recent first) and apply limit
+        emails.sort((a: any, b: any) => {
+          const dateA = a.receivedTime ? parseInt(a.receivedTime) : 0
+          const dateB = b.receivedTime ? parseInt(b.receivedTime) : 0
+          return dateB - dateA
+        })
+        emails = emails.slice(start, start + limit)
       } else {
+        // Single mailbox selected or only one account
         emails = await client.getEmails({ folderId, limit, start })
       }
     } catch (apiError) {
