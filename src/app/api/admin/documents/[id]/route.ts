@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAdminAuthInfo } from '@/lib/auth-helper'
-import { deleteFromR2, getR2SignedUrl } from '@/lib/r2'
+import { deleteFromR2, getR2SignedUrl, uploadToR2, generateFileKey, isR2Configured } from '@/lib/r2'
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB for documents
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -184,6 +186,103 @@ export async function DELETE(
     console.error('Error deleting document:', error)
     return NextResponse.json(
       { error: 'Failed to delete document' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT /api/admin/documents/[id] - Replace the document file
+export async function PUT(
+  req: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const auth = await getAdminAuthInfo(req)
+    const { id } = await context.params
+
+    if (!auth.isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!isR2Configured) {
+      return NextResponse.json(
+        { error: 'File storage not configured. Please set up Cloudflare R2.' },
+        { status: 500 }
+      )
+    }
+
+    const document = await prisma.companyDocument.findUnique({
+      where: { id },
+    })
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 })
+    }
+
+    const formData = await req.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 50MB.' },
+        { status: 400 }
+      )
+    }
+
+    // Upload new file to R2
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const newFileKey = generateFileKey(file.name, 'documents')
+    const newFileUrl = await uploadToR2(newFileKey, buffer, file.type)
+
+    // Delete old file from R2 (don't fail if this doesn't work)
+    try {
+      await deleteFromR2(document.fileKey)
+    } catch (r2Error) {
+      console.error('Error deleting old file from R2:', r2Error)
+    }
+
+    // Update document record with new file info
+    const updated = await prisma.companyDocument.update({
+      where: { id },
+      data: {
+        fileUrl: newFileUrl,
+        fileKey: newFileKey,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+      },
+      include: {
+        folder: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
+      },
+    })
+
+    // Generate a signed download URL
+    let downloadUrl: string | null = null
+    try {
+      downloadUrl = await getR2SignedUrl(newFileKey, 3600)
+    } catch {
+      downloadUrl = newFileUrl
+    }
+
+    return NextResponse.json({
+      ...updated,
+      downloadUrl,
+    })
+  } catch (error) {
+    console.error('Error replacing document file:', error)
+    return NextResponse.json(
+      { error: 'Failed to replace document file' },
       { status: 500 }
     )
   }

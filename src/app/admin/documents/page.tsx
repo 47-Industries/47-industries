@@ -2355,6 +2355,44 @@ function DocumentDetailModal({
   const [tagsInput, setTagsInput] = useState(Array.isArray(doc.tags) ? doc.tags.join(', ') : '')
   const [saving, setSaving] = useState(false)
 
+  // File replacement state
+  const [isReplacing, setIsReplacing] = useState(false)
+  const [replacingFile, setReplacingFile] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const replaceFileInputRef = useRef<HTMLInputElement>(null)
+  const [currentFileName, setCurrentFileName] = useState(doc.fileName)
+  const [currentFileSize, setCurrentFileSize] = useState(doc.fileSize)
+  const [currentFileType, setCurrentFileType] = useState(doc.fileType)
+
+  const handleReplaceFile = async (file: File) => {
+    setReplacingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch(`/api/admin/documents/${doc.id}`, {
+        method: 'PUT',
+        body: formData,
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setCurrentFileName(data.fileName)
+        setCurrentFileSize(data.fileSize)
+        setCurrentFileType(data.fileType)
+        setIsReplacing(false)
+        onUpdated()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to replace file')
+      }
+    } catch {
+      alert('Failed to replace file')
+    } finally {
+      setReplacingFile(false)
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -2548,26 +2586,130 @@ function DocumentDetailModal({
           borderRadius: '10px',
           padding: '14px',
           marginBottom: '16px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '10px',
         }}>
-          <div>
-            <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Size</p>
-            <p style={{ fontSize: '13px', margin: 0 }}>{formatFileSize(doc.fileSize)}</p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px',
+            marginBottom: isReplacing ? '14px' : 0,
+          }}>
+            <div>
+              <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Size</p>
+              <p style={{ fontSize: '13px', margin: 0 }}>{formatFileSize(currentFileSize)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Type</p>
+              <p style={{ fontSize: '13px', margin: 0 }}>{currentFileType || 'Unknown'}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Uploaded</p>
+              <p style={{ fontSize: '13px', margin: 0 }}>{formatDate(doc.createdAt)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Updated</p>
+              <p style={{ fontSize: '13px', margin: 0 }}>{formatDate(doc.updatedAt)}</p>
+            </div>
           </div>
-          <div>
-            <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Type</p>
-            <p style={{ fontSize: '13px', margin: 0 }}>{doc.fileType || 'Unknown'}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Uploaded</p>
-            <p style={{ fontSize: '13px', margin: 0 }}>{formatDate(doc.createdAt)}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', color: '#71717a', margin: '0 0 2px 0', textTransform: 'uppercase' }}>Updated</p>
-            <p style={{ fontSize: '13px', margin: 0 }}>{formatDate(doc.updatedAt)}</p>
-          </div>
+
+          {/* File Replacement UI - Only for company documents */}
+          {(!doc.source || doc.source === 'company') && (
+            <>
+              {isReplacing ? (
+                <div
+                  style={{
+                    border: `2px dashed ${dragActive ? '#3b82f6' : '#3f3f46'}`,
+                    borderRadius: '8px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    background: dragActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                    transition: 'all 0.15s',
+                  }}
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true) }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true) }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false) }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragActive(false)
+                    const file = e.dataTransfer.files?.[0]
+                    if (file) handleReplaceFile(file)
+                  }}
+                >
+                  <input
+                    ref={replaceFileInputRef}
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleReplaceFile(file)
+                    }}
+                  />
+                  {replacingFile ? (
+                    <p style={{ fontSize: '13px', color: '#71717a', margin: 0 }}>Uploading new file...</p>
+                  ) : (
+                    <>
+                      <DragDropIcon size={32} />
+                      <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '8px 0 4px 0' }}>
+                        Drop a file here or{' '}
+                        <button
+                          onClick={() => replaceFileInputRef.current?.click()}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#3b82f6',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '13px',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          browse
+                        </button>
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#71717a', margin: 0 }}>Max 50MB</p>
+                      <button
+                        onClick={() => setIsReplacing(false)}
+                        style={{
+                          marginTop: '10px',
+                          padding: '6px 12px',
+                          background: '#27272a',
+                          color: '#a1a1aa',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsReplacing(true)}
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    background: '#27272a',
+                    color: '#a1a1aa',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <UploadIcon size={14} />
+                  Replace File
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         {/* Editable Fields */}
