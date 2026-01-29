@@ -864,6 +864,9 @@ export async function GET(req: NextRequest) {
     // Sort all documents by createdAt descending
     allDocuments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+    console.log(`[Documents API] Total documents collected: ${allDocuments.length}`)
+    console.log(`[Documents API] Counts:`, counts)
+
     // Filter by virtual folder if specified
     let filteredDocuments = allDocuments
     if (folderId && folderId.startsWith('virtual_')) {
