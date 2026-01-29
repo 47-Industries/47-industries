@@ -82,37 +82,22 @@ export async function GET(req: NextRequest) {
         // Search across all accounts
         emails = await client.searchEmails(search, { limit, start })
       } else if (mailbox) {
-        // Specific mailbox selected
-        const primaryAccount = accounts[0]
-        const isPrimaryEmail = primaryAccount?.primaryEmailAddress?.toLowerCase() === mailbox.toLowerCase() ||
-                               primaryAccount?.mailboxAddress?.toLowerCase() === mailbox.toLowerCase()
-
-        if (isPrimaryEmail) {
-          // Primary email - fetch normally
-          emails = await client.getEmails({
+        // Specific mailbox selected - search for emails sent TO this specific address
+        try {
+          emails = await client.searchEmails(`toAddress:${mailbox}`, { limit, start })
+        } catch (e) {
+          console.error('Search failed, falling back to filter:', e)
+          // Fallback: fetch all and filter by toAddress
+          const primaryAccount = accounts[0]
+          const allEmails = await client.getEmails({
             accountId: primaryAccount.accountId,
             folderId,
-            limit,
+            limit: limit * 3, // Fetch more to filter
             start
           })
-        } else {
-          // Group/shared email - search for emails sent TO this address
-          // Use Zoho search to find emails where this address is in To/Cc
-          try {
-            emails = await client.searchEmails(`toAddress:${mailbox}`, { limit, start })
-          } catch (e) {
-            console.error('Search failed, falling back to filter:', e)
-            // Fallback: fetch all and filter by toAddress
-            const allEmails = await client.getEmails({
-              accountId: primaryAccount.accountId,
-              folderId,
-              limit: limit * 3, // Fetch more to filter
-              start
-            })
-            emails = allEmails.filter((email: any) =>
-              email.toAddress?.toLowerCase().includes(mailbox.toLowerCase())
-            ).slice(0, limit)
-          }
+          emails = allEmails.filter((email: any) =>
+            email.toAddress?.toLowerCase().includes(mailbox.toLowerCase())
+          ).slice(0, limit)
         }
       } else {
         // "All Inboxes" - fetch emails from inbox + all group emails
