@@ -167,6 +167,31 @@ enum FulfillmentType {
   PRINTFUL
 }
 
+// Brand configuration for apparel/merch
+// Maps to Brand enum values for existing products
+model BrandConfig {
+  id            String          @id @default(cuid())
+  key           String          @unique  // Maps to Brand enum value (e.g., "BOOKFADE", "MOTOREV")
+  name          String                   // Display name (e.g., "BookFade")
+  slug          String          @unique  // URL slug (e.g., "bookfade")
+  tagline       String?                  // Short tagline
+  description   String?         @db.Text // Full description
+  accentColor   String?                  // Hex color (e.g., "#f59e0b")
+  logo          String?                  // Logo URL
+  active        Boolean         @default(true)
+
+  // Optional link to portfolio project
+  projectId     String?
+  project       ServiceProject? @relation(fields: [projectId], references: [id])
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([key])
+  @@index([slug])
+  @@index([projectId])
+}
+
 model Category {
   id          String      @id @default(cuid())
   name        String
@@ -968,6 +993,9 @@ model ServiceProject {
 
   // Linked Products (for "Shop Merch" on project pages)
   products      Product[]
+
+  // Linked Brands (apparel brands associated with this project)
+  brands        BrandConfig[]
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt

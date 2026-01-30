@@ -68,7 +68,7 @@ export default function AdminProductsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const tabParam = searchParams.get('tab')
-  const activeTab = (['products', 'categories', 'inventory'].includes(tabParam || '') ? tabParam : 'products') as 'products' | 'categories' | 'inventory'
+  const activeTab = (['products', 'categories', 'brands', 'inventory'].includes(tabParam || '') ? tabParam : 'products') as 'products' | 'categories' | 'brands' | 'inventory'
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -81,6 +81,7 @@ export default function AdminProductsPage() {
   const tabs = [
     { id: 'products', label: 'Products' },
     { id: 'categories', label: 'Categories' },
+    { id: 'brands', label: 'Brands' },
     { id: 'inventory', label: 'Inventory' },
   ]
 
@@ -148,6 +149,7 @@ export default function AdminProductsPage() {
       {/* Tab Content */}
       {activeTab === 'products' && <ProductsTab isMobile={isMobile} />}
       {activeTab === 'categories' && <CategoriesTab isMobile={isMobile} />}
+      {activeTab === 'brands' && <BrandsTab isMobile={isMobile} />}
       {activeTab === 'inventory' && <InventoryTab />}
     </div>
   )
@@ -1118,6 +1120,618 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
       <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #27272a' }}>
         {category._count.products} {category._count.products === 1 ? 'product' : 'products'}
       </div>
+    </div>
+  )
+}
+
+// ============================================
+// BRANDS TAB
+// ============================================
+
+interface BrandConfig {
+  id: string
+  key: string
+  name: string
+  slug: string
+  tagline: string | null
+  description: string | null
+  accentColor: string | null
+  logo: string | null
+  active: boolean
+  projectId: string | null
+  project: {
+    id: string
+    title: string
+    slug: string
+  } | null
+  productCount: number
+}
+
+interface Project {
+  id: string
+  title: string
+  slug: string
+}
+
+function BrandsTab({ isMobile }: { isMobile: boolean }) {
+  const [brands, setBrands] = useState<BrandConfig[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editingBrand, setEditingBrand] = useState<BrandConfig | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    slug: '',
+    tagline: '',
+    description: '',
+    accentColor: '#f59e0b',
+    logo: '',
+    projectId: '',
+    active: true,
+  })
+
+  useEffect(() => {
+    fetchBrands()
+    fetchProjects()
+  }, [])
+
+  const fetchBrands = async () => {
+    try {
+      const res = await fetch('/api/admin/brands?includeInactive=true')
+      if (res.ok) {
+        const data = await res.json()
+        setBrands(data.brands || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch brands:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/admin/projects')
+      if (res.ok) {
+        const data = await res.json()
+        setProjects(data.projects || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error)
+    }
+  }
+
+  const openModal = (brand?: BrandConfig) => {
+    if (brand) {
+      setEditingBrand(brand)
+      setFormData({
+        name: brand.name,
+        slug: brand.slug,
+        tagline: brand.tagline || '',
+        description: brand.description || '',
+        accentColor: brand.accentColor || '#f59e0b',
+        logo: brand.logo || '',
+        projectId: brand.projectId || '',
+        active: brand.active,
+      })
+    } else {
+      setEditingBrand(null)
+      setFormData({
+        name: '',
+        slug: '',
+        tagline: '',
+        description: '',
+        accentColor: '#f59e0b',
+        logo: '',
+        projectId: '',
+        active: true,
+      })
+    }
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setEditingBrand(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    try {
+      const url = editingBrand
+        ? `/api/admin/brands/${editingBrand.id}`
+        : '/api/admin/brands'
+      const method = editingBrand ? 'PATCH' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          projectId: formData.projectId || null,
+        }),
+      })
+
+      if (res.ok) {
+        closeModal()
+        fetchBrands()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to save brand')
+      }
+    } catch (error) {
+      console.error('Failed to save brand:', error)
+      alert('Failed to save brand')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (brand: BrandConfig) => {
+    if (brand.productCount > 0) {
+      alert(`Cannot delete brand with ${brand.productCount} products. Remove products first.`)
+      return
+    }
+
+    if (!confirm(`Are you sure you want to delete "${brand.name}"?`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/brands/${brand.id}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        fetchBrands()
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to delete brand')
+      }
+    } catch (error) {
+      console.error('Failed to delete brand:', error)
+      alert('Failed to delete brand')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px', color: '#a1a1aa' }}>
+        Loading brands...
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <p style={{ color: '#71717a', fontSize: '14px', margin: 0 }}>
+            Manage apparel brands. Brands can be linked to portfolio projects.
+          </p>
+        </div>
+        <button
+          onClick={() => openModal()}
+          style={{
+            padding: '10px 20px',
+            background: '#f59e0b',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          + Add Brand
+        </button>
+      </div>
+
+      {/* Brands Grid */}
+      {brands.length === 0 ? (
+        <div style={{
+          background: '#18181b',
+          border: '1px solid #27272a',
+          borderRadius: '16px',
+          padding: '48px 24px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+            margin: '0 auto 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: 0.3
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+          </div>
+          <h3 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>No brands yet</h3>
+          <p style={{ color: '#71717a', margin: '0 0 24px 0' }}>
+            Create your first brand for apparel products
+          </p>
+          <button
+            onClick={() => openModal()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '12px 24px',
+              background: '#f59e0b',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            + Create Your First Brand
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+          {brands.map(brand => (
+            <div
+              key={brand.id}
+              style={{
+                background: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '12px',
+                padding: '20px',
+                borderLeft: `4px solid ${brand.accentColor || '#f59e0b'}`,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {brand.logo ? (
+                    <img src={brand.logo} alt={brand.name} style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '8px', background: '#27272a' }} />
+                  ) : (
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      background: brand.accentColor || '#f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '16px'
+                    }}>
+                      {brand.name.charAt(0)}
+                    </div>
+                  )}
+                  <div>
+                    <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '2px' }}>{brand.name}</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '12px', color: '#71717a' }}>/{brand.slug}</span>
+                      {!brand.active && (
+                        <span style={{
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(239, 68, 68, 0.2)',
+                          color: '#ef4444'
+                        }}>
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => openModal(brand)}
+                    style={{ padding: '6px 12px', background: '#27272a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(brand)}
+                    style={{ padding: '6px 12px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              {brand.tagline && (
+                <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                  "{brand.tagline}"
+                </p>
+              )}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #27272a' }}>
+                <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                  <span style={{ fontWeight: 600, color: brand.accentColor || '#f59e0b' }}>{brand.productCount}</span> products
+                </div>
+                {brand.project && (
+                  <div style={{ fontSize: '12px', color: '#a1a1aa', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Linked to: <span style={{ color: '#3b82f6' }}>{brand.project.title}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '520px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '24px' }}>
+              {editingBrand ? 'Edit Brand' : 'Create Brand'}
+            </h2>
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  Brand Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => {
+                    const name = e.target.value
+                    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+                    setFormData({ ...formData, name, slug: editingBrand ? formData.slug : slug })
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '12px',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                  placeholder="e.g., BookFade"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  URL Slug *
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: '#71717a', fontSize: '14px' }}>/shop/brands/</span>
+                  <input
+                    type="text"
+                    required
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                    style={{
+                      flex: 1,
+                      padding: '12px 16px',
+                      background: '#0a0a0a',
+                      border: '1px solid #27272a',
+                      borderRadius: '12px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
+                    placeholder="bookfade"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  Tagline
+                </label>
+                <input
+                  type="text"
+                  value={formData.tagline}
+                  onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '12px',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                  placeholder="Professional barber apparel"
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '12px',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    outline: 'none',
+                    minHeight: '80px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
+                  }}
+                  placeholder="Brand description for the shop page..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                    Accent Color
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="color"
+                      value={formData.accentColor}
+                      onChange={(e) => setFormData({ ...formData, accentColor: e.target.value })}
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        padding: 0,
+                        border: '2px solid #27272a',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      value={formData.accentColor}
+                      onChange={(e) => setFormData({ ...formData, accentColor: e.target.value })}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        background: '#0a0a0a',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        outline: 'none',
+                        fontFamily: 'monospace'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                    Logo URL
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.logo}
+                    onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: '#0a0a0a',
+                      border: '1px solid #27272a',
+                      borderRadius: '12px',
+                      color: '#ffffff',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', color: '#a1a1aa', marginBottom: '8px' }}>
+                  Link to Portfolio Project (Optional)
+                </label>
+                <select
+                  value={formData.projectId}
+                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    background: '#0a0a0a',
+                    border: '1px solid #27272a',
+                    borderRadius: '12px',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">No project linked</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>{project.title}</option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '6px' }}>
+                  Linking to a project shows "Shop Merch" on the project page
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#a1a1aa', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.active}
+                    onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                    style={{ width: '18px', height: '18px', accentColor: '#f59e0b' }}
+                  />
+                  Active (visible in store)
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  style={{
+                    padding: '12px 24px',
+                    background: '#27272a',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    padding: '12px 24px',
+                    background: saving ? '#27272a' : '#f59e0b',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 500
+                  }}
+                >
+                  {saving ? 'Saving...' : editingBrand ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
