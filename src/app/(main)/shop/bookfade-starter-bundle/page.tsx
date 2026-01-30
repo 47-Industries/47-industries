@@ -180,69 +180,76 @@ export default function BookFadeStarterBundlePage() {
             {/* Card Preview */}
             <div>
               <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Card Preview</p>
-              <div
-                className="aspect-[1.75/1] rounded-xl shadow-2xl overflow-hidden relative"
-                style={{
-                  backgroundImage: customBackgroundImage
-                    ? `url(${customBackgroundImage})`
-                    : 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/50" />
+              <div className="aspect-[1.67/1] rounded-lg shadow-2xl overflow-hidden relative bg-black p-1">
+                <div className="w-full h-full relative overflow-hidden rounded">
+                  {/* Background image */}
+                  {(customBackgroundImage || !manualEntry) && (
+                    <img
+                      src={customBackgroundImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80'}
+                      alt=""
+                      className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] object-cover opacity-45"
+                    />
+                  )}
 
-                {/* Card content */}
-                <div className="relative h-full p-4 flex flex-col justify-between">
-                  {/* Top: Profile + Name */}
-                  <div className="flex items-center gap-3">
-                    {/* Profile photo with theme border */}
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{
-                        border: `3px solid ${themeColor}`,
-                        backgroundColor: '#1a1a1a',
-                      }}
-                    >
-                      {customProfileImage ? (
-                        <img
-                          src={customProfileImage}
-                          alt={customName || 'Profile'}
-                          className="w-full h-full rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xl font-bold text-white/50">
-                          {customName ? customName.charAt(0) : '?'}
-                        </span>
-                      )}
-                    </div>
+                  {/* Gradient overlay */}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 100%)',
+                    }}
+                  />
 
-                    {/* Name + Tagline */}
-                    <div>
-                      <h3 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
-                        {customName || 'Your Name'}
-                      </h3>
-                      <p
-                        className="text-xs font-semibold tracking-[0.15em] uppercase mt-0.5 drop-shadow-lg"
-                        style={{ color: themeColor }}
+                  {/* Card content */}
+                  <div className="relative z-10 h-full p-4 flex flex-col justify-between">
+                    {/* Top: Profile + Name */}
+                    <div className="flex items-start gap-3">
+                      {/* Profile photo */}
+                      <div
+                        className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden"
+                        style={{ border: `2.5px solid ${themeColor}` }}
                       >
-                        {customTagline || 'YOUR TAGLINE'}
-                      </p>
-                    </div>
-                  </div>
+                        {customProfileImage ? (
+                          <img
+                            src={customProfileImage}
+                            alt={customName || 'Profile'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full flex items-center justify-center text-white font-bold"
+                            style={{ backgroundColor: themeColor }}
+                          >
+                            {customName ? customName.charAt(0) : '?'}
+                          </div>
+                        )}
+                      </div>
 
-                  {/* Bottom: Shop name + Book button */}
-                  <div className="flex items-end justify-between">
-                    <p className="text-white font-medium text-sm drop-shadow-lg">
-                      {customShopName || 'Your Barber Shop'}
-                    </p>
-                    <button
-                      className="px-4 py-2 rounded-full font-semibold text-white text-xs shadow-lg"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      Book Online
-                    </button>
+                      {/* Name + Tagline */}
+                      <div className="pt-1 flex-1 min-w-0">
+                        <h3 className="text-white font-bold text-xl leading-tight">
+                          {customName || 'Your Name'}
+                        </h3>
+                        <p
+                          className="text-[10px] font-semibold tracking-[2px] uppercase mt-0.5 truncate"
+                          style={{ color: themeColor }}
+                        >
+                          {customTagline || 'Your Tagline'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom: Shop name + Book button */}
+                    <div className="flex items-end justify-between">
+                      <span className="text-zinc-400 font-medium text-xs">
+                        {customShopName || 'Your Barber Shop'}
+                      </span>
+                      <div
+                        className="px-3 py-1.5 rounded-md font-semibold text-white text-[11px]"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        Book Online
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

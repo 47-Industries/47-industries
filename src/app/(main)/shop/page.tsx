@@ -9,7 +9,7 @@ interface SearchParams {
   category?: string
   search?: string
   page?: string
-  type?: 'physical' | 'digital'
+  type?: 'physical' | 'digital' | 'apparel'
 }
 
 const PRODUCTS_PER_PAGE = 20
@@ -18,11 +18,24 @@ async function getProducts(searchParams: SearchParams) {
   const page = parseInt(searchParams.page || '1')
   const limit = PRODUCTS_PER_PAGE
   const skip = (page - 1) * limit
-  const productType = searchParams.type === 'digital' ? 'DIGITAL' : 'PHYSICAL'
 
   const where: any = {
     active: true,
-    productType,
+  }
+
+  // Filter by type
+  if (searchParams.type === 'digital') {
+    where.productType = 'DIGITAL'
+  } else if (searchParams.type === 'apparel') {
+    where.productType = 'PHYSICAL'
+    where.fulfillmentType = 'PRINTFUL'
+  } else {
+    // Default: physical products (excluding Printful/apparel)
+    where.productType = 'PHYSICAL'
+    where.OR = [
+      { fulfillmentType: 'SELF_FULFILLED' },
+      { fulfillmentType: null },
+    ]
   }
 
   if (searchParams.category) {
@@ -30,9 +43,14 @@ async function getProducts(searchParams: SearchParams) {
   }
 
   if (searchParams.search) {
-    where.OR = [
-      { name: { contains: searchParams.search } },
-      { description: { contains: searchParams.search } },
+    // Use AND to combine with existing OR clause for fulfillment type
+    where.AND = [
+      {
+        OR: [
+          { name: { contains: searchParams.search } },
+          { description: { contains: searchParams.search } },
+        ]
+      }
     ]
   }
 
@@ -92,11 +110,21 @@ async function getCategories(productType: 'PHYSICAL' | 'DIGITAL') {
 }
 
 async function getProductCounts() {
-  const [physical, digital] = await Promise.all([
-    prisma.product.count({ where: { active: true, productType: 'PHYSICAL' } }),
+  const [physical, digital, apparel] = await Promise.all([
+    prisma.product.count({
+      where: {
+        active: true,
+        productType: 'PHYSICAL',
+        OR: [
+          { fulfillmentType: 'SELF_FULFILLED' },
+          { fulfillmentType: null },
+        ]
+      }
+    }),
     prisma.product.count({ where: { active: true, productType: 'DIGITAL' } }),
+    prisma.product.count({ where: { active: true, productType: 'PHYSICAL', fulfillmentType: 'PRINTFUL' } }),
   ])
-  return { physical, digital }
+  return { physical, digital, apparel }
 }
 
 export default async function ShopPage({
@@ -111,8 +139,10 @@ export default async function ShopPage({
   }
 
   const params = await searchParams
-  const productType = params.type === 'digital' ? 'DIGITAL' : 'PHYSICAL'
-  const isDigital = productType === 'DIGITAL'
+  const currentType = params.type || 'physical'
+  const isDigital = currentType === 'digital'
+  const isApparel = currentType === 'apparel'
+  const productType = isDigital ? 'DIGITAL' : 'PHYSICAL'
 
   const [{ products, pagination }, categories, counts] = await Promise.all([
     getProducts(params),
@@ -131,6 +161,8 @@ export default async function ShopPage({
           <p className="text-xl text-text-secondary max-w-2xl">
             {isDigital
               ? 'Digital files ready for instant download'
+              : isApparel
+              ? 'Premium branded apparel, printed and shipped on demand'
               : 'High-quality 3D printed products, ready to ship'
             }
           </p>
@@ -138,11 +170,11 @@ export default async function ShopPage({
 
         {/* Product Type Toggle */}
         <div className="mb-8">
-          <div className="inline-flex rounded-xl bg-surface border border-border p-1">
+          <div className="inline-flex rounded-xl bg-surface border border-border p-1 flex-wrap">
             <Link
               href="/shop?type=physical"
               className={`px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                !isDigital
+                currentType === 'physical'
                   ? 'bg-emerald-500 text-white shadow-lg'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
@@ -152,8 +184,26 @@ export default async function ShopPage({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
                 Physical Products
-                <span className={`px-2 py-0.5 rounded-full text-xs ${!isDigital ? 'bg-white/20' : 'bg-border'}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs ${currentType === 'physical' ? 'bg-white/20' : 'bg-border'}`}>
                   {counts.physical}
+                </span>
+              </span>
+            </Link>
+            <Link
+              href="/shop?type=apparel"
+              className={`px-6 py-3 rounded-lg text-sm font-medium transition-all ${
+                isApparel
+                  ? 'bg-amber-500 text-white shadow-lg'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                Apparel
+                <span className={`px-2 py-0.5 rounded-full text-xs ${isApparel ? 'bg-white/20' : 'bg-border'}`}>
+                  {counts.apparel}
                 </span>
               </span>
             </Link>
@@ -180,13 +230,13 @@ export default async function ShopPage({
 
         {/* Search Bar */}
         <form className="mb-8">
-          <input type="hidden" name="type" value={isDigital ? 'digital' : 'physical'} />
+          <input type="hidden" name="type" value={currentType} />
           <div className="relative max-w-md">
             <input
               type="text"
               name="search"
               defaultValue={params.search || ''}
-              placeholder={`Search ${isDigital ? 'digital' : 'physical'} products...`}
+              placeholder={`Search ${isDigital ? 'digital' : isApparel ? 'apparel' : 'physical'} products...`}
               className="w-full px-4 py-3 pl-12 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
             />
             <svg
@@ -204,25 +254,29 @@ export default async function ShopPage({
         {categories.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-12">
             <Link
-              href={`/shop?type=${isDigital ? 'digital' : 'physical'}`}
+              href={`/shop?type=${currentType}`}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
                 !activeCategory
                   ? isDigital
                     ? 'bg-violet-500 text-white'
+                    : isApparel
+                    ? 'bg-amber-500 text-white'
                     : 'bg-emerald-500 text-white'
                   : 'border border-border hover:bg-surface'
               }`}
             >
-              All {isDigital ? 'Digital' : 'Physical'}
+              All {isDigital ? 'Digital' : isApparel ? 'Apparel' : 'Physical'}
             </Link>
             {categories.map((category) => (
               <Link
                 key={category.id}
-                href={`/shop?type=${isDigital ? 'digital' : 'physical'}&category=${category.slug}`}
+                href={`/shop?type=${currentType}&category=${category.slug}`}
                 className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeCategory === category.slug
                     ? isDigital
                       ? 'bg-violet-500 text-white'
+                      : isApparel
+                      ? 'bg-amber-500 text-white'
                       : 'bg-emerald-500 text-white'
                     : 'border border-border hover:bg-surface'
                 }`}
@@ -241,28 +295,32 @@ export default async function ShopPage({
                 <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
+              ) : isApparel ? (
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
               ) : (
                 <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               )}
             </div>
-            <h3 className="text-2xl font-bold mb-2">No {isDigital ? 'digital' : 'physical'} products found</h3>
+            <h3 className="text-2xl font-bold mb-2">No {isDigital ? 'digital' : isApparel ? 'apparel' : 'physical'} products found</h3>
             <p className="text-text-secondary mb-8">
               {params.search
                 ? `No products match "${params.search}"`
                 : activeCategory
                 ? 'No products in this category yet'
-                : `Check back soon for new ${isDigital ? 'digital downloads' : 'products'}!`}
+                : `Check back soon for new ${isDigital ? 'digital downloads' : isApparel ? 'apparel' : 'products'}!`}
             </p>
             {(params.search || activeCategory) && (
               <Link
-                href={`/shop?type=${isDigital ? 'digital' : 'physical'}`}
+                href={`/shop?type=${currentType}`}
                 className={`inline-flex items-center px-6 py-3 text-white rounded-lg transition-colors ${
-                  isDigital ? 'bg-violet-500 hover:bg-violet-600' : 'bg-emerald-500 hover:bg-emerald-600'
+                  isDigital ? 'bg-violet-500 hover:bg-violet-600' : isApparel ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'
                 }`}
               >
-                View all {isDigital ? 'digital' : 'physical'} products
+                View all {isDigital ? 'digital' : isApparel ? 'apparel' : 'physical'} products
               </Link>
             )}
           </div>
@@ -277,6 +335,7 @@ export default async function ShopPage({
             }))}
             pagination={pagination}
             isDigital={isDigital}
+            isApparel={isApparel}
             activeCategory={activeCategory}
             searchQuery={params.search || null}
           />
@@ -290,15 +349,57 @@ export default async function ShopPage({
               <p className="text-text-secondary mb-8">
                 Check out our 3D printed products ready to ship
               </p>
-              <Link
-                href="/shop?type=physical"
-                className="inline-flex items-center px-8 py-4 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
-              >
-                Browse Physical Products
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/shop?type=physical"
+                  className="inline-flex items-center px-8 py-4 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
+                >
+                  Browse Physical Products
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+                {counts.apparel > 0 && (
+                  <Link
+                    href="/shop?type=apparel"
+                    className="inline-flex items-center px-8 py-4 border border-amber-500 text-amber-400 rounded-lg hover:bg-amber-500/10 transition-all"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Browse Apparel
+                  </Link>
+                )}
+              </div>
+            </>
+          ) : isApparel ? (
+            <>
+              <h3 className="text-2xl font-bold mb-4">Explore More Products</h3>
+              <p className="text-text-secondary mb-8">
+                Check out our 3D printed products and digital downloads
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/shop?type=physical"
+                  className="inline-flex items-center px-8 py-4 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
+                >
+                  Browse Physical Products
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+                {counts.digital > 0 && (
+                  <Link
+                    href="/shop?type=digital"
+                    className="inline-flex items-center px-8 py-4 border border-violet-500 text-violet-400 rounded-lg hover:bg-violet-500/10 transition-all"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Browse Digital Downloads
+                  </Link>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -316,6 +417,17 @@ export default async function ShopPage({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
                 </Link>
+                {counts.apparel > 0 && (
+                  <Link
+                    href="/shop?type=apparel"
+                    className="inline-flex items-center px-8 py-4 border border-amber-500 text-amber-400 rounded-lg hover:bg-amber-500/10 transition-all"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Browse Apparel
+                  </Link>
+                )}
                 {counts.digital > 0 && (
                   <Link
                     href="/shop?type=digital"
