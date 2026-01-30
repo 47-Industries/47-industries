@@ -1,5 +1,5 @@
 // Brand configuration for print-on-demand apparel
-// Used for brand-specific shop pages (/shop/bookfade, /shop/motorev, /shop/47)
+// Used for brand-specific shop pages (/shop/brands/bookfade, /shop/brands/motorev, /shop/brands/47)
 
 export interface BrandConfig {
   slug: string

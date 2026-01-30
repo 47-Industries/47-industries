@@ -93,6 +93,10 @@ export default async function BrandShopPage({ params }: Props) {
               Shop
             </Link>
             <span>/</span>
+            <span className="hover:text-text-primary transition-colors">
+              Brands
+            </span>
+            <span>/</span>
             <span className="text-text-primary">{brand.name}</span>
           </nav>
         </div>

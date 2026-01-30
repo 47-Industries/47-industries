@@ -302,7 +302,7 @@ export default async function ProjectPage({ params }: Props) {
               </div>
               {linkedProducts[0]?.brand && BRAND_SLUG_MAP[linkedProducts[0].brand.toLowerCase()] && (
                 <Link
-                  href={`/shop/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
+                  href={`/shop/brands/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
                   className="hidden md:inline-flex items-center px-4 py-2 border border-border rounded-lg hover:bg-surface transition-colors text-sm"
                 >
                   View Collection
@@ -371,7 +371,7 @@ export default async function ProjectPage({ params }: Props) {
             {linkedProducts[0]?.brand && (
               <div className="mt-6 text-center md:hidden">
                 <Link
-                  href={`/shop/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
+                  href={`/shop/brands/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
                   className="inline-flex items-center px-6 py-3 border border-border rounded-lg hover:bg-surface transition-colors"
                 >
                   View Full Collection
