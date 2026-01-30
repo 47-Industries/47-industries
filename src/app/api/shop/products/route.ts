@@ -13,11 +13,23 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const search = searchParams.get('search')
 
-    const productType = type === 'digital' ? 'DIGITAL' : 'PHYSICAL'
-
     const where: any = {
       active: true,
-      productType,
+    }
+
+    // Filter by type
+    if (type === 'digital') {
+      where.productType = 'DIGITAL'
+    } else if (type === 'apparel') {
+      where.productType = 'PHYSICAL'
+      where.fulfillmentType = 'PRINTFUL'
+    } else {
+      // Default: physical products (excluding Printful/apparel)
+      where.productType = 'PHYSICAL'
+      where.OR = [
+        { fulfillmentType: 'SELF_FULFILLED' },
+        { fulfillmentType: null },
+      ]
     }
 
     if (category) {
@@ -25,9 +37,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
+      // Use AND to combine with existing OR clause for fulfillment type
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search } },
+            { description: { contains: search } },
+          ]
+        }
       ]
     }
 
