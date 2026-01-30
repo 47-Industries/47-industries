@@ -28,6 +28,13 @@ export async function GET(
           },
         },
         variants: true,
+        project: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
       },
     })
 
@@ -136,12 +143,23 @@ export async function PUT(
         printTime: body.printTime || null,
         layerHeight: body.layerHeight || null,
         infill: body.infill || null,
+        // Print on Demand fields
+        brand: body.brand || null,
+        fulfillmentType: body.fulfillmentType || 'SELF_FULFILLED',
+        projectId: body.projectId || null,
       },
       include: {
         category: {
           select: {
             id: true,
             name: true,
+            slug: true,
+          },
+        },
+        project: {
+          select: {
+            id: true,
+            title: true,
             slug: true,
           },
         },

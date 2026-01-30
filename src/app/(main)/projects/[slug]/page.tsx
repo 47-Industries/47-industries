@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import ScreenshotGallery from '@/components/projects/ScreenshotGallery'
 import ImageLightbox from '@/components/projects/ImageLightbox'
+import { BRANDS, BRAND_SLUG_MAP } from '@/config/brands'
 
 // Force dynamic rendering - always fetch fresh data from database
 export const dynamic = 'force-dynamic'
@@ -45,11 +47,29 @@ export default async function ProjectPage({ params }: Props) {
 
   const project = await prisma.serviceProject.findUnique({
     where: { slug },
+    include: {
+      products: {
+        where: { active: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          price: true,
+          comparePrice: true,
+          images: true,
+          brand: true,
+        },
+        take: 4,
+        orderBy: { featured: 'desc' },
+      },
+    },
   })
 
   if (!project || !project.isActive) {
     notFound()
   }
+
+  const linkedProducts = project.products || []
 
   const technologies = (project.technologies as string[]) || []
   const categories = (project.categories as string[]) || []
@@ -265,6 +285,102 @@ export default async function ProjectPage({ params }: Props) {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shop Merch Section - Only show if project has linked products */}
+      {linkedProducts.length > 0 && (
+        <div className="py-12 bg-surface/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold mb-2">Shop {project.title} Merch</h2>
+                <p className="text-text-secondary">
+                  Official {project.title} apparel and merchandise
+                </p>
+              </div>
+              {linkedProducts[0]?.brand && BRAND_SLUG_MAP[linkedProducts[0].brand.toLowerCase()] && (
+                <Link
+                  href={`/shop/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
+                  className="hidden md:inline-flex items-center px-4 py-2 border border-border rounded-lg hover:bg-surface transition-colors text-sm"
+                >
+                  View Collection
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {linkedProducts.map((product) => {
+                const images = product.images as string[]
+                const price = Number(product.price)
+                const comparePrice = product.comparePrice ? Number(product.comparePrice) : null
+                const brandConfig = product.brand ? BRANDS[product.brand] : null
+
+                return (
+                  <Link
+                    key={product.id}
+                    href={`/shop/${product.slug}`}
+                    className="group"
+                  >
+                    <div className="bg-surface border border-border rounded-xl overflow-hidden transition-all hover:border-border/80 hover:shadow-lg">
+                      <div className="aspect-square relative bg-surface-elevated overflow-hidden">
+                        {images?.[0] ? (
+                          <Image
+                            src={images[0]}
+                            alt={product.name}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-text-secondary">
+                            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-medium text-text-primary mb-1 line-clamp-2 group-hover:text-text-primary/80 transition-colors text-sm">
+                          {product.name}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="font-bold"
+                            style={{ color: brandConfig?.accentColor || '#3b82f6' }}
+                          >
+                            ${price.toFixed(2)}
+                          </span>
+                          {comparePrice && comparePrice > price && (
+                            <span className="text-xs text-text-secondary line-through">
+                              ${comparePrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Mobile View Collection Button */}
+            {linkedProducts[0]?.brand && (
+              <div className="mt-6 text-center md:hidden">
+                <Link
+                  href={`/shop/${BRANDS[linkedProducts[0].brand]?.slug || linkedProducts[0].brand.toLowerCase()}`}
+                  className="inline-flex items-center px-6 py-3 border border-border rounded-lg hover:bg-surface transition-colors"
+                >
+                  View Full Collection
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

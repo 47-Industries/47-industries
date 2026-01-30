@@ -6,6 +6,7 @@ import { sendOrderConfirmation, sendDigitalProductDelivery, sendPaymentFailureNo
 import Stripe from 'stripe'
 import { randomBytes } from 'crypto'
 import { calculateShopCommission } from '@/lib/affiliate-utils'
+import { submitOrderToPrintful, isPrintfulConfigured } from '@/lib/printful'
 
 export async function POST(req: NextRequest) {
   if (!isStripeConfigured) {
@@ -131,6 +132,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   const isDigitalOnly = metadata.isDigitalOnly === 'true'
+  const hasPrintfulItems = metadata.hasPrintfulItems === 'true'
 
   // Get product details
   const productIds = items.map(item => item.productId)
@@ -215,6 +217,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       source,
       sourceOrderId,
       sourceData,
+      // Printful tracking
+      hasPrintfulItems,
       items: {
         create: items.map(item => {
           const product = products.find(p => p.id === item.productId)
@@ -256,6 +260,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   console.log('Order created:', order.orderNumber)
+
+  // Submit Printful items to Printful for fulfillment
+  if (hasPrintfulItems && isPrintfulConfigured()) {
+    try {
+      await submitOrderToPrintful(order.id)
+      console.log('Printful order submitted for:', order.orderNumber)
+    } catch (printfulError) {
+      // Log error but don't fail the order - admin can retry
+      console.error('Failed to submit order to Printful:', printfulError)
+
+      // Create a failed PrintfulOrder record for tracking
+      await prisma.printfulOrder.create({
+        data: {
+          orderId: order.id,
+          status: 'FAILED',
+          errorMessage: printfulError instanceof Error ? printfulError.message : 'Unknown error',
+        },
+      })
+    }
+  }
 
   // Create affiliate referral and commission if this order has affiliate attribution
   if (affiliatePartnerId) {

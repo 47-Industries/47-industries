@@ -15,6 +15,8 @@ interface BookFadeProfile {
   businessCity: string | null
   businessState: string | null
   profileImage: string | null
+  heroImage: string | null
+  galleryImages: string[]
   themeColor: string | null
   bio: string | null
   socialInstagram: string | null
@@ -60,6 +62,7 @@ export default function BookFadeBusinessCardsPage() {
   const [customCity, setCustomCity] = useState('')
   const [customState, setCustomState] = useState('')
   const [customProfileImage, setCustomProfileImage] = useState('')
+  const [customBackgroundImage, setCustomBackgroundImage] = useState('')
   const [themeColor, setThemeColor] = useState('#9a58fd')
 
   const [addingToCart, setAddingToCart] = useState(false)
@@ -77,6 +80,9 @@ export default function BookFadeBusinessCardsPage() {
       setCustomCity(bookfadeProfile.businessCity || '')
       setCustomState(bookfadeProfile.businessState || '')
       setCustomProfileImage(bookfadeProfile.profileImage || '')
+      // Use heroImage or first gallery image as background
+      const bgImage = bookfadeProfile.heroImage || bookfadeProfile.galleryImages?.[0] || ''
+      setCustomBackgroundImage(bgImage)
       setThemeColor(bookfadeProfile.themeColor || '#9a58fd')
     }
   }, [bookfadeProfile])
@@ -151,6 +157,7 @@ export default function BookFadeBusinessCardsPage() {
         bookfadeSlug: bookfadeProfile?.slug || bookfadeSlug || null,
         bookfadeId: bookfadeProfile?.id || null,
         profileImage: customProfileImage || null,
+        backgroundImage: customBackgroundImage || null,
       },
     })
 
@@ -184,13 +191,15 @@ export default function BookFadeBusinessCardsPage() {
               <div
                 className="aspect-[1.75/1] rounded-xl shadow-2xl overflow-hidden relative"
                 style={{
-                  backgroundImage: 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
+                  backgroundImage: customBackgroundImage
+                    ? `url(${customBackgroundImage})`
+                    : 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
               >
                 {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/60" />
+                <div className="absolute inset-0 bg-black/50" />
 
                 {/* Card content */}
                 <div className="relative h-full p-5 flex flex-col justify-between">
@@ -219,11 +228,11 @@ export default function BookFadeBusinessCardsPage() {
 
                     {/* Name + Tagline */}
                     <div>
-                      <h3 className="text-white font-bold text-2xl leading-tight">
+                      <h3 className="text-white font-bold text-2xl leading-tight drop-shadow-lg">
                         {customName || 'Your Name'}
                       </h3>
                       <p
-                        className="text-sm font-semibold tracking-[0.2em] uppercase mt-1"
+                        className="text-sm font-semibold tracking-[0.2em] uppercase mt-1 drop-shadow-lg"
                         style={{ color: themeColor }}
                       >
                         {customTagline || 'YOUR TAGLINE'}
@@ -233,11 +242,11 @@ export default function BookFadeBusinessCardsPage() {
 
                   {/* Bottom: Shop name + Book button */}
                   <div className="flex items-end justify-between">
-                    <p className="text-white font-medium text-lg">
+                    <p className="text-white font-medium text-lg drop-shadow-lg">
                       {customShopName || 'Your Barber Shop'}
                     </p>
                     <button
-                      className="px-5 py-2.5 rounded-full font-semibold text-white text-sm"
+                      className="px-5 py-2.5 rounded-full font-semibold text-white text-sm shadow-lg"
                       style={{ backgroundColor: themeColor }}
                     >
                       Book Online
@@ -273,40 +282,14 @@ export default function BookFadeBusinessCardsPage() {
                   </div>
                 </div>
 
-                {/* Right side - QR Code */}
+                {/* Right side - Real QR Code */}
                 <div className="flex flex-col items-center justify-center pl-4">
-                  <div className="w-24 h-24 bg-white rounded-lg p-2 flex items-center justify-center">
-                    {/* QR Code placeholder */}
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      <rect x="10" y="10" width="25" height="25" fill="black" />
-                      <rect x="15" y="15" width="15" height="15" fill="white" />
-                      <rect x="18" y="18" width="9" height="9" fill="black" />
-                      <rect x="65" y="10" width="25" height="25" fill="black" />
-                      <rect x="70" y="15" width="15" height="15" fill="white" />
-                      <rect x="73" y="18" width="9" height="9" fill="black" />
-                      <rect x="10" y="65" width="25" height="25" fill="black" />
-                      <rect x="15" y="70" width="15" height="15" fill="white" />
-                      <rect x="18" y="73" width="9" height="9" fill="black" />
-                      <rect x="40" y="10" width="5" height="5" fill="black" />
-                      <rect x="50" y="10" width="5" height="5" fill="black" />
-                      <rect x="40" y="20" width="5" height="5" fill="black" />
-                      <rect x="45" y="25" width="5" height="5" fill="black" />
-                      <rect x="40" y="40" width="20" height="20" fill="black" />
-                      <rect x="45" y="45" width="10" height="10" fill="white" />
-                      <rect x="48" y="48" width="4" height="4" fill="black" />
-                      <rect x="65" y="40" width="5" height="5" fill="black" />
-                      <rect x="75" y="45" width="5" height="5" fill="black" />
-                      <rect x="85" y="40" width="5" height="5" fill="black" />
-                      <rect x="65" y="55" width="5" height="5" fill="black" />
-                      <rect x="80" y="55" width="5" height="5" fill="black" />
-                      <rect x="40" y="65" width="5" height="5" fill="black" />
-                      <rect x="50" y="70" width="5" height="5" fill="black" />
-                      <rect x="40" y="80" width="5" height="5" fill="black" />
-                      <rect x="55" y="85" width="5" height="5" fill="black" />
-                      <rect x="65" y="65" width="25" height="25" fill="black" />
-                      <rect x="70" y="70" width="15" height="15" fill="white" />
-                      <rect x="75" y="75" width="5" height="5" fill="black" />
-                    </svg>
+                  <div className="w-24 h-24 bg-white rounded-lg p-1 flex items-center justify-center">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://bookfade.app/b/${bookfadeProfile?.slug || bookfadeSlug || 'username'}`)}`}
+                      alt="QR Code"
+                      className="w-full h-full"
+                    />
                   </div>
                   <p className="text-zinc-500 text-xs uppercase tracking-wider mt-2">
                     Scan to Book
@@ -314,6 +297,21 @@ export default function BookFadeBusinessCardsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Background Image Field */}
+            {(manualEntry || bookfadeProfile) && (
+              <div className="bg-surface rounded-xl p-4 border border-border">
+                <label className="block text-sm text-text-secondary mb-1.5">Background Image URL</label>
+                <input
+                  type="url"
+                  value={customBackgroundImage}
+                  onChange={(e) => setCustomBackgroundImage(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:border-accent focus:outline-none text-sm"
+                />
+                <p className="text-xs text-text-secondary mt-1">Auto-filled from your BookFade gallery</p>
+              </div>
+            )}
 
             <p className="text-center text-sm text-text-secondary">
               Live preview updates as you customize

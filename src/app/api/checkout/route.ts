@@ -139,6 +139,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Check if order contains any Printful items
+    const hasPrintfulItems = products.some(
+      product => product.fulfillmentType === 'PRINTFUL'
+    )
+
     // Create line items for Stripe with current database prices
     const lineItems = items.map(item => {
       const product = products.find(p => p.id === item.productId)
@@ -296,6 +301,8 @@ export async function POST(req: NextRequest) {
         // Affiliate tracking
         ...(affiliateCode && { affiliateCode }),
         ...(affiliatePartnerId && { affiliatePartnerId }),
+        // Printful tracking
+        hasPrintfulItems: hasPrintfulItems ? 'true' : 'false',
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,

@@ -15,6 +15,8 @@ interface BookFadeProfile {
   businessCity: string | null
   businessState: string | null
   profileImage: string | null
+  heroImage: string | null
+  galleryImages: string[]
   themeColor: string | null
   bio: string | null
   socialInstagram: string | null
@@ -53,6 +55,7 @@ export default function BookFadeStarterBundlePage() {
   const [customCity, setCustomCity] = useState('')
   const [customState, setCustomState] = useState('')
   const [customProfileImage, setCustomProfileImage] = useState('')
+  const [customBackgroundImage, setCustomBackgroundImage] = useState('')
   const [themeColor, setThemeColor] = useState('#9a58fd')
 
   const [addingToCart, setAddingToCart] = useState(false)
@@ -70,6 +73,9 @@ export default function BookFadeStarterBundlePage() {
       setCustomCity(bookfadeProfile.businessCity || '')
       setCustomState(bookfadeProfile.businessState || '')
       setCustomProfileImage(bookfadeProfile.profileImage || '')
+      // Use heroImage or first gallery image as background
+      const bgImage = bookfadeProfile.heroImage || bookfadeProfile.galleryImages?.[0] || ''
+      setCustomBackgroundImage(bgImage)
       setThemeColor(bookfadeProfile.themeColor || '#9a58fd')
     }
   }, [bookfadeProfile])
@@ -143,6 +149,7 @@ export default function BookFadeStarterBundlePage() {
         bookfadeSlug: bookfadeProfile?.slug || bookfadeSlug || null,
         bookfadeId: bookfadeProfile?.id || null,
         profileImage: customProfileImage || null,
+        backgroundImage: customBackgroundImage || null,
       },
     })
 
@@ -176,13 +183,15 @@ export default function BookFadeStarterBundlePage() {
               <div
                 className="aspect-[1.75/1] rounded-xl shadow-2xl overflow-hidden relative"
                 style={{
-                  backgroundImage: 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
+                  backgroundImage: customBackgroundImage
+                    ? `url(${customBackgroundImage})`
+                    : 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
               >
                 {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/60" />
+                <div className="absolute inset-0 bg-black/50" />
 
                 {/* Card content */}
                 <div className="relative h-full p-4 flex flex-col justify-between">
@@ -211,11 +220,11 @@ export default function BookFadeStarterBundlePage() {
 
                     {/* Name + Tagline */}
                     <div>
-                      <h3 className="text-white font-bold text-xl leading-tight">
+                      <h3 className="text-white font-bold text-xl leading-tight drop-shadow-lg">
                         {customName || 'Your Name'}
                       </h3>
                       <p
-                        className="text-xs font-semibold tracking-[0.15em] uppercase mt-0.5"
+                        className="text-xs font-semibold tracking-[0.15em] uppercase mt-0.5 drop-shadow-lg"
                         style={{ color: themeColor }}
                       >
                         {customTagline || 'YOUR TAGLINE'}
@@ -225,11 +234,11 @@ export default function BookFadeStarterBundlePage() {
 
                   {/* Bottom: Shop name + Book button */}
                   <div className="flex items-end justify-between">
-                    <p className="text-white font-medium text-sm">
+                    <p className="text-white font-medium text-sm drop-shadow-lg">
                       {customShopName || 'Your Barber Shop'}
                     </p>
                     <button
-                      className="px-4 py-2 rounded-full font-semibold text-white text-xs"
+                      className="px-4 py-2 rounded-full font-semibold text-white text-xs shadow-lg"
                       style={{ backgroundColor: themeColor }}
                     >
                       Book Online
@@ -524,6 +533,18 @@ export default function BookFadeStarterBundlePage() {
                       className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
                     />
                     <p className="text-xs text-text-secondary mt-1">Leave blank for initial-only display</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Background Image URL</label>
+                    <input
+                      type="url"
+                      value={customBackgroundImage}
+                      onChange={(e) => setCustomBackgroundImage(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">Auto-filled from your BookFade gallery</p>
                   </div>
 
                   <div>
