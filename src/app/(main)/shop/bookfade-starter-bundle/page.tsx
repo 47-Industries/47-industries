@@ -49,8 +49,10 @@ export default function BookFadeStarterBundlePage() {
   const [customName, setCustomName] = useState('')
   const [customTagline, setCustomTagline] = useState('')
   const [customShopName, setCustomShopName] = useState('')
+  const [customAddress, setCustomAddress] = useState('')
   const [customCity, setCustomCity] = useState('')
   const [customState, setCustomState] = useState('')
+  const [customProfileImage, setCustomProfileImage] = useState('')
   const [themeColor, setThemeColor] = useState('#9a58fd')
 
   const [addingToCart, setAddingToCart] = useState(false)
@@ -64,8 +66,10 @@ export default function BookFadeStarterBundlePage() {
       setCustomName(bookfadeProfile.name || '')
       setCustomTagline(bookfadeProfile.bio || '')
       setCustomShopName(bookfadeProfile.businessName || '')
+      setCustomAddress(bookfadeProfile.businessAddress || '')
       setCustomCity(bookfadeProfile.businessCity || '')
       setCustomState(bookfadeProfile.businessState || '')
+      setCustomProfileImage(bookfadeProfile.profileImage || '')
       setThemeColor(bookfadeProfile.themeColor || '#9a58fd')
     }
   }, [bookfadeProfile])
@@ -132,12 +136,13 @@ export default function BookFadeStarterBundlePage() {
         name: customName,
         tagline: customTagline,
         shopName: customShopName,
+        address: customAddress,
         city: customCity,
         state: customState,
         themeColor,
-        bookfadeSlug: bookfadeProfile?.slug || null,
+        bookfadeSlug: bookfadeProfile?.slug || bookfadeSlug || null,
         bookfadeId: bookfadeProfile?.id || null,
-        profileImage: bookfadeProfile?.profileImage || null,
+        profileImage: customProfileImage || null,
       },
     })
 
@@ -164,60 +169,117 @@ export default function BookFadeStarterBundlePage() {
 
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Left: Bundle Preview */}
-          <div className="sticky top-24 self-start">
-            {/* Bundle Hero */}
-            <div className="bg-gradient-to-br from-violet-500/20 to-blue-500/20 rounded-2xl p-8 mb-6">
-              <div className="text-center mb-6">
-                <span className="inline-block px-4 py-1.5 bg-green-500/20 text-green-500 rounded-full text-sm font-semibold mb-4">
-                  Save $10 vs buying separately
+          <div className="sticky top-24 self-start space-y-6">
+            {/* Card Preview */}
+            <div>
+              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Card Preview</p>
+              <div
+                className="aspect-[1.75/1] rounded-xl shadow-2xl overflow-hidden relative"
+                style={{
+                  backgroundImage: 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-black/60" />
+
+                {/* Card content */}
+                <div className="relative h-full p-4 flex flex-col justify-between">
+                  {/* Top: Profile + Name */}
+                  <div className="flex items-center gap-3">
+                    {/* Profile photo with theme border */}
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        border: `3px solid ${themeColor}`,
+                        backgroundColor: '#1a1a1a',
+                      }}
+                    >
+                      {customProfileImage ? (
+                        <img
+                          src={customProfileImage}
+                          alt={customName || 'Profile'}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-white/50">
+                          {customName ? customName.charAt(0) : '?'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Name + Tagline */}
+                    <div>
+                      <h3 className="text-white font-bold text-xl leading-tight">
+                        {customName || 'Your Name'}
+                      </h3>
+                      <p
+                        className="text-xs font-semibold tracking-[0.15em] uppercase mt-0.5"
+                        style={{ color: themeColor }}
+                      >
+                        {customTagline || 'YOUR TAGLINE'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Bottom: Shop name + Book button */}
+                  <div className="flex items-end justify-between">
+                    <p className="text-white font-medium text-sm">
+                      {customShopName || 'Your Barber Shop'}
+                    </p>
+                    <button
+                      className="px-4 py-2 rounded-full font-semibold text-white text-xs"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      Book Online
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bundle Contents */}
+            <div className="bg-gradient-to-br from-violet-500/10 to-blue-500/10 rounded-xl p-5 border border-border/50">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium">Bundle Includes</span>
+                <span className="px-2 py-0.5 bg-green-500/20 text-green-500 rounded-full text-xs font-semibold">
+                  Save $13
                 </span>
-                <h2 className="text-2xl font-bold">Everything You Need</h2>
               </div>
 
-              {/* Bundle Items */}
-              <div className="space-y-4">
-                <div className="bg-background/50 rounded-xl p-4 flex items-center gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-16 h-10 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                    className="w-10 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold"
                     style={{ backgroundColor: themeColor }}
                   >
                     500
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold">500 Business Cards</p>
-                    <p className="text-sm text-text-secondary">Double-sided, full color, QR code</p>
+                    <p className="text-sm font-medium">Business Cards</p>
                   </div>
-                  <span className="text-text-secondary line-through">$47.99</span>
+                  <span className="text-xs text-text-secondary line-through">$47.99</span>
                 </div>
 
-                <div className="bg-background/50 rounded-xl p-4 flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-16 h-10 rounded-lg flex items-center justify-center"
+                    className="w-10 h-6 rounded flex items-center justify-center"
                     style={{
                       backgroundColor: HOLDER_COLORS.find(c => c.id === holderColor)?.hex,
                       border: holderColor === 'white' ? '1px solid #ccc' : 'none'
                     }}
-                  >
-                    <div className="w-8 h-5 bg-white/20 rounded" />
-                  </div>
+                  />
                   <div className="flex-1">
-                    <p className="font-semibold">Card Holder</p>
-                    <p className="text-sm text-text-secondary">3D printed, {HOLDER_COLORS.find(c => c.id === holderColor)?.name}</p>
+                    <p className="text-sm font-medium">Card Holder ({HOLDER_COLORS.find(c => c.id === holderColor)?.name})</p>
                   </div>
-                  <span className="text-text-secondary line-through">$24.99</span>
+                  <span className="text-xs text-text-secondary line-through">$24.99</span>
                 </div>
               </div>
 
-              {/* Bundle Total */}
-              <div className="mt-6 pt-6 border-t border-border/50 flex justify-between items-center">
-                <div>
-                  <span className="text-text-secondary">Bundle Price</span>
-                  <p className="text-sm text-text-secondary">Ships together</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-text-secondary line-through mr-3">$72.98</span>
-                  <span className="text-3xl font-bold text-green-500">${getPrice()}</span>
-                </div>
+              <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center">
+                <span className="text-sm text-text-secondary">Bundle Total</span>
+                <span className="text-xl font-bold text-green-500">${getPrice()}</span>
               </div>
             </div>
 
@@ -229,22 +291,22 @@ export default function BookFadeStarterBundlePage() {
                   <button
                     key={color.id}
                     onClick={() => setHolderColor(color.id)}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    className={`p-3 rounded-xl border-2 text-center transition-all ${
                       holderColor === color.id
                         ? 'border-accent bg-accent/10'
                         : 'border-border hover:border-accent/50'
                     }`}
                   >
                     <div
-                      className="w-10 h-10 rounded-full mx-auto mb-2"
+                      className="w-8 h-8 rounded-full mx-auto mb-1.5"
                       style={{
                         backgroundColor: color.hex,
                         border: color.id === 'white' ? '1px solid #ccc' : 'none'
                       }}
                     />
-                    <p className="font-medium text-sm">{color.name}</p>
+                    <p className="font-medium text-xs">{color.name}</p>
                     {color.price > 59.99 && (
-                      <p className="text-xs text-accent">+$5</p>
+                      <p className="text-[10px] text-accent">+$5</p>
                     )}
                   </button>
                 ))}
@@ -417,6 +479,17 @@ export default function BookFadeStarterBundlePage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Street Address</label>
+                    <input
+                      type="text"
+                      value={customAddress}
+                      onChange={(e) => setCustomAddress(e.target.value)}
+                      placeholder="123 Main Street"
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-text-secondary mb-1.5">City</label>
@@ -437,6 +510,33 @@ export default function BookFadeStarterBundlePage() {
                         placeholder="CA"
                         maxLength={2}
                         className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Profile Image URL</label>
+                    <input
+                      type="url"
+                      value={customProfileImage}
+                      onChange={(e) => setCustomProfileImage(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">Leave blank for initial-only display</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">BookFade Username (for QR code)</label>
+                    <div className="flex items-center">
+                      <span className="text-text-secondary text-sm mr-1">bookfade.app/b/</span>
+                      <input
+                        type="text"
+                        value={bookfadeSlug}
+                        onChange={(e) => setBookfadeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                        placeholder="username"
+                        className="flex-1 px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                        disabled={!!bookfadeProfile}
                       />
                     </div>
                   </div>

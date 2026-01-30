@@ -57,6 +57,15 @@ interface Product {
     price: number
     productType: 'PHYSICAL' | 'DIGITAL'
   } | null
+  // Print on Demand fields
+  brand?: 'FORTY_SEVEN_INDUSTRIES' | 'BOOKFADE' | 'MOTOREV' | null
+  fulfillmentType?: 'SELF_FULFILLED' | 'PRINTFUL'
+  projectId?: string | null
+  project?: {
+    id: string
+    title: string
+    slug: string
+  } | null
 }
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -98,7 +107,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     printTime: '',
     layerHeight: '',
     infill: '',
+    // Print on Demand fields
+    brand: '' as string,
+    fulfillmentType: 'SELF_FULFILLED' as string,
+    projectId: '' as string,
   })
+  const [projects, setProjects] = useState<Array<{ id: string; title: string; slug: string }>>([])
+  const [loadingProjects, setLoadingProjects] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -111,7 +126,23 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     fetchCategories()
     fetchProduct()
     fetchOptionTypes()
+    fetchProjects()
   }, [])
+
+  const fetchProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const res = await fetch('/api/admin/projects')
+      if (res.ok) {
+        const data = await res.json()
+        setProjects(data.projects || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
 
   const fetchOptionTypes = async () => {
     try {
@@ -176,6 +207,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         printTime: data.printTime?.toString() || '',
         layerHeight: data.layerHeight?.toString() || '',
         infill: data.infill?.toString() || '',
+        // Print on Demand fields
+        brand: data.brand || '',
+        fulfillmentType: data.fulfillmentType || 'SELF_FULFILLED',
+        projectId: data.projectId || '',
       })
 
       setImages(data.images || [])
@@ -248,6 +283,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           printTime: formData.printTime ? parseInt(formData.printTime) : null,
           layerHeight: formData.layerHeight ? parseFloat(formData.layerHeight) : null,
           infill: formData.infill ? parseInt(formData.infill) : null,
+          // Print on Demand fields
+          brand: formData.brand || null,
+          fulfillmentType: formData.fulfillmentType || 'SELF_FULFILLED',
+          projectId: formData.projectId || null,
         }),
       })
 
@@ -593,6 +632,93 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   Featured Product
                 </label>
               </div>
+            </div>
+
+            {/* Brand & Fulfillment */}
+            <div style={{
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: '16px',
+              padding: isMobile ? '20px' : '24px',
+            }}>
+              <h2 style={{
+                fontSize: '18px',
+                fontWeight: 600,
+                marginBottom: '20px',
+                margin: 0
+              }}>Brand & Fulfillment</h2>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={labelStyle}>Brand</label>
+                <select
+                  value={formData.brand}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  style={inputStyle}
+                >
+                  <option value="">No Brand</option>
+                  <option value="BOOKFADE">BookFade</option>
+                  <option value="MOTOREV">MotoRev</option>
+                  <option value="FORTY_SEVEN_INDUSTRIES">47 Industries</option>
+                </select>
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '6px' }}>
+                  Select a brand for branded apparel. Products will appear in brand-specific shop sections.
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={labelStyle}>Fulfillment Type</label>
+                <select
+                  value={formData.fulfillmentType}
+                  onChange={(e) => setFormData({ ...formData, fulfillmentType: e.target.value })}
+                  style={inputStyle}
+                >
+                  <option value="SELF_FULFILLED">Self-Fulfilled (47 Industries)</option>
+                  <option value="PRINTFUL">Printful (Print on Demand)</option>
+                </select>
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '6px' }}>
+                  Printful products are automatically fulfilled by Printful after payment.
+                </p>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Linked Project</label>
+                <select
+                  value={formData.projectId}
+                  onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                  style={inputStyle}
+                  disabled={loadingProjects}
+                >
+                  <option value="">No Linked Project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '6px' }}>
+                  Link to a portfolio project. Product will appear in &quot;Shop Merch&quot; section on that project page.
+                </p>
+              </div>
+
+              {/* Printful Status Indicator */}
+              {formData.fulfillmentType === 'PRINTFUL' && (
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '8px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg style={{ width: '16px', height: '16px', color: '#3b82f6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span style={{ fontSize: '13px', color: '#3b82f6' }}>
+                      This product will be fulfilled by Printful
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Linked Product (Physical/Digital) */}

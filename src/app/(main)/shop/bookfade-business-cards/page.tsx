@@ -56,8 +56,10 @@ export default function BookFadeBusinessCardsPage() {
   const [customName, setCustomName] = useState('')
   const [customTagline, setCustomTagline] = useState('')
   const [customShopName, setCustomShopName] = useState('')
+  const [customAddress, setCustomAddress] = useState('')
   const [customCity, setCustomCity] = useState('')
   const [customState, setCustomState] = useState('')
+  const [customProfileImage, setCustomProfileImage] = useState('')
   const [themeColor, setThemeColor] = useState('#9a58fd')
 
   const [addingToCart, setAddingToCart] = useState(false)
@@ -71,8 +73,10 @@ export default function BookFadeBusinessCardsPage() {
       setCustomName(bookfadeProfile.name || '')
       setCustomTagline(bookfadeProfile.bio || '')
       setCustomShopName(bookfadeProfile.businessName || '')
+      setCustomAddress(bookfadeProfile.businessAddress || '')
       setCustomCity(bookfadeProfile.businessCity || '')
       setCustomState(bookfadeProfile.businessState || '')
+      setCustomProfileImage(bookfadeProfile.profileImage || '')
       setThemeColor(bookfadeProfile.themeColor || '#9a58fd')
     }
   }, [bookfadeProfile])
@@ -140,12 +144,13 @@ export default function BookFadeBusinessCardsPage() {
         name: customName,
         tagline: customTagline,
         shopName: customShopName,
+        address: customAddress,
         city: customCity,
         state: customState,
         themeColor,
-        bookfadeSlug: bookfadeProfile?.slug || null,
+        bookfadeSlug: bookfadeProfile?.slug || bookfadeSlug || null,
         bookfadeId: bookfadeProfile?.id || null,
-        profileImage: bookfadeProfile?.profileImage || null,
+        profileImage: customProfileImage || null,
       },
     })
 
@@ -172,40 +177,145 @@ export default function BookFadeBusinessCardsPage() {
 
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Left: Card Preview */}
-          <div className="sticky top-24 self-start">
-            <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 rounded-2xl p-8 aspect-[4/3] flex items-center justify-center">
-              {/* Card Preview */}
-              <div className="w-full max-w-sm">
-                {/* Front of Card */}
-                <div
-                  className="aspect-[1.75/1] rounded-lg shadow-2xl p-4 flex flex-col justify-between mb-4 transition-colors"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-white font-bold text-lg">{customName || 'Your Name'}</p>
-                      <p className="text-white/80 text-xs">{customTagline || 'Your Tagline'}</p>
-                    </div>
-                    <div className="w-10 h-10 bg-white/20 rounded-full" />
-                  </div>
-                  <div>
-                    <p className="text-white/90 text-sm font-medium">{customShopName || 'Shop Name'}</p>
-                    <p className="text-white/70 text-xs">{customCity || 'City'}, {customState || 'ST'}</p>
-                  </div>
-                </div>
+          <div className="sticky top-24 self-start space-y-6">
+            {/* Front of Card */}
+            <div>
+              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Front</p>
+              <div
+                className="aspect-[1.75/1] rounded-xl shadow-2xl overflow-hidden relative"
+                style={{
+                  backgroundImage: 'url(https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-black/60" />
 
-                {/* Back of Card */}
-                <div className="aspect-[1.75/1] rounded-lg shadow-2xl bg-zinc-900 p-4 flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 bg-zinc-800 rounded-xl flex items-center justify-center mb-3">
-                    <span className="text-2xl font-bold" style={{ color: themeColor }}>QR</span>
+                {/* Card content */}
+                <div className="relative h-full p-5 flex flex-col justify-between">
+                  {/* Top: Profile + Name */}
+                  <div className="flex items-center gap-4">
+                    {/* Profile photo with theme border */}
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        border: `4px solid ${themeColor}`,
+                        backgroundColor: '#1a1a1a',
+                      }}
+                    >
+                      {customProfileImage ? (
+                        <img
+                          src={customProfileImage}
+                          alt={customName || 'Profile'}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl font-bold text-white/50">
+                          {customName ? customName.charAt(0) : '?'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Name + Tagline */}
+                    <div>
+                      <h3 className="text-white font-bold text-2xl leading-tight">
+                        {customName || 'Your Name'}
+                      </h3>
+                      <p
+                        className="text-sm font-semibold tracking-[0.2em] uppercase mt-1"
+                        style={{ color: themeColor }}
+                      >
+                        {customTagline || 'YOUR TAGLINE'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-white text-sm font-medium">Book with BookFade</p>
-                  <p className="text-zinc-500 text-xs mt-1">bookfade.app/b/{bookfadeProfile?.slug || 'username'}</p>
+
+                  {/* Bottom: Shop name + Book button */}
+                  <div className="flex items-end justify-between">
+                    <p className="text-white font-medium text-lg">
+                      {customShopName || 'Your Barber Shop'}
+                    </p>
+                    <button
+                      className="px-5 py-2.5 rounded-full font-semibold text-white text-sm"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      Book Online
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <p className="text-center text-sm text-text-secondary mt-4">
+            {/* Back of Card */}
+            <div>
+              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Back</p>
+              <div className="aspect-[1.75/1] rounded-xl shadow-2xl bg-[#0a0a0a] p-5 flex">
+                {/* Left side - Info */}
+                <div className="flex-1 flex flex-col justify-center">
+                  <h4 className="text-white font-bold text-xl mb-3">
+                    {customShopName || 'Your Barber Shop'}
+                  </h4>
+                  {customAddress && (
+                    <p className="text-zinc-400 text-sm">{customAddress}</p>
+                  )}
+                  <p className="text-zinc-400 text-sm">
+                    {customCity || 'City'}, {customState || 'ST'}
+                  </p>
+
+                  <div className="mt-4">
+                    <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">
+                      Book Your Appointment
+                    </p>
+                    <p style={{ color: themeColor }} className="font-medium">
+                      bookfade.app/b/{bookfadeProfile?.slug || bookfadeSlug || 'username'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right side - QR Code */}
+                <div className="flex flex-col items-center justify-center pl-4">
+                  <div className="w-24 h-24 bg-white rounded-lg p-2 flex items-center justify-center">
+                    {/* QR Code placeholder */}
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      <rect x="10" y="10" width="25" height="25" fill="black" />
+                      <rect x="15" y="15" width="15" height="15" fill="white" />
+                      <rect x="18" y="18" width="9" height="9" fill="black" />
+                      <rect x="65" y="10" width="25" height="25" fill="black" />
+                      <rect x="70" y="15" width="15" height="15" fill="white" />
+                      <rect x="73" y="18" width="9" height="9" fill="black" />
+                      <rect x="10" y="65" width="25" height="25" fill="black" />
+                      <rect x="15" y="70" width="15" height="15" fill="white" />
+                      <rect x="18" y="73" width="9" height="9" fill="black" />
+                      <rect x="40" y="10" width="5" height="5" fill="black" />
+                      <rect x="50" y="10" width="5" height="5" fill="black" />
+                      <rect x="40" y="20" width="5" height="5" fill="black" />
+                      <rect x="45" y="25" width="5" height="5" fill="black" />
+                      <rect x="40" y="40" width="20" height="20" fill="black" />
+                      <rect x="45" y="45" width="10" height="10" fill="white" />
+                      <rect x="48" y="48" width="4" height="4" fill="black" />
+                      <rect x="65" y="40" width="5" height="5" fill="black" />
+                      <rect x="75" y="45" width="5" height="5" fill="black" />
+                      <rect x="85" y="40" width="5" height="5" fill="black" />
+                      <rect x="65" y="55" width="5" height="5" fill="black" />
+                      <rect x="80" y="55" width="5" height="5" fill="black" />
+                      <rect x="40" y="65" width="5" height="5" fill="black" />
+                      <rect x="50" y="70" width="5" height="5" fill="black" />
+                      <rect x="40" y="80" width="5" height="5" fill="black" />
+                      <rect x="55" y="85" width="5" height="5" fill="black" />
+                      <rect x="65" y="65" width="25" height="25" fill="black" />
+                      <rect x="70" y="70" width="15" height="15" fill="white" />
+                      <rect x="75" y="75" width="5" height="5" fill="black" />
+                    </svg>
+                  </div>
+                  <p className="text-zinc-500 text-xs uppercase tracking-wider mt-2">
+                    Scan to Book
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-center text-sm text-text-secondary">
               Live preview updates as you customize
             </p>
           </div>
@@ -398,6 +508,17 @@ export default function BookFadeBusinessCardsPage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Street Address</label>
+                    <input
+                      type="text"
+                      value={customAddress}
+                      onChange={(e) => setCustomAddress(e.target.value)}
+                      placeholder="123 Main Street"
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-text-secondary mb-1.5">City</label>
@@ -418,6 +539,33 @@ export default function BookFadeBusinessCardsPage() {
                         placeholder="CA"
                         maxLength={2}
                         className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Profile Image URL</label>
+                    <input
+                      type="url"
+                      value={customProfileImage}
+                      onChange={(e) => setCustomProfileImage(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">Leave blank for initial-only display</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">BookFade Username (for QR code)</label>
+                    <div className="flex items-center">
+                      <span className="text-text-secondary text-sm mr-1">bookfade.app/b/</span>
+                      <input
+                        type="text"
+                        value={bookfadeSlug}
+                        onChange={(e) => setBookfadeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                        placeholder="username"
+                        className="flex-1 px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                        disabled={!!bookfadeProfile}
                       />
                     </div>
                   </div>
