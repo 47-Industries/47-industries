@@ -19,28 +19,39 @@ interface BookFadeProfile {
   bio: string | null
 }
 
-interface Product {
-  id: string
-  name: string
-  price: string
-  images: string[]
-  description: string
-  variants?: Array<{
-    id: string
-    name: string
-    sku: string
-    price: string
-    additionalPrice: string | null
-  }>
-}
+const HOLDER_OPTIONS = [
+  {
+    id: 'bookfade',
+    name: 'BookFade Logo',
+    price: 24.99,
+    additionalPrice: 14.99,
+    description: 'Pre-designed with BookFade branding',
+    badge: 'Fastest',
+  },
+  {
+    id: 'custom-simple',
+    name: 'Custom Logo (1-2 Colors)',
+    price: 34.99,
+    additionalPrice: 19.99,
+    description: 'Your logo or design included',
+    badge: null,
+  },
+  {
+    id: 'custom-multi',
+    name: 'Custom Logo (Multi-Color)',
+    price: 44.99,
+    additionalPrice: 24.99,
+    description: 'Complex multi-color designs',
+    badge: 'Premium',
+  },
+]
 
 export default function BookFadeCardHolderPage() {
   const router = useRouter()
   const { addItem } = useCart()
 
-  // Product state
-  const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [product, setProduct] = useState<any>(null)
 
   // BookFade connection
   const [bookfadeSlug, setBookfadeSlug] = useState('')
@@ -49,22 +60,19 @@ export default function BookFadeCardHolderPage() {
   const [connectionError, setConnectionError] = useState('')
 
   // Customization
+  const [selectedOption, setSelectedOption] = useState('bookfade')
   const [quantity, setQuantity] = useState(1)
-  const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [customName, setCustomName] = useState('')
   const [customShopName, setCustomShopName] = useState('')
-  const [useBookFadeLogo, setUseBookFadeLogo] = useState(true)
   const [customLogoUrl, setCustomLogoUrl] = useState('')
   const [notes, setNotes] = useState('')
 
-  // Checkout
   const [addingToCart, setAddingToCart] = useState(false)
 
   useEffect(() => {
     fetchProduct()
   }, [])
 
-  // Auto-populate form when BookFade profile is loaded
   useEffect(() => {
     if (bookfadeProfile) {
       setCustomName(bookfadeProfile.name || '')
@@ -78,12 +86,9 @@ export default function BookFadeCardHolderPage() {
       if (res.ok) {
         const data = await res.json()
         setProduct(data.product)
-        if (data.product?.variants?.length > 0) {
-          setSelectedVariant(data.product.variants[0].id)
-        }
       }
     } catch (error) {
-      console.error('Error fetching product:', error)
+      console.error('Error:', error)
     }
     setLoading(false)
   }
@@ -93,10 +98,8 @@ export default function BookFadeCardHolderPage() {
       setConnectionError('Enter your BookFade username')
       return
     }
-
     setFetchingProfile(true)
     setConnectionError('')
-
     try {
       const res = await fetch(`/api/admin/bookfade/barbers?slug=${bookfadeSlug.trim()}`)
       if (res.ok) {
@@ -104,61 +107,45 @@ export default function BookFadeCardHolderPage() {
         if (data.barber) {
           setBookfadeProfile(data.barber)
         } else {
-          setConnectionError('No BookFade account found with that username')
+          setConnectionError('No BookFade account found')
         }
       } else {
-        setConnectionError('Failed to connect to BookFade')
+        setConnectionError('Failed to connect')
       }
-    } catch (error) {
-      setConnectionError('Failed to connect to BookFade')
+    } catch {
+      setConnectionError('Failed to connect')
     }
     setFetchingProfile(false)
   }
 
-  function disconnectBookFade() {
-    setBookfadeProfile(null)
-    setBookfadeSlug('')
-    setCustomName('')
-    setCustomShopName('')
+  function getPrice() {
+    const option = HOLDER_OPTIONS.find(o => o.id === selectedOption)
+    if (!option) return 24.99
+    if (quantity === 1) return option.price
+    return option.price + (option.additionalPrice * (quantity - 1))
   }
 
-  function getPrice(): number {
-    if (!product) return 0
-    const variant = product.variants?.find(v => v.id === selectedVariant)
-    const basePrice = Number(variant?.price || product.price)
-
-    if (quantity === 1) {
-      return basePrice
-    }
-
-    // First unit is full price, additional units use additionalPrice if available
-    const additionalPrice = variant?.additionalPrice ? Number(variant.additionalPrice) : basePrice
-    return basePrice + (additionalPrice * (quantity - 1))
-  }
-
-  async function handleAddToCart() {
+  async function handleBuyNow() {
     if (!product || !customName) return
-
     setAddingToCart(true)
 
-    const variant = product.variants?.find(v => v.id === selectedVariant)
+    const option = HOLDER_OPTIONS.find(o => o.id === selectedOption)
 
     addItem({
       productId: product.id,
-      variantId: selectedVariant || undefined,
-      name: `${product.name}${variant ? ` - ${variant.name}` : ''}`,
+      name: `BookFade Card Holder - ${option?.name || 'Standard'}`,
       price: getPrice(),
       image: product.images?.[0] || null,
-      quantity: 1, // We handle quantity in customization
+      quantity: 1,
       productType: 'PHYSICAL',
       customization: {
-        quantity,
+        holderType: selectedOption,
+        orderQuantity: quantity,
         name: customName,
         shopName: customShopName,
         bookfadeSlug: bookfadeProfile?.slug || null,
         bookfadeId: bookfadeProfile?.id || null,
-        useBookFadeLogo,
-        customLogoUrl: !useBookFadeLogo ? customLogoUrl : null,
+        customLogoUrl: selectedOption !== 'bookfade' ? customLogoUrl : null,
         notes,
         profileImage: bookfadeProfile?.profileImage || null,
         themeColor: bookfadeProfile?.themeColor || null,
@@ -176,109 +163,203 @@ export default function BookFadeCardHolderPage() {
     )
   }
 
-  if (!product) {
-    return (
-      <div className="min-h-screen py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-        <Link href="/shop" className="text-accent hover:underline">
-          Back to Shop
-        </Link>
-      </div>
-    )
-  }
-
-  const totalPrice = getPrice()
-
   return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-6 max-w-6xl">
+    <div className="min-h-screen py-16">
+      <div className="container mx-auto px-6 max-w-7xl">
         {/* Breadcrumb */}
         <nav className="mb-8 text-sm text-text-secondary">
           <Link href="/shop" className="hover:text-text-primary">Shop</Link>
           <span className="mx-2">/</span>
-          <span className="text-text-primary">{product.name}</span>
+          <span className="text-text-primary">BookFade Card Holder</span>
         </nav>
 
-        <div className="grid lg:grid-cols-2 gap-12">
-          {/* Product Image */}
+        <div className="grid lg:grid-cols-2 gap-16">
+          {/* Left: Product Images */}
           <div>
-            <div className="aspect-square bg-surface rounded-2xl overflow-hidden relative">
-              {product.images?.[0] ? (
+            <div className="aspect-square bg-surface rounded-2xl overflow-hidden relative sticky top-24">
+              {product?.images?.[0] ? (
                 <Image
                   src={product.images[0]}
-                  alt={product.name}
+                  alt="BookFade Card Holder"
                   fill
                   className="object-cover"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-text-secondary">
-                  No Image
+                <div className="flex items-center justify-center h-full bg-gradient-to-br from-violet-500/20 to-blue-500/20">
+                  <div className="text-center p-8">
+                    <div className="w-32 h-24 bg-zinc-800 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                      <div className="w-16 h-12 bg-zinc-700 rounded" />
+                    </div>
+                    <p className="text-text-secondary">3D Printed Card Holder</p>
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Product Info & Customization */}
+          {/* Right: Product Info */}
           <div>
-            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            <p className="text-text-secondary mb-6">{product.description}</p>
+            <h1 className="text-4xl font-bold mb-3">BookFade Card Holder</h1>
+            <p className="text-lg text-text-secondary mb-6">
+              Custom 3D printed business card holder for your barber station
+            </p>
 
-            {/* BookFade Connection */}
-            <div className="bg-surface rounded-xl p-6 mb-6 border border-border">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-violet-500/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            {/* Price */}
+            <div className="flex items-baseline gap-3 mb-8">
+              <span className="text-4xl font-bold">${getPrice().toFixed(2)}</span>
+              {quantity > 1 && (
+                <span className="text-text-secondary">
+                  for {quantity} units
+                </span>
+              )}
+            </div>
+
+            {/* Features */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Connect BookFade Account</h3>
-                  <p className="text-sm text-text-secondary">Pull your profile info automatically</p>
-                </div>
+                <span>Ships in 3-5 days</span>
               </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <span>Premium PLA+</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
+                  </svg>
+                </div>
+                <span>Holds 50+ cards</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <span>Made in-house</span>
+              </div>
+            </div>
+
+            {/* Design Option */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-3">Design Option</label>
+              <div className="space-y-3">
+                {HOLDER_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSelectedOption(option.id)}
+                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                      selectedOption === option.id
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border hover:border-accent/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{option.name}</span>
+                          {option.badge && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              option.badge === 'Fastest' ? 'bg-green-500/20 text-green-500' : 'bg-violet-500/20 text-violet-500'
+                            }`}>
+                              {option.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-text-secondary mt-1">{option.description}</p>
+                      </div>
+                      <span className="font-bold">${option.price.toFixed(2)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quantity */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-3">Quantity</label>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center border border-border rounded-lg">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="px-4 py-3 hover:bg-surface transition-colors text-lg"
+                  >
+                    -
+                  </button>
+                  <span className="px-6 py-3 min-w-[60px] text-center font-medium">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="px-4 py-3 hover:bg-surface transition-colors text-lg"
+                  >
+                    +
+                  </button>
+                </div>
+                {quantity > 1 && (
+                  <p className="text-sm text-green-500">
+                    Additional units at reduced price
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-border my-8" />
+
+            {/* BookFade Connection */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Personalization</h3>
 
               {bookfadeProfile ? (
-                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                  <div className="flex items-center gap-4 mb-4">
-                    {bookfadeProfile.profileImage ? (
-                      <img
-                        src={bookfadeProfile.profileImage}
-                        alt={bookfadeProfile.name}
-                        className="w-14 h-14 rounded-full object-cover border-2"
-                        style={{ borderColor: bookfadeProfile.themeColor || '#9a58fd' }}
-                      />
-                    ) : (
-                      <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl"
-                        style={{ backgroundColor: bookfadeProfile.themeColor || '#9a58fd' }}
-                      >
-                        {bookfadeProfile.name.charAt(0)}
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {bookfadeProfile.profileImage ? (
+                        <img
+                          src={bookfadeProfile.profileImage}
+                          alt={bookfadeProfile.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                          style={{ backgroundColor: bookfadeProfile.themeColor || '#9a58fd' }}
+                        >
+                          {bookfadeProfile.name.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-green-500 text-xs font-medium">BookFade Connected</p>
+                        <p className="font-medium">{bookfadeProfile.name}</p>
                       </div>
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-green-500">Connected</p>
-                      <p className="font-medium">{bookfadeProfile.name}</p>
-                      <p className="text-sm text-text-secondary">
-                        bookfade.app/b/{bookfadeProfile.slug}
-                      </p>
                     </div>
                     <button
-                      onClick={disconnectBookFade}
-                      className="text-sm text-red-400 hover:text-red-300"
+                      onClick={() => {
+                        setBookfadeProfile(null)
+                        setBookfadeSlug('')
+                      }}
+                      className="text-sm text-text-secondary hover:text-red-400"
                     >
                       Disconnect
                     </button>
                   </div>
-
-                  {/* Profile Data Preview */}
-                  <div className="text-sm space-y-1 text-text-secondary border-t border-green-500/20 pt-3 mt-3">
-                    <p><span className="text-text-primary">Shop:</span> {bookfadeProfile.businessName || 'Not set'}</p>
-                    <p><span className="text-text-primary">Location:</span> {bookfadeProfile.businessCity ? `${bookfadeProfile.businessCity}, ${bookfadeProfile.businessState}` : 'Not set'}</p>
-                    <p><span className="text-text-primary">Theme Color:</span> <span style={{ color: bookfadeProfile.themeColor || '#9a58fd' }}>{bookfadeProfile.themeColor || '#9a58fd'}</span></p>
-                  </div>
                 </div>
               ) : (
-                <div>
+                <div className="bg-surface rounded-xl p-4 mb-4 border border-border">
+                  <p className="text-sm text-text-secondary mb-3">
+                    Connect your BookFade to auto-fill your info
+                  </p>
                   <div className="flex gap-2">
                     <div className="flex-1 relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-sm">
@@ -289,35 +370,25 @@ export default function BookFadeCardHolderPage() {
                         value={bookfadeSlug}
                         onChange={(e) => setBookfadeSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
                         placeholder="username"
-                        className="w-full pl-[120px] pr-4 py-3 bg-background border border-border rounded-lg focus:border-accent focus:outline-none"
+                        className="w-full pl-[115px] pr-4 py-2.5 bg-background border border-border rounded-lg focus:border-violet-500 focus:outline-none text-sm"
                         onKeyDown={(e) => e.key === 'Enter' && connectBookFade()}
                       />
                     </div>
                     <button
                       onClick={connectBookFade}
                       disabled={fetchingProfile}
-                      className="px-6 py-3 bg-violet-500 text-white rounded-lg hover:bg-violet-600 disabled:opacity-50 font-medium"
+                      className="px-4 py-2.5 bg-violet-500 text-white rounded-lg hover:bg-violet-600 disabled:opacity-50 text-sm font-medium"
                     >
-                      {fetchingProfile ? 'Connecting...' : 'Connect'}
+                      {fetchingProfile ? '...' : 'Connect'}
                     </button>
                   </div>
-                  {connectionError && (
-                    <p className="text-red-400 text-sm mt-2">{connectionError}</p>
-                  )}
-                  <p className="text-xs text-text-secondary mt-2">
-                    Don't have a BookFade account? <a href="https://bookfade.app" target="_blank" className="text-accent hover:underline">Sign up free</a>
-                  </p>
+                  {connectionError && <p className="text-red-400 text-sm mt-2">{connectionError}</p>}
                 </div>
               )}
-            </div>
 
-            {/* Customization Form */}
-            <div className="space-y-4 mb-6">
-              <h3 className="font-semibold text-lg">Customize Your Card Holder</h3>
-
-              {/* Name */}
-              <div>
-                <label className="block text-sm text-text-secondary mb-1">Your Name *</label>
+              {/* Name Input */}
+              <div className="mb-4">
+                <label className="block text-sm text-text-secondary mb-1.5">Your Name *</label>
                 <input
                   type="text"
                   value={customName}
@@ -327,9 +398,9 @@ export default function BookFadeCardHolderPage() {
                 />
               </div>
 
-              {/* Shop Name */}
-              <div>
-                <label className="block text-sm text-text-secondary mb-1">Shop/Business Name (optional)</label>
+              {/* Shop Name Input */}
+              <div className="mb-4">
+                <label className="block text-sm text-text-secondary mb-1.5">Shop Name (optional)</label>
                 <input
                   type="text"
                   value={customShopName}
@@ -339,109 +410,52 @@ export default function BookFadeCardHolderPage() {
                 />
               </div>
 
-              {/* Logo Option */}
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">Logo</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setUseBookFadeLogo(true)}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      useBookFadeLogo ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50'
-                    }`}
-                  >
-                    <span className="font-medium">BookFade Logo</span>
-                    <p className="text-xs text-text-secondary mt-1">Standard</p>
-                  </button>
-                  <button
-                    onClick={() => setUseBookFadeLogo(false)}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      !useBookFadeLogo ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50'
-                    }`}
-                  >
-                    <span className="font-medium">Custom Logo</span>
-                    <p className="text-xs text-text-secondary mt-1">+$10 setup</p>
-                  </button>
-                </div>
-                {!useBookFadeLogo && (
+              {/* Custom Logo URL - only for custom options */}
+              {selectedOption !== 'bookfade' && (
+                <div className="mb-4">
+                  <label className="block text-sm text-text-secondary mb-1.5">Logo URL (optional)</label>
                   <input
                     type="url"
                     value={customLogoUrl}
                     onChange={(e) => setCustomLogoUrl(e.target.value)}
                     placeholder="https://yoursite.com/logo.png"
-                    className="w-full mt-3 px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
+                    className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none"
                   />
-                )}
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm text-text-secondary mb-2">Quantity</label>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center border border-border rounded-lg">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="px-4 py-2 hover:bg-surface transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="px-4 py-2 min-w-[50px] text-center font-medium">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="px-4 py-2 hover:bg-surface transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p className="text-sm text-text-secondary">
-                    First unit includes setup fee. Additional units are discounted.
+                  <p className="text-xs text-text-secondary mt-1">
+                    Or email your logo to orders@47industries.com after checkout
                   </p>
                 </div>
-              </div>
+              )}
 
               {/* Notes */}
               <div>
-                <label className="block text-sm text-text-secondary mb-1">Special Instructions (optional)</label>
+                <label className="block text-sm text-text-secondary mb-1.5">Special Instructions (optional)</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any special requests or notes..."
-                  rows={3}
+                  placeholder="Any special requests..."
+                  rows={2}
                   className="w-full px-4 py-3 bg-surface border border-border rounded-lg focus:border-accent focus:outline-none resize-none"
                 />
               </div>
             </div>
 
-            {/* Price & Checkout */}
-            <div className="bg-surface rounded-xl p-6 border border-border">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-text-secondary">Total</span>
-                <span className="text-3xl font-bold">${totalPrice.toFixed(2)}</span>
-              </div>
+            {/* Buy Button */}
+            <button
+              onClick={handleBuyNow}
+              disabled={!customName || addingToCart}
+              className="w-full py-4 bg-accent text-white rounded-xl font-semibold text-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {addingToCart ? 'Processing...' : `Buy Now - $${getPrice().toFixed(2)}`}
+            </button>
 
-              {quantity > 1 && (
-                <p className="text-sm text-text-secondary mb-4">
-                  1x ${Number(product.price).toFixed(2)} + {quantity - 1}x discounted = ${totalPrice.toFixed(2)}
-                </p>
-              )}
+            {!customName && (
+              <p className="text-sm text-red-400 mt-2 text-center">Please enter your name</p>
+            )}
 
-              <button
-                onClick={handleAddToCart}
-                disabled={!customName || addingToCart}
-                className="w-full py-4 bg-accent text-white rounded-lg font-semibold text-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {addingToCart ? 'Processing...' : `Buy Now - $${totalPrice.toFixed(2)}`}
-              </button>
-
-              {!customName && (
-                <p className="text-sm text-red-400 mt-2 text-center">Please enter your name</p>
-              )}
-
-              <p className="text-xs text-text-secondary mt-4 text-center">
-                Ships in 5-7 business days. Free shipping over $50.
-              </p>
-            </div>
+            <p className="text-xs text-text-secondary mt-4 text-center">
+              Free shipping on orders over $50
+            </p>
           </div>
         </div>
       </div>
