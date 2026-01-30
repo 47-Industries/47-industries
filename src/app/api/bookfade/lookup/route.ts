@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
           themeColor: data.barber.themeColor,
           bio: data.barber.bio,
           socialInstagram: data.barber.socialInstagram,
+          allowWalkIns: data.barber.allowWalkIns ?? true,
         },
       })
     }

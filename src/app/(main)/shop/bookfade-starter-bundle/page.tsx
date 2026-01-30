@@ -21,6 +21,7 @@ interface BookFadeProfile {
   themeColor: string | null
   bio: string | null
   socialInstagram: string | null
+  allowWalkIns: boolean
 }
 
 const HOLDER_COLORS = [
@@ -58,6 +59,7 @@ export default function BookFadeStarterBundlePage() {
   const [customProfileImage, setCustomProfileImage] = useState('')
   const [customBackgroundImage, setCustomBackgroundImage] = useState('')
   const [themeColor, setThemeColor] = useState('#9a58fd')
+  const [allowWalkIns, setAllowWalkIns] = useState(true)
 
   const [addingToCart, setAddingToCart] = useState(false)
 
@@ -78,6 +80,7 @@ export default function BookFadeStarterBundlePage() {
       const bgImage = bookfadeProfile.heroImage || bookfadeProfile.galleryImages?.[0] || ''
       setCustomBackgroundImage(bgImage)
       setThemeColor(bookfadeProfile.themeColor || '#9a58fd')
+      setAllowWalkIns(bookfadeProfile.allowWalkIns ?? true)
     }
   }, [bookfadeProfile])
 
@@ -249,6 +252,12 @@ export default function BookFadeStarterBundlePage() {
                           style={{ fontSize: '10px', letterSpacing: '2px', color: themeColor }}
                         >
                           {customTagline || 'Your Tagline'}
+                        </p>
+                        <p
+                          className="uppercase"
+                          style={{ fontSize: '8px', letterSpacing: '1px', color: '#71717a', marginTop: '4px' }}
+                        >
+                          {allowWalkIns ? 'Walk-ins Welcome' : 'By Appointment Only'}
                         </p>
                       </div>
                     </div>
