@@ -156,6 +156,17 @@ enum ProductType {
   DIGITAL
 }
 
+enum Brand {
+  FORTY_SEVEN_INDUSTRIES
+  BOOKFADE
+  MOTOREV
+}
+
+enum FulfillmentType {
+  SELF_FULFILLED
+  PRINTFUL
+}
+
 model Category {
   id          String      @id @default(cuid())
   name        String
@@ -219,6 +230,18 @@ model Product {
   layerHeight   Decimal?     @db.Decimal(5, 3)
   infill        Int?         // percentage
 
+  // Brand & Fulfillment (for print on demand apparel)
+  brand               Brand?
+  fulfillmentType     FulfillmentType  @default(SELF_FULFILLED)
+
+  // Printful Integration
+  printfulProductId   String?
+  printfulSyncedAt    DateTime?
+
+  // Portfolio Link (link product to a portfolio project)
+  projectId           String?
+  project             ServiceProject?  @relation(fields: [projectId], references: [id])
+
   // Relations
   orderItems    OrderItem[]
   cartItems     CartItem[]
@@ -236,6 +259,8 @@ model Product {
   @@index([sku])
   @@index([featured])
   @@index([productType])
+  @@index([brand])
+  @@index([projectId])
 }
 
 // Product Variants (e.g., Size: Large, Color: Blue)
@@ -256,6 +281,9 @@ model ProductVariant {
 
   // Media
   image       String?
+
+  // Printful Integration
+  printfulVariantId   String?
 
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
@@ -449,6 +477,10 @@ model Order {
   sourceOrderId     String?         // External order ID from source platform
   sourceData        Json?           // Additional data from source (barber info, customization, etc.)
 
+  // Printful Integration
+  hasPrintfulItems    Boolean   @default(false)
+  printfulOrders      PrintfulOrder[]
+
   // Relations
   items           OrderItem[]
   returns         ReturnRequest[]
@@ -467,6 +499,36 @@ model Order {
   @@index([shippingAddressId])
   @@index([affiliatePartnerId])
   @@index([source])
+}
+
+// Printful Order Tracking
+model PrintfulOrder {
+  id                  String   @id @default(cuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  printfulOrderId     String?  @unique
+  status              String   @default("PENDING") // PENDING, SUBMITTED, PROCESSING, SHIPPED, FAILED
+
+  // Tracking Information
+  trackingNumber      String?
+  trackingUrl         String?
+  carrier             String?
+  shipDate            DateTime?
+
+  // Cost Tracking
+  printfulCost        Decimal? @db.Decimal(10, 2)
+
+  // Error Handling
+  errorMessage        String?  @db.Text
+  retryCount          Int      @default(0)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([printfulOrderId])
 }
 
 model OrderItem {
@@ -903,6 +965,9 @@ model ServiceProject {
   showInNavbar  Boolean         @default(false)  // Show in site navigation header
   isActive      Boolean         @default(true)
   sortOrder     Int             @default(0)
+
+  // Linked Products (for "Shop Merch" on project pages)
+  products      Product[]
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt

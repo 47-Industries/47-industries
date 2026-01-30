@@ -69,7 +69,7 @@ export default function BookFadeBusinessCardsPage() {
   useEffect(() => {
     if (bookfadeProfile) {
       setCustomName(bookfadeProfile.name || '')
-      setCustomTagline(bookfadeProfile.bio?.slice(0, 50) || '')
+      setCustomTagline(bookfadeProfile.bio || '')
       setCustomShopName(bookfadeProfile.businessName || '')
       setCustomCity(bookfadeProfile.businessCity || '')
       setCustomState(bookfadeProfile.businessState || '')
@@ -327,15 +327,26 @@ export default function BookFadeBusinessCardsPage() {
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                        style={{ backgroundColor: bookfadeProfile.themeColor || '#9a58fd' }}
-                      >
-                        {bookfadeProfile.name.charAt(0)}
-                      </div>
+                      {bookfadeProfile.profileImage ? (
+                        <img
+                          src={bookfadeProfile.profileImage}
+                          alt={bookfadeProfile.name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                          style={{ backgroundColor: bookfadeProfile.themeColor || '#9a58fd' }}
+                        >
+                          {bookfadeProfile.name.charAt(0)}
+                        </div>
+                      )}
                       <div>
-                        <p className="text-green-500 text-xs font-medium">Connected</p>
+                        <p className="text-green-500 text-xs font-medium">BookFade Connected</p>
                         <p className="font-medium">{bookfadeProfile.name}</p>
+                        {bookfadeProfile.businessName && (
+                          <p className="text-sm text-text-secondary">{bookfadeProfile.businessName}</p>
+                        )}
                       </div>
                     </div>
                     <button
@@ -343,7 +354,7 @@ export default function BookFadeBusinessCardsPage() {
                         setBookfadeProfile(null)
                         setBookfadeSlug('')
                       }}
-                      className="text-sm text-red-400"
+                      className="text-sm text-text-secondary hover:text-red-400"
                     >
                       Disconnect
                     </button>
