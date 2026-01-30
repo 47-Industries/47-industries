@@ -16,6 +16,7 @@ interface BookFadeProfile {
   businessState: string | null
   profileImage: string | null
   heroImage: string | null
+  heroTitle: string | null
   galleryImages: string[]
   themeColor: string | null
   bio: string | null
@@ -74,7 +75,7 @@ export default function BookFadeBusinessCardsPage() {
   useEffect(() => {
     if (bookfadeProfile) {
       setCustomName(bookfadeProfile.name || '')
-      // Don't auto-fill tagline from bio - bio is a long description, tagline should be short
+      setCustomTagline(bookfadeProfile.heroTitle || '')
       setCustomShopName(bookfadeProfile.businessName || '')
       setCustomAddress(bookfadeProfile.businessAddress || '')
       setCustomCity(bookfadeProfile.businessCity || '')

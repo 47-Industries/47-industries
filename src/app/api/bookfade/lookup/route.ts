@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
           businessState: data.barber.businessState,
           profileImage: data.barber.profileImage,
           heroImage: data.barber.heroImage,
+          heroTitle: data.barber.heroTitle,
           galleryImages: data.barber.galleryImages || [],
           themeColor: data.barber.themeColor,
           bio: data.barber.bio,
