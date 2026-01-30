@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useParams, notFound } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useCart } from '@/lib/cart-store'
 
 interface LinkedProduct {
@@ -42,12 +42,14 @@ interface Product {
 
 export default function ProductDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [addedToCart, setAddedToCart] = useState(false)
+  const [buyingNow, setBuyingNow] = useState(false)
 
   const { addItem } = useCart()
 
@@ -73,7 +75,6 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!product) return
-    // Digital products don't require stock (unlimited downloads)
     if (product.productType !== 'DIGITAL' && product.stock === 0) return
 
     addItem({
@@ -87,6 +88,26 @@ export default function ProductDetailPage() {
 
     setAddedToCart(true)
     setTimeout(() => setAddedToCart(false), 2000)
+  }
+
+  const handleBuyNow = async () => {
+    if (!product) return
+    if (product.productType !== 'DIGITAL' && product.stock === 0) return
+
+    setBuyingNow(true)
+
+    // Add to cart first
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: Number(product.price),
+      image: product.images?.[0] || null,
+      quantity,
+      productType: product.productType,
+    })
+
+    // Go straight to checkout
+    router.push('/checkout')
   }
 
   if (loading) {
@@ -262,46 +283,63 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Quantity & Add to Cart */}
+            {/* Buy Now & Add to Cart */}
             {(product.productType === 'DIGITAL' || product.stock > 0) && (
-              <div className="flex gap-4 mb-8">
-                {/* Hide quantity selector for digital products - always 1 */}
+              <div className="space-y-3 mb-8">
+                {/* Quantity selector for physical products */}
                 {product.productType !== 'DIGITAL' && (
-                  <div className="flex items-center border border-border rounded-lg">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="px-4 py-3 hover:bg-surface transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="px-4 py-3 min-w-[60px] text-center">
-                      {quantity}
-                    </span>
-                    <button
-                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                      className="px-4 py-3 hover:bg-surface transition-colors"
-                    >
-                      +
-                    </button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-text-secondary">Qty:</span>
+                    <div className="flex items-center border border-border rounded-lg">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="px-3 py-2 hover:bg-surface transition-colors"
+                      >
+                        -
+                      </button>
+                      <span className="px-4 py-2 min-w-[50px] text-center">
+                        {quantity}
+                      </span>
+                      <button
+                        onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                        className="px-3 py-2 hover:bg-surface transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 )}
 
+                {/* Primary: Buy Now button */}
                 <button
-                  onClick={handleAddToCart}
-                  disabled={addedToCart}
-                  className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
-                    addedToCart
-                      ? 'bg-green-500 text-white'
+                  onClick={handleBuyNow}
+                  disabled={buyingNow}
+                  className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all ${
+                    buyingNow
+                      ? 'bg-accent/70 text-white cursor-wait'
                       : product.productType === 'DIGITAL'
                         ? 'bg-violet-500 text-white hover:bg-violet-600'
                         : 'bg-accent text-white hover:bg-accent/90'
                   }`}
                 >
-                  {addedToCart
-                    ? 'Added to Cart!'
+                  {buyingNow
+                    ? 'Processing...'
                     : product.productType === 'DIGITAL'
-                      ? 'Add to Cart - Instant Download'
-                      : 'Add to Cart'}
+                      ? 'Buy Now - Instant Download'
+                      : `Buy Now - $${(Number(product.price) * quantity).toFixed(2)}`}
+                </button>
+
+                {/* Secondary: Add to Cart */}
+                <button
+                  onClick={handleAddToCart}
+                  disabled={addedToCart}
+                  className={`w-full py-3 px-6 rounded-lg font-medium transition-all border ${
+                    addedToCart
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'bg-transparent border-border text-text-primary hover:bg-surface'
+                  }`}
+                >
+                  {addedToCart ? 'Added to Cart!' : 'Add to Cart'}
                 </button>
               </div>
             )}
