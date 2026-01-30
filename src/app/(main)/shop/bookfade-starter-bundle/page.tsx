@@ -91,7 +91,7 @@ export default function BookFadeStarterBundlePage() {
     setFetchingProfile(true)
     setConnectionError('')
     try {
-      const res = await fetch(`/api/admin/bookfade/barbers?slug=${bookfadeSlug.trim()}`)
+      const res = await fetch(`/api/bookfade/lookup?slug=${bookfadeSlug.trim()}`)
       if (res.ok) {
         const data = await res.json()
         if (data.barber) {
