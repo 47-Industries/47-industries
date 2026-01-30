@@ -138,40 +138,96 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate totals
+    // Calculate totals with setup fee pricing model
+    // First unit = price (includes setup), additional units = additionalPrice
+    // If customer has existing design, all units use additionalPrice
     let subtotal = 0
     const orderItems: any[] = []
+    const designsToCreate: any[] = [] // Track designs to create after order
 
     for (const item of items) {
       const product = products.find(p => p.id === item.productId)
       if (!product) continue
 
       let price = Number(product.price)
+      let additionalPrice = price // Default: same as first unit price
       let sku = product.sku
       let variantName = null
+      let hasExistingDesign = false
 
       // Check for variant
       if (item.variantId) {
         const variant = product.variants.find(v => v.id === item.variantId)
         if (variant) {
           price = Number(variant.price)
+          additionalPrice = variant.additionalPrice ? Number(variant.additionalPrice) : price
           sku = variant.sku || sku
           variantName = variant.name
         }
       }
 
-      const itemTotal = price * item.quantity
+      // Check if customer has existing design for this product/variant (reorder pricing)
+      if (item.customization) {
+        const existingDesign = await prisma.customerDesign.findFirst({
+          where: {
+            customerEmail,
+            productId: product.id,
+            variantId: item.variantId || null,
+            source: auth.source,
+            status: 'COMPLETED',
+          },
+        })
+
+        if (existingDesign) {
+          hasExistingDesign = true
+        }
+      }
+
+      // Calculate item total using setup fee pricing
+      let itemTotal: number
+      if (hasExistingDesign) {
+        // Customer has existing design - all units at additional price
+        itemTotal = additionalPrice * item.quantity
+      } else if (additionalPrice !== price && item.quantity > 1) {
+        // First unit at setup price, rest at additional price
+        itemTotal = price + (additionalPrice * (item.quantity - 1))
+      } else {
+        // Standard pricing (no additional price difference)
+        itemTotal = price * item.quantity
+      }
+
       subtotal += itemTotal
+
+      // Track if we need to create a design record for custom orders
+      if (item.customization && !hasExistingDesign) {
+        designsToCreate.push({
+          customerEmail,
+          source: auth.source,
+          sourceCustomerId: sourceData?.barberId || sourceData?.customerId || null,
+          productId: product.id,
+          variantId: item.variantId || null,
+          designName: item.customization.businessName
+            ? `Custom - ${item.customization.businessName}`
+            : `Custom - ${customerName}`,
+          customization: item.customization,
+        })
+      }
 
       const images = product.images as string[] | null
       orderItems.push({
         productId: product.id,
         name: variantName ? `${product.name} - ${variantName}` : product.name,
-        price,
+        price: hasExistingDesign ? additionalPrice : price, // Show effective first-unit price
         quantity: item.quantity,
         total: itemTotal,
         image: images?.[0] || null,
         sku,
+        // Store pricing info for reference
+        metadata: {
+          hasExistingDesign,
+          setupPrice: price,
+          additionalPrice,
+        },
       })
     }
 
@@ -286,6 +342,42 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Create CustomerDesign records for custom orders (status: PENDING until design is created)
+      for (const design of designsToCreate) {
+        try {
+          await prisma.customerDesign.upsert({
+            where: {
+              customerEmail_productId_variantId_source: {
+                customerEmail: design.customerEmail,
+                productId: design.productId,
+                variantId: design.variantId || '',
+                source: design.source || '',
+              },
+            },
+            update: {
+              // If design already exists but was archived, reactivate it
+              status: 'PENDING',
+              designNotes: `Reorder requested - Order ${orderNumber}`,
+              customization: design.customization,
+            },
+            create: {
+              customerEmail: design.customerEmail,
+              source: design.source,
+              sourceCustomerId: design.sourceCustomerId,
+              productId: design.productId,
+              variantId: design.variantId,
+              designName: design.designName,
+              customization: design.customization,
+              originalOrderId: order.id,
+              status: 'PENDING',
+            },
+          })
+        } catch (designError) {
+          console.error('Failed to create CustomerDesign record:', designError)
+          // Don't fail the order for this
+        }
+      }
+
       return NextResponse.json({
         success: true,
         order: {
@@ -341,6 +433,40 @@ export async function POST(request: NextRequest) {
             stock: { decrement: item.quantity },
           },
         })
+      }
+
+      // Create CustomerDesign records for custom orders
+      for (const design of designsToCreate) {
+        try {
+          await prisma.customerDesign.upsert({
+            where: {
+              customerEmail_productId_variantId_source: {
+                customerEmail: design.customerEmail,
+                productId: design.productId,
+                variantId: design.variantId || '',
+                source: design.source || '',
+              },
+            },
+            update: {
+              status: 'PENDING',
+              designNotes: `Reorder requested - Order ${orderNumber}`,
+              customization: design.customization,
+            },
+            create: {
+              customerEmail: design.customerEmail,
+              source: design.source,
+              sourceCustomerId: design.sourceCustomerId,
+              productId: design.productId,
+              variantId: design.variantId,
+              designName: design.designName,
+              customization: design.customization,
+              originalOrderId: order.id,
+              status: 'PENDING',
+            },
+          })
+        } catch (designError) {
+          console.error('Failed to create CustomerDesign record:', designError)
+        }
       }
 
       // TODO: Send order confirmation email

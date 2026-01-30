@@ -88,6 +88,10 @@ Premium 16pt card stock with matte finish. Full color printing on both sides.`,
   }
 
   // Create Business Card Holder product (3D printed)
+  // PRICING MODEL: First unit includes setup/development fee, additional units are cheaper
+  // - BookFade Logo: Ready to print, no slicing needed
+  // - Custom Logo (1-2 colors): Requires logo slicing
+  // - Custom Logo (Multi-color): Complex slicing, filament changes
   const cardHolderSlug = 'bookfade-card-holder'
   let cardHolder = await prisma.product.findUnique({
     where: { slug: cardHolderSlug },
@@ -98,25 +102,43 @@ Premium 16pt card stock with matte finish. Full color printing on both sides.`,
       data: {
         name: 'BookFade Business Card Holder',
         slug: cardHolderSlug,
-        description: `Custom 3D printed business card holder with BookFade branding. Perfect for your barber station or reception desk.
+        description: `Custom 3D printed business card holder for your barber station or reception desk.
 
-Features:
+CUSTOMIZATION OPTIONS:
+
+BookFade Logo (Fastest)
+- Pre-designed with BookFade branding
+- Ships in 3-5 business days
+- Best value for individual barbers
+
+Custom Logo (1-2 Colors)
+- Your shop logo or design
+- Requires design setup (included in first unit)
+- Additional units ship faster
+- Perfect for small teams
+
+Custom Logo (Multi-Color)
+- Complex multi-color logo designs
+- Premium filament and finish
+- Requires extended setup time
+- Best for shops wanting premium branding
+
+SPECIFICATIONS:
 - Holds standard business cards (3.5" x 2")
 - Sleek modern design
-- BookFade logo embossed
-- Available in multiple colors
 - Durable PLA+ material
+- Made in-house by 47 Industries
 
-Made in-house by 47 Industries with premium 3D printing technology.`,
-        shortDesc: '3D printed card holder with BookFade branding for your station',
-        price: 24.99,
-        comparePrice: 34.99,
+BULK PRICING: First unit includes design setup. Additional units at reduced price!`,
+        shortDesc: '3D printed card holder - custom logos available',
+        price: 29.99, // Base price shown (BookFade logo first unit)
+        comparePrice: 39.99,
         costPrice: 5.00,
         images: [],
         categoryId: partnerCategory.id,
-        stock: 50,
-        sku: 'BF-HOLDER-BLK',
-        tags: ['bookfade', 'card-holder', '3d-printed', 'barber', 'desk-accessory'],
+        stock: 999, // Made to order
+        sku: 'BF-HOLDER-STD',
+        tags: ['bookfade', 'card-holder', '3d-printed', 'barber', 'desk-accessory', 'custom'],
         featured: true,
         active: true,
         productType: 'PHYSICAL',
@@ -124,18 +146,73 @@ Made in-house by 47 Industries with premium 3D printing technology.`,
         weight: 0.25, // lbs
         // 3D printing specs
         material: 'PLA+',
-        printTime: 120, // 2 hours
+        printTime: 120, // 2 hours base
         layerHeight: 0.2,
         infill: 20,
       },
     })
     console.log('Created product: BookFade Business Card Holder')
 
-    // Create color variants
+    // Variants with setup fee pricing model
+    // price = first unit (includes setup), additionalPrice = each additional unit
     const holderVariants = [
-      { name: 'Black', sku: 'BF-HOLDER-BLK', price: 24.99, stock: 50, options: { Color: 'Black' } },
-      { name: 'White', sku: 'BF-HOLDER-WHT', price: 24.99, stock: 50, options: { Color: 'White' } },
-      { name: 'Gold', sku: 'BF-HOLDER-GLD', price: 29.99, stock: 30, options: { Color: 'Gold' } },
+      // BookFade Logo variants (cheapest - no slicing needed)
+      {
+        name: 'BookFade Logo - Black',
+        sku: 'BF-HOLDER-BF-BLK',
+        price: 29.99,
+        additionalPrice: 14.99,
+        stock: 999,
+        options: { 'Logo Type': 'BookFade', Color: 'Black' },
+        sortOrder: 1,
+      },
+      {
+        name: 'BookFade Logo - White',
+        sku: 'BF-HOLDER-BF-WHT',
+        price: 29.99,
+        additionalPrice: 14.99,
+        stock: 999,
+        options: { 'Logo Type': 'BookFade', Color: 'White' },
+        sortOrder: 2,
+      },
+      {
+        name: 'BookFade Logo - Gold',
+        sku: 'BF-HOLDER-BF-GLD',
+        price: 34.99,
+        additionalPrice: 17.99,
+        stock: 999,
+        options: { 'Logo Type': 'BookFade', Color: 'Gold' },
+        sortOrder: 3,
+      },
+      // Custom Logo variants (1-2 colors - requires slicing)
+      {
+        name: 'Custom Logo (1-2 Colors) - Black',
+        sku: 'BF-HOLDER-CUST-BLK',
+        price: 49.99,
+        additionalPrice: 19.99,
+        stock: 999,
+        options: { 'Logo Type': 'Custom (1-2 Colors)', Color: 'Black' },
+        sortOrder: 4,
+      },
+      {
+        name: 'Custom Logo (1-2 Colors) - White',
+        sku: 'BF-HOLDER-CUST-WHT',
+        price: 49.99,
+        additionalPrice: 19.99,
+        stock: 999,
+        options: { 'Logo Type': 'Custom (1-2 Colors)', Color: 'White' },
+        sortOrder: 5,
+      },
+      // Multi-color custom (expensive - complex slicing, filament changes)
+      {
+        name: 'Custom Logo (Multi-Color)',
+        sku: 'BF-HOLDER-MULTI',
+        price: 79.99,
+        additionalPrice: 34.99,
+        stock: 999,
+        options: { 'Logo Type': 'Custom (Multi-Color)', Color: 'Multi' },
+        sortOrder: 6,
+      },
     ]
 
     for (const variant of holderVariants) {
@@ -145,12 +222,14 @@ Made in-house by 47 Industries with premium 3D printing technology.`,
           name: variant.name,
           sku: variant.sku,
           price: variant.price,
+          additionalPrice: variant.additionalPrice,
           stock: variant.stock,
           options: variant.options,
+          sortOrder: variant.sortOrder,
           isActive: true,
         },
       })
-      console.log(`  Created variant: ${variant.name}`)
+      console.log(`  Created variant: ${variant.name} ($${variant.price} first, $${variant.additionalPrice} additional)`)
     }
   } else {
     console.log('Product already exists: BookFade Business Card Holder')

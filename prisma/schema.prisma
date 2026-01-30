@@ -246,7 +246,8 @@ model ProductVariant {
 
   name        String   // Generated name like "Large / Blue"
   sku         String?  @unique
-  price       Decimal  @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)       // First unit price (includes setup fee for custom products)
+  additionalPrice Decimal? @db.Decimal(10, 2)   // Price for each additional unit (null = same as price)
   comparePrice Decimal? @db.Decimal(10, 2)
   stock       Int      @default(0)
 
@@ -304,6 +305,57 @@ model DigitalDownload {
   @@index([orderId])
   @@index([downloadToken])
   @@index([customerEmail])
+}
+
+// Customer Design Files (for tracking developed 3D print files, logos, etc.)
+// Used for reorder pricing - if design exists, customer gets additional unit pricing
+model CustomerDesign {
+  id            String   @id @default(cuid())
+
+  // Customer identifier (email for guest orders, or source-specific ID)
+  customerEmail String
+  source        String?           // "bookfade", "47industries", null for direct
+  sourceCustomerId String?        // External customer ID (e.g., barberId from BookFade)
+
+  // Product/Variant this design is for
+  productId     String
+  variantId     String?
+
+  // Design details
+  designName    String            // e.g., "Custom Logo - Jim's Barbershop"
+  designNotes   String?  @db.Text // Notes about the design/customization
+
+  // File references (could be R2 URLs, local paths, etc.)
+  gcodePath     String?           // Path to sliced G-code file
+  designFile    String?           // Path to original design file (STL, SVG, etc.)
+  previewImage  String?           // Preview image of the design
+
+  // Status
+  status        CustomerDesignStatus @default(PENDING)
+
+  // Customization data (e.g., logo, colors, text)
+  customization Json?             // Full customization data from order
+
+  // Linked to original order
+  originalOrderId String?
+
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?         // When design was finalized/sliced
+
+  @@unique([customerEmail, productId, variantId, source]) // One design per customer per variant per source
+  @@index([customerEmail])
+  @@index([source, sourceCustomerId])
+  @@index([productId])
+  @@index([status])
+}
+
+enum CustomerDesignStatus {
+  PENDING      // Design requested, not started
+  IN_PROGRESS  // Being worked on
+  COMPLETED    // Ready for production
+  ARCHIVED     // No longer active
 }
 
 // ============================================
