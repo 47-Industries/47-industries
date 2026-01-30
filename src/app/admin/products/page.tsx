@@ -22,6 +22,8 @@ interface Product {
   }
   sku?: string
   productType: 'PHYSICAL' | 'DIGITAL'
+  fulfillmentType?: 'SELF_FULFILLED' | 'PRINTFUL' | null
+  brand?: string | null
 }
 
 interface Category {
@@ -158,7 +160,7 @@ export default function AdminProductsPage() {
 function ProductsTab({ isMobile }: { isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [productTypeFilter, setProductTypeFilter] = useState<'PHYSICAL' | 'DIGITAL'>('PHYSICAL')
+  const [productTypeFilter, setProductTypeFilter] = useState<'PHYSICAL' | 'DIGITAL' | 'APPAREL'>('PHYSICAL')
 
   useEffect(() => {
     fetchProducts()
@@ -218,9 +220,18 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
   }
 
   // Filter products by type
-  const filteredProducts = products.filter(p => p.productType === productTypeFilter)
-  const physicalCount = products.filter(p => p.productType === 'PHYSICAL').length
+  const filteredProducts = products.filter(p => {
+    if (productTypeFilter === 'APPAREL') {
+      return p.productType === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL'
+    } else if (productTypeFilter === 'PHYSICAL') {
+      return p.productType === 'PHYSICAL' && p.fulfillmentType !== 'PRINTFUL'
+    } else {
+      return p.productType === 'DIGITAL'
+    }
+  })
+  const physicalCount = products.filter(p => p.productType === 'PHYSICAL' && p.fulfillmentType !== 'PRINTFUL').length
   const digitalCount = products.filter(p => p.productType === 'DIGITAL').length
+  const apparelCount = products.filter(p => p.productType === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL').length
 
   if (loading) {
     return (
@@ -240,7 +251,8 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
         background: '#18181b',
         padding: '4px',
         borderRadius: '12px',
-        width: 'fit-content'
+        width: 'fit-content',
+        flexWrap: 'wrap'
       }}>
         <button
           onClick={() => setProductTypeFilter('PHYSICAL')}
@@ -251,7 +263,7 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             cursor: 'pointer',
             fontSize: '14px',
             fontWeight: 500,
-            background: productTypeFilter === 'PHYSICAL' ? '#3b82f6' : 'transparent',
+            background: productTypeFilter === 'PHYSICAL' ? '#10b981' : 'transparent',
             color: productTypeFilter === 'PHYSICAL' ? '#fff' : '#a1a1aa',
             display: 'flex',
             alignItems: 'center',
@@ -271,6 +283,37 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             color: productTypeFilter === 'PHYSICAL' ? '#fff' : '#71717a'
           }}>
             {physicalCount}
+          </span>
+        </button>
+        <button
+          onClick={() => setProductTypeFilter('APPAREL')}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 500,
+            background: productTypeFilter === 'APPAREL' ? '#f59e0b' : 'transparent',
+            color: productTypeFilter === 'APPAREL' ? '#fff' : '#a1a1aa',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s'
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          Apparel
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '10px',
+            fontSize: '12px',
+            background: productTypeFilter === 'APPAREL' ? 'rgba(255,255,255,0.2)' : '#27272a',
+            color: productTypeFilter === 'APPAREL' ? '#fff' : '#71717a'
+          }}>
+            {apparelCount}
           </span>
         </button>
         <button
@@ -308,22 +351,44 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
 
       {/* Action Bar */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <Link
-          href="/admin/products/new"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '10px 20px',
-            background: productTypeFilter === 'DIGITAL' ? '#7c3aed' : '#3b82f6',
-            color: '#ffffff',
-            borderRadius: '12px',
-            textDecoration: 'none',
-            fontSize: '14px',
-            fontWeight: 500,
-          }}
-        >
-          + Add {productTypeFilter === 'DIGITAL' ? 'Digital' : 'Physical'} Product
-        </Link>
+        {productTypeFilter === 'APPAREL' ? (
+          <Link
+            href="/admin/printful"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '10px 20px',
+              background: '#f59e0b',
+              color: '#ffffff',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}>
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Sync from Printful
+          </Link>
+        ) : (
+          <Link
+            href="/admin/products/new"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '10px 20px',
+              background: productTypeFilter === 'DIGITAL' ? '#7c3aed' : '#10b981',
+              color: '#ffffff',
+              borderRadius: '12px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+          >
+            + Add {productTypeFilter === 'DIGITAL' ? 'Digital' : 'Physical'} Product
+          </Link>
+        )}
       </div>
 
       {filteredProducts.length === 0 ? (
@@ -338,7 +403,11 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             width: '48px',
             height: '48px',
             borderRadius: '12px',
-            background: productTypeFilter === 'DIGITAL' ? 'linear-gradient(135deg, #7c3aed, #a855f7)' : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            background: productTypeFilter === 'DIGITAL'
+              ? 'linear-gradient(135deg, #7c3aed, #a855f7)'
+              : productTypeFilter === 'APPAREL'
+              ? 'linear-gradient(135deg, #f59e0b, #fbbf24)'
+              : 'linear-gradient(135deg, #10b981, #34d399)',
             margin: '0 auto 16px',
             display: 'flex',
             alignItems: 'center',
@@ -349,6 +418,10 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                 <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
+            ) : productTypeFilter === 'APPAREL' ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
             ) : (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                 <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -356,30 +429,59 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             )}
           </div>
           <h3 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>
-            No {productTypeFilter === 'DIGITAL' ? 'digital downloads' : 'physical products'} yet
+            {productTypeFilter === 'DIGITAL'
+              ? 'No digital downloads yet'
+              : productTypeFilter === 'APPAREL'
+              ? 'No apparel products yet'
+              : 'No physical products yet'
+            }
           </h3>
           <p style={{ color: '#71717a', margin: '0 0 24px 0' }}>
             {productTypeFilter === 'DIGITAL'
               ? 'Start by adding your first digital download (STL files, etc.)'
+              : productTypeFilter === 'APPAREL'
+              ? 'Sync your first apparel products from Printful'
               : 'Start by adding your first physical product to the catalog'
             }
           </p>
-          <Link
-            href="/admin/products/new"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '12px 24px',
-              background: productTypeFilter === 'DIGITAL' ? '#7c3aed' : '#3b82f6',
-              color: '#ffffff',
-              borderRadius: '12px',
-              textDecoration: 'none',
-              fontSize: '14px',
-              fontWeight: 500,
-            }}
-          >
-            + Add Your First {productTypeFilter === 'DIGITAL' ? 'Digital Download' : 'Product'}
-          </Link>
+          {productTypeFilter === 'APPAREL' ? (
+            <Link
+              href="/admin/printful"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '12px 24px',
+                background: '#f59e0b',
+                color: '#ffffff',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}>
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Go to Printful Sync
+            </Link>
+          ) : (
+            <Link
+              href="/admin/products/new"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '12px 24px',
+                background: productTypeFilter === 'DIGITAL' ? '#7c3aed' : '#10b981',
+                color: '#ffffff',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                fontSize: '14px',
+                fontWeight: 500,
+              }}
+            >
+              + Add Your First {productTypeFilter === 'DIGITAL' ? 'Digital Download' : 'Product'}
+            </Link>
+          )}
         </div>
       ) : isMobile ? (
         // Mobile: Card View
