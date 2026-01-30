@@ -11,11 +11,32 @@ import {
   faUser,
   faMapMarkerAlt,
   faImage,
+  faSearch,
+  faCloudDownloadAlt,
+  faSpinner,
 } from '@fortawesome/free-solid-svg-icons'
+
+interface BookFadeBarber {
+  id: string
+  name: string
+  slug: string
+  businessName: string | null
+  businessCity: string | null
+  businessState: string | null
+  profileImage: string | null
+}
 
 export default function AdminBusinessCardsPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [fetchingBarber, setFetchingBarber] = useState(false)
+  const [searchingBarbers, setSearchingBarbers] = useState(false)
+
+  // BookFade search
+  const [barberSlug, setBarberSlug] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<BookFadeBarber[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
 
   // Form state
   const [name, setName] = useState('')
@@ -40,6 +61,71 @@ export default function AdminBusinessCardsPage() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  // Fetch barber from BookFade by slug
+  const fetchBarberFromBookFade = async (slugToFetch?: string) => {
+    const targetSlug = slugToFetch || barberSlug
+    if (!targetSlug) {
+      alert('Enter a barber slug')
+      return
+    }
+
+    setFetchingBarber(true)
+    try {
+      const res = await fetch(`/api/admin/bookfade/barbers?slug=${targetSlug}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.barber) {
+          // Populate form with barber data
+          setName(data.barber.name || '')
+          setSlug(data.barber.slug || '')
+          setTagline(data.barber.cardData?.tagline || '')
+          setShopName(data.barber.businessName || '')
+          setAddress(data.barber.businessAddress || '')
+          setCity(data.barber.businessCity || '')
+          setState(data.barber.businessState || '')
+          setProfileImage(data.barber.profileImage || '')
+          setHeroImage(data.barber.heroImage || '')
+          setThemeColor(data.barber.themeColor || '#9a58fd')
+          setShowSearchResults(false)
+          setSearchResults([])
+        } else {
+          alert('Barber not found')
+        }
+      } else {
+        alert('Failed to fetch barber from BookFade')
+      }
+    } catch (error) {
+      console.error('Error fetching barber:', error)
+      alert('Failed to fetch barber')
+    } finally {
+      setFetchingBarber(false)
+    }
+  }
+
+  // Search barbers on BookFade
+  const searchBarbers = async () => {
+    if (!searchQuery) return
+
+    setSearchingBarbers(true)
+    try {
+      const res = await fetch(`/api/admin/bookfade/barbers?search=${encodeURIComponent(searchQuery)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setSearchResults(data.barbers || [])
+        setShowSearchResults(true)
+      }
+    } catch (error) {
+      console.error('Error searching barbers:', error)
+    } finally {
+      setSearchingBarbers(false)
+    }
+  }
+
+  const selectBarber = (barber: BookFadeBarber) => {
+    setBarberSlug(barber.slug)
+    fetchBarberFromBookFade(barber.slug)
+  }
 
   const generateCards = async () => {
     if (!name || !slug) {
@@ -107,11 +193,26 @@ export default function AdminBusinessCardsPage() {
     }
   }
 
-  // Quick slug generator from name
   const generateSlug = () => {
     if (name) {
       setSlug(name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20))
     }
+  }
+
+  const clearForm = () => {
+    setName('')
+    setSlug('')
+    setTagline('')
+    setShopName('')
+    setAddress('')
+    setCity('')
+    setState('')
+    setProfileImage('')
+    setHeroImage('')
+    setThemeColor('#9a58fd')
+    setFrontHtml('')
+    setBackHtml('')
+    setBarberSlug('')
   }
 
   return (
@@ -131,6 +232,192 @@ export default function AdminBusinessCardsPage() {
         }}>Generate print-ready business cards for BookFade barbers</p>
       </div>
 
+      {/* BookFade Import Section */}
+      <div style={{
+        background: '#18181b',
+        border: '1px solid #3b82f6',
+        borderRadius: '16px',
+        padding: '20px',
+        marginBottom: '24px',
+      }}>
+        <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FontAwesomeIcon icon={faCloudDownloadAlt} style={{ color: '#3b82f6' }} />
+          Import from BookFade
+        </h2>
+
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
+          {/* Fetch by Slug */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Fetch by Slug (bookfade.app/b/...)
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={barberSlug}
+                onChange={(e) => setBarberSlug(e.target.value)}
+                placeholder="kylerivers"
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  background: '#09090b',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && fetchBarberFromBookFade()}
+              />
+              <button
+                onClick={() => fetchBarberFromBookFade()}
+                disabled={fetchingBarber}
+                style={{
+                  padding: '10px 16px',
+                  background: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: fetchingBarber ? 'not-allowed' : 'pointer',
+                  opacity: fetchingBarber ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {fetchingBarber ? (
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                ) : (
+                  <FontAwesomeIcon icon={faCloudDownloadAlt} />
+                )}
+                Fetch
+              </button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', fontSize: '13px', color: '#a1a1aa', marginBottom: '6px' }}>
+              Search Barbers
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, email, business..."
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  background: '#09090b',
+                  border: '1px solid #27272a',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && searchBarbers()}
+              />
+              <button
+                onClick={searchBarbers}
+                disabled={searchingBarbers}
+                style={{
+                  padding: '10px 16px',
+                  background: '#27272a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: searchingBarbers ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {searchingBarbers ? (
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                ) : (
+                  <FontAwesomeIcon icon={faSearch} />
+                )}
+              </button>
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: '#18181b',
+                border: '1px solid #27272a',
+                borderRadius: '8px',
+                marginTop: '4px',
+                maxHeight: '300px',
+                overflow: 'auto',
+                zIndex: 100,
+              }}>
+                {searchResults.map((barber) => (
+                  <button
+                    key={barber.id}
+                    onClick={() => selectBarber(barber)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px solid #27272a',
+                      color: 'white',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#27272a'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {barber.profileImage ? (
+                      <img
+                        src={barber.profileImage}
+                        alt={barber.name}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: '#3b82f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                      }}>
+                        {barber.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 500 }}>{barber.name}</p>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
+                        {barber.businessName || barber.slug}
+                        {barber.businessCity && ` - ${barber.businessCity}, ${barber.businessState}`}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {showSearchResults && searchResults.length === 0 && searchQuery && (
+          <p style={{ color: '#71717a', fontSize: '13px', marginTop: '12px', margin: '12px 0 0 0' }}>
+            No barbers found matching "{searchQuery}"
+          </p>
+        )}
+      </div>
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
@@ -143,10 +430,26 @@ export default function AdminBusinessCardsPage() {
           borderRadius: '16px',
           padding: '24px',
         }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px', margin: '0 0 20px 0' }}>
-            <FontAwesomeIcon icon={faUser} style={{ marginRight: '10px', color: '#3b82f6' }} />
-            Barber Info
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>
+              <FontAwesomeIcon icon={faUser} style={{ marginRight: '10px', color: '#3b82f6' }} />
+              Barber Info
+            </h2>
+            <button
+              onClick={clearForm}
+              style={{
+                padding: '6px 12px',
+                background: 'transparent',
+                color: '#71717a',
+                border: '1px solid #27272a',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Name */}
@@ -333,6 +636,9 @@ export default function AdminBusinessCardsPage() {
                   fontSize: '14px',
                 }}
               />
+              {profileImage && (
+                <img src={profileImage} alt="Profile" style={{ width: '48px', height: '48px', borderRadius: '50%', marginTop: '8px', objectFit: 'cover' }} />
+              )}
             </div>
 
             <div>
@@ -504,7 +810,7 @@ export default function AdminBusinessCardsPage() {
             ) : (
               <div style={{ textAlign: 'center', color: '#71717a' }}>
                 <FontAwesomeIcon icon={faCreditCard} style={{ fontSize: '48px', marginBottom: '16px' }} />
-                <p>Fill in the form and click "Generate" to preview</p>
+                <p>Import a barber or fill in the form, then click "Generate"</p>
               </div>
             )}
           </div>
