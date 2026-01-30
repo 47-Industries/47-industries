@@ -255,6 +255,50 @@ export default function BookFadeStarterBundlePage() {
               </div>
             </div>
 
+            {/* Card Back Preview */}
+            <div>
+              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Card Back</p>
+              <div className="aspect-[1.67/1] rounded-lg shadow-2xl overflow-hidden bg-[#0a0a0a] p-1">
+                <div className="w-full h-full bg-[#18181b] border border-zinc-800 rounded flex items-center justify-between px-5 py-4 gap-5">
+                  {/* Left side - Info */}
+                  <div className="flex flex-col justify-center gap-4">
+                    <div>
+                      <h3 className="text-[13px] font-semibold text-white mb-1">
+                        {customShopName || 'Your Barber Shop'}
+                      </h3>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        {customAddress && <>{customAddress}<br /></>}
+                        {customCity || 'City'}, {customState || 'ST'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-zinc-500 uppercase tracking-[1.2px]">
+                        Book Your Appointment
+                      </span>
+                      <span className="text-sm font-semibold" style={{ color: themeColor }}>
+                        bookfade.app/b/{bookfadeProfile?.slug || bookfadeSlug || 'username'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right side - QR Code */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-20 h-20 bg-white rounded-lg p-1">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://bookfade.app/b/${bookfadeProfile?.slug || bookfadeSlug || 'username'}`)}&format=png`}
+                        alt="QR Code"
+                        className="w-full h-full rounded"
+                      />
+                    </div>
+                    <span className="text-[9px] text-zinc-500 uppercase tracking-[1px]">
+                      Scan to Book
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Bundle Contents */}
             <div className="bg-gradient-to-br from-violet-500/10 to-blue-500/10 rounded-xl p-5 border border-border/50">
               <div className="flex items-center justify-between mb-4">

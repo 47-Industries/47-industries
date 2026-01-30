@@ -264,41 +264,43 @@ export default function BookFadeBusinessCardsPage() {
             {/* Back of Card */}
             <div>
               <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Back</p>
-              <div className="aspect-[1.75/1] rounded-xl shadow-2xl bg-[#0a0a0a] p-5 flex">
-                {/* Left side - Info */}
-                <div className="flex-1 flex flex-col justify-center">
-                  <h4 className="text-white font-bold text-xl mb-3">
-                    {customShopName || 'Your Barber Shop'}
-                  </h4>
-                  {customAddress && (
-                    <p className="text-zinc-400 text-sm">{customAddress}</p>
-                  )}
-                  <p className="text-zinc-400 text-sm">
-                    {customCity || 'City'}, {customState || 'ST'}
-                  </p>
+              <div className="aspect-[1.67/1] rounded-lg shadow-2xl overflow-hidden bg-[#0a0a0a] p-1">
+                <div className="w-full h-full bg-[#18181b] border border-zinc-800 rounded flex items-center justify-between px-5 py-4 gap-5">
+                  {/* Left side - Info */}
+                  <div className="flex flex-col justify-center gap-4">
+                    <div>
+                      <h3 className="text-[13px] font-semibold text-white mb-1">
+                        {customShopName || 'Your Barber Shop'}
+                      </h3>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        {customAddress && <>{customAddress}<br /></>}
+                        {customCity || 'City'}, {customState || 'ST'}
+                      </p>
+                    </div>
 
-                  <div className="mt-4">
-                    <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">
-                      Book Your Appointment
-                    </p>
-                    <p style={{ color: themeColor }} className="font-medium">
-                      bookfade.app/b/{bookfadeProfile?.slug || bookfadeSlug || 'username'}
-                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-zinc-500 uppercase tracking-[1.2px]">
+                        Book Your Appointment
+                      </span>
+                      <span className="text-sm font-semibold" style={{ color: themeColor }}>
+                        bookfade.app/b/{bookfadeProfile?.slug || bookfadeSlug || 'username'}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Right side - Real QR Code */}
-                <div className="flex flex-col items-center justify-center pl-4">
-                  <div className="w-24 h-24 bg-white rounded-lg p-1 flex items-center justify-center">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://bookfade.app/b/${bookfadeProfile?.slug || bookfadeSlug || 'username'}`)}`}
-                      alt="QR Code"
-                      className="w-full h-full"
-                    />
+                  {/* Right side - QR Code */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-20 h-20 bg-white rounded-lg p-1">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`https://bookfade.app/b/${bookfadeProfile?.slug || bookfadeSlug || 'username'}`)}&format=png`}
+                        alt="QR Code"
+                        className="w-full h-full rounded"
+                      />
+                    </div>
+                    <span className="text-[9px] text-zinc-500 uppercase tracking-[1px]">
+                      Scan to Book
+                    </span>
                   </div>
-                  <p className="text-zinc-500 text-xs uppercase tracking-wider mt-2">
-                    Scan to Book
-                  </p>
                 </div>
               </div>
             </div>
