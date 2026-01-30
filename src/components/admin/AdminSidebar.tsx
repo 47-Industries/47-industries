@@ -63,6 +63,7 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
         { label: 'Inquiries', href: '/admin/inquiries' },
         { label: '3D Print Requests', href: '/admin/custom-requests' },
         { label: 'Customer Designs', href: '/admin/designs' },
+        { label: 'Business Cards', href: '/admin/business-cards' },
       ],
     },
     {
