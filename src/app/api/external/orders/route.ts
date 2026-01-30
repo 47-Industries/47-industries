@@ -299,13 +299,9 @@ export async function POST(request: NextRequest) {
         ],
         metadata: {
           orderNumber,
-          source: auth.source,
+          source: auth.source || '',
           sourceOrderId: sourceOrderId || '',
-          customerName,
-          customerPhone: customerPhone || '',
-          items: JSON.stringify(items),
-          shippingAddress: JSON.stringify(shippingAddressData),
-          sourceData: JSON.stringify(sourceData || {}),
+          // Note: Full sourceData stored in Order record, not in Stripe metadata (500 char limit)
         },
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: sourceData?.cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
