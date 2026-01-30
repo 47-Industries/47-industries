@@ -47,6 +47,14 @@ export async function GET(
       },
     })
 
+    // Transform items to include customization properly parsed
+    if (order) {
+      (order as any).items = order.items.map(item => ({
+        ...item,
+        customization: item.customization || null,
+      }))
+    }
+
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }

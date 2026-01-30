@@ -123,7 +123,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   }
 
   // Parse items from metadata
-  let items: { productId: string; quantity: number; productType?: string }[] = []
+  let items: { productId: string; variantId?: string; quantity: number; productType?: string; customization?: Record<string, any> }[] = []
   try {
     items = JSON.parse(metadata.items || '[]')
   } catch (e) {
@@ -228,6 +228,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             total: (Number(product?.price) || 0) * item.quantity,
             image: images?.[0] || null,
             sku: product?.sku || null,
+            variantId: item.variantId || null,
+            customization: item.customization || null,
           }
         }),
       },

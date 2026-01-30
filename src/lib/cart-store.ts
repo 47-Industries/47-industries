@@ -5,11 +5,13 @@ import { persist, subscribeWithSelector } from 'zustand/middleware'
 
 export interface CartItem {
   productId: string
+  variantId?: string
   name: string
   price: number
   image: string | null
   quantity: number
   productType?: 'PHYSICAL' | 'DIGITAL'
+  customization?: Record<string, any>
 }
 
 interface CartState {

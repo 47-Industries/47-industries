@@ -13,6 +13,8 @@ interface OrderItem {
   total: number
   image?: string
   sku?: string
+  variantId?: string
+  customization?: Record<string, any>
   product: {
     id: string
     name: string
@@ -116,6 +118,12 @@ export default function OrderDetailPage() {
   const [parcelInfo, setParcelInfo] = useState<any>(null)
   const [addressInfo, setAddressInfo] = useState<{ fromAddress?: any; toAddress?: any }>({})
   const [shippingError, setShippingError] = useState('')
+
+  // Customization edit state
+  const [showCustomizationModal, setShowCustomizationModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<OrderItem | null>(null)
+  const [editedCustomization, setEditedCustomization] = useState<Record<string, any>>({})
+  const [savingCustomization, setSavingCustomization] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -262,6 +270,71 @@ export default function OrderDetailPage() {
   const openShippingModal = () => {
     setShowShippingModal(true)
     fetchShippingRates()
+  }
+
+  const openCustomizationModal = (item: OrderItem) => {
+    setEditingItem(item)
+    setEditedCustomization(item.customization || {})
+    setShowCustomizationModal(true)
+  }
+
+  const handleSaveCustomization = async () => {
+    if (!editingItem || !order) return
+
+    setSavingCustomization(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/items/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customization: editedCustomization,
+        }),
+      })
+
+      if (res.ok) {
+        // Update the local order state
+        setOrder({
+          ...order,
+          items: order.items.map(item =>
+            item.id === editingItem.id
+              ? { ...item, customization: editedCustomization }
+              : item
+          ),
+        })
+        setShowCustomizationModal(false)
+        setEditingItem(null)
+        showToast('Customization updated successfully!', 'success')
+      } else {
+        showToast('Failed to update customization', 'error')
+      }
+    } catch (error) {
+      console.error('Error saving customization:', error)
+      showToast('Failed to update customization', 'error')
+    }
+    setSavingCustomization(false)
+  }
+
+  const updateCustomizationField = (key: string, value: any) => {
+    setEditedCustomization(prev => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
+
+  const addCustomizationField = (key: string) => {
+    if (!key.trim()) return
+    setEditedCustomization(prev => ({
+      ...prev,
+      [key]: '',
+    }))
+  }
+
+  const removeCustomizationField = (key: string) => {
+    setEditedCustomization(prev => {
+      const updated = { ...prev }
+      delete updated[key]
+      return updated
+    })
   }
 
   const handleRefund = async () => {
@@ -539,43 +612,147 @@ export default function OrderDetailPage() {
                 <div
                   key={item.id}
                   style={{
-                    display: 'flex',
-                    gap: '16px',
                     padding: '16px',
                     background: '#09090b',
                     borderRadius: '12px',
                   }}
                 >
-                  {getProductImage(item) && (
-                    <img
-                      src={getProductImage(item)}
-                      alt={item.name}
-                      style={{
-                        width: '80px',
-                        height: '80px',
-                        objectFit: 'cover',
-                        borderRadius: '8px',
-                      }}
-                    />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0' }}>
-                      {item.name}
-                    </h3>
-                    {item.sku && (
-                      <p style={{ fontSize: '14px', color: '#71717a', margin: '0 0 8px 0' }}>
-                        SKU: {item.sku}
-                      </p>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    {getProductImage(item) && (
+                      <img
+                        src={getProductImage(item)}
+                        alt={item.name}
+                        style={{
+                          width: '80px',
+                          height: '80px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                        }}
+                      />
                     )}
-                    <p style={{ fontSize: '14px', color: '#a1a1aa', margin: 0 }}>
-                      ${Number(item.price).toFixed(2)} × {item.quantity}
-                    </p>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0' }}>
+                        {item.name}
+                      </h3>
+                      {item.sku && (
+                        <p style={{ fontSize: '14px', color: '#71717a', margin: '0 0 8px 0' }}>
+                          SKU: {item.sku}
+                        </p>
+                      )}
+                      <p style={{ fontSize: '14px', color: '#a1a1aa', margin: 0 }}>
+                        ${Number(item.price).toFixed(2)} × {item.quantity}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>
+                        ${Number(item.total).toFixed(2)}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>
-                      ${Number(item.total).toFixed(2)}
-                    </p>
-                  </div>
+                  {/* Customization Data */}
+                  {item.customization && Object.keys(item.customization).length > 0 && (
+                    <div style={{
+                      marginTop: '12px',
+                      paddingTop: '12px',
+                      borderTop: '1px solid #27272a',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 600, color: '#8b5cf6', margin: 0 }}>
+                          Customization Details
+                        </p>
+                        <button
+                          onClick={() => openCustomizationModal(item)}
+                          style={{
+                            padding: '4px 10px',
+                            background: '#27272a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: '8px',
+                        fontSize: '13px',
+                      }}>
+                        {Object.entries(item.customization).map(([key, value]) => {
+                          if (value === null || value === undefined || value === '') return null
+                          // Skip image URLs in the grid display
+                          if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('/'))) {
+                            if (key.toLowerCase().includes('image') || key.toLowerCase().includes('logo')) {
+                              return (
+                                <div key={key} style={{ gridColumn: 'span 2' }}>
+                                  <span style={{ color: '#71717a', textTransform: 'capitalize' }}>
+                                    {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                  </span>
+                                  <img
+                                    src={value}
+                                    alt={key}
+                                    style={{
+                                      display: 'block',
+                                      marginTop: '4px',
+                                      maxWidth: '100px',
+                                      maxHeight: '100px',
+                                      borderRadius: '8px',
+                                      objectFit: 'cover',
+                                    }}
+                                  />
+                                </div>
+                              )
+                            }
+                          }
+                          // Handle arrays (like bundleContents)
+                          if (Array.isArray(value)) {
+                            return (
+                              <div key={key} style={{ gridColumn: 'span 2' }}>
+                                <span style={{ color: '#71717a', textTransform: 'capitalize' }}>
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                </span>{' '}
+                                <span>{value.join(', ')}</span>
+                              </div>
+                            )
+                          }
+                          // Handle color values
+                          if (key.toLowerCase().includes('color') && typeof value === 'string' && value.startsWith('#')) {
+                            return (
+                              <div key={key}>
+                                <span style={{ color: '#71717a', textTransform: 'capitalize' }}>
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                </span>{' '}
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      width: '12px',
+                                      height: '12px',
+                                      borderRadius: '50%',
+                                      backgroundColor: value,
+                                      border: '1px solid #3f3f46',
+                                    }}
+                                  />
+                                  {value}
+                                </span>
+                              </div>
+                            )
+                          }
+                          return (
+                            <div key={key}>
+                              <span style={{ color: '#71717a', textTransform: 'capitalize' }}>
+                                {key.replace(/([A-Z])/g, ' $1').trim()}:
+                              </span>{' '}
+                              <span>{String(value)}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1328,6 +1505,248 @@ export default function OrderDetailPage() {
                 <p style={{ margin: 0 }}>No shipping rates available. Please check your Shippo configuration and business address.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Customization Edit Modal */}
+      {showCustomizationModal && editingItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: '#18181b',
+            border: '1px solid #27272a',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>
+                Edit Customization
+              </h2>
+              <button
+                onClick={() => setShowCustomizationModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#71717a',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <p style={{ fontSize: '14px', color: '#a1a1aa', margin: '0 0 20px 0' }}>
+              {editingItem.name}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Object.entries(editedCustomization).map(([key, value]) => (
+                <div key={key}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 500, textTransform: 'capitalize' }}>
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </label>
+                    <button
+                      onClick={() => removeCustomizationField(key)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {Array.isArray(value) ? (
+                    <input
+                      type="text"
+                      value={value.join(', ')}
+                      onChange={(e) => updateCustomizationField(key, e.target.value.split(',').map(s => s.trim()))}
+                      placeholder="Comma-separated values"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#09090b',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  ) : key.toLowerCase().includes('color') && typeof value === 'string' ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="color"
+                        value={value.startsWith('#') ? value : '#9a58fd'}
+                        onChange={(e) => updateCustomizationField(key, e.target.value)}
+                        style={{
+                          width: '50px',
+                          height: '42px',
+                          padding: '4px',
+                          background: '#09090b',
+                          border: '1px solid #27272a',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => updateCustomizationField(key, e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 12px',
+                          background: '#09090b',
+                          border: '1px solid #27272a',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontSize: '14px',
+                        }}
+                      />
+                    </div>
+                  ) : typeof value === 'boolean' ? (
+                    <select
+                      value={value ? 'true' : 'false'}
+                      onChange={(e) => updateCustomizationField(key, e.target.value === 'true')}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#09090b',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={String(value || '')}
+                      onChange={(e) => updateCustomizationField(key, e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        background: '#09090b',
+                        border: '1px solid #27272a',
+                        borderRadius: '8px',
+                        color: 'white',
+                        fontSize: '14px',
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+
+              {/* Add New Field */}
+              <div style={{ borderTop: '1px solid #27272a', paddingTop: '16px' }}>
+                <p style={{ fontSize: '13px', color: '#71717a', marginBottom: '8px', margin: '0 0 8px 0' }}>
+                  Add custom field
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    id="newFieldKey"
+                    placeholder="Field name"
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      background: '#09090b',
+                      border: '1px solid #27272a',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const input = e.target as HTMLInputElement
+                        addCustomizationField(input.value)
+                        input.value = ''
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('newFieldKey') as HTMLInputElement
+                      addCustomizationField(input.value)
+                      input.value = ''
+                    }}
+                    style={{
+                      padding: '10px 16px',
+                      background: '#27272a',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button
+                onClick={() => setShowCustomizationModal(false)}
+                disabled={savingCustomization}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#27272a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCustomization}
+                disabled={savingCustomization}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: savingCustomization ? 'not-allowed' : 'pointer',
+                  opacity: savingCustomization ? 0.7 : 1,
+                }}
+              >
+                {savingCustomization ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
       )}

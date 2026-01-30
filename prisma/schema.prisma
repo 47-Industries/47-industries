@@ -288,6 +288,7 @@ model DigitalDownload {
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderId       String
   orderItemId   String
+  orderItem     OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   // Download tracking
   downloadToken String   @unique  // Unique token for download URL
@@ -303,6 +304,7 @@ model DigitalDownload {
 
   @@index([productId])
   @@index([orderId])
+  @@index([orderItemId])
   @@index([downloadToken])
   @@index([customerEmail])
 }
@@ -482,6 +484,13 @@ model OrderItem {
   // Snapshot of product details at time of order
   image       String?
   sku         String?
+  variantId   String?
+
+  // Custom product customization data (for BookFade products, etc.)
+  customization Json?
+
+  // Digital downloads
+  digitalDownloads DigitalDownload[]
 
   createdAt   DateTime @default(now())
 

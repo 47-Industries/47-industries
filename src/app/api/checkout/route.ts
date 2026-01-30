@@ -7,11 +7,13 @@ import { cookies } from 'next/headers'
 
 interface CheckoutItem {
   productId: string
+  variantId?: string
   name: string
   price: number
   quantity: number
   image: string | null
   productType?: 'PHYSICAL' | 'DIGITAL'
+  customization?: Record<string, any>
 }
 
 interface ShippingInfo {
@@ -285,8 +287,10 @@ export async function POST(req: NextRequest) {
         items: JSON.stringify(
           items.map(item => ({
             productId: item.productId,
+            variantId: item.variantId || null,
             quantity: item.quantity,
             productType: item.productType || 'PHYSICAL',
+            customization: item.customization || null,
           }))
         ),
         // Affiliate tracking
