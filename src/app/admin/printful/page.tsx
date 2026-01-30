@@ -7,6 +7,7 @@ interface PrintfulStatus {
   connected: boolean
   configured: boolean
   storeName?: string
+  storeType?: string
   error?: string
   lastSyncedAt: string | null
   stats: {
@@ -14,6 +15,7 @@ interface PrintfulStatus {
     totalOrders: number
     failedOrders: number
   }
+  stores?: Array<{ id: number; name: string; type: string | null }>
 }
 
 export default function PrintfulDashboard() {
@@ -262,7 +264,7 @@ export default function PrintfulDashboard() {
         </a>
       </div>
 
-      {/* Setup Instructions */}
+      {/* Setup Instructions - No API Key */}
       {!status?.configured && (
         <div className="mt-8 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
           <h3 className="font-semibold text-yellow-400 mb-2">Setup Required</h3>
@@ -283,6 +285,44 @@ PRINTFUL_WEBHOOK_SECRET=your-webhook-secret`}
             >
               Printful Developer Settings
             </a>
+          </p>
+        </div>
+      )}
+
+      {/* No API Store Found */}
+      {status?.configured && !status?.connected && status?.stores && status.stores.length > 0 && (
+        <div className="mt-8 bg-red-500/10 border border-red-500/20 rounded-xl p-6">
+          <h3 className="font-semibold text-red-400 mb-2">Manual Order / API Store Required</h3>
+          <p className="text-text-secondary mb-4">
+            Your Printful account has {status.stores.length} store(s), but none are set up for API access.
+            Platform integration stores (Shopify, Etsy, etc.) cannot be used with this integration.
+          </p>
+
+          <div className="mb-4">
+            <p className="text-sm font-medium mb-2">Your current stores:</p>
+            <ul className="text-sm text-text-secondary space-y-1">
+              {status.stores.map((store) => (
+                <li key={store.id} className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-400" />
+                  {store.name} <span className="text-text-muted">({store.type || 'unknown'})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-sm text-text-secondary mb-4">
+            <strong>To fix this:</strong>
+          </p>
+          <ol className="text-sm text-text-secondary list-decimal list-inside space-y-2 mb-4">
+            <li>Go to <a href="https://www.printful.com/dashboard/store" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Printful Dashboard &gt; Stores</a></li>
+            <li>Click &quot;Add store&quot;</li>
+            <li>Select &quot;Manual order platform / API&quot; (at the bottom)</li>
+            <li>Name it &quot;47 Industries&quot;</li>
+            <li>Add your products/designs to this new store</li>
+            <li>Come back here and click &quot;Sync Products Now&quot;</li>
+          </ol>
+          <p className="text-xs text-text-muted">
+            Tip: You can copy existing designs to the new store from Printful&apos;s product menu.
           </p>
         </div>
       )}

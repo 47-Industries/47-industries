@@ -26,7 +26,7 @@ async function getStoreId(): Promise<string> {
     return cachedStoreId
   }
 
-  // Otherwise, fetch the first store from the API
+  // Otherwise, fetch stores from the API
   const response = await fetch(`${PRINTFUL_API_URL}/stores`, {
     headers: {
       'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
@@ -45,8 +45,19 @@ async function getStoreId(): Promise<string> {
     throw new Error('No Printful stores found for this account')
   }
 
-  cachedStoreId = String(stores[0].id)
-  return cachedStoreId
+  // Look for a Manual Order / API store (type is usually null or "manual" for API stores)
+  // Platform stores have types like "shopify", "etsy", "woocommerce", etc.
+  const platformTypes = ['shopify', 'etsy', 'woocommerce', 'bigcommerce', 'squarespace', 'wix', 'amazon', 'ebay']
+  const apiStore = stores.find((s: any) => !s.type || s.type === 'manual' || !platformTypes.includes(s.type?.toLowerCase()))
+
+  if (apiStore) {
+    cachedStoreId = String(apiStore.id)
+    return cachedStoreId
+  }
+
+  // If no API store found, throw helpful error
+  const storeTypes = stores.map((s: any) => s.type || 'unknown').join(', ')
+  throw new Error(`No Manual Order/API store found. Your stores are: ${storeTypes}. Create a "Manual order platform / API" store in Printful to use this integration.`)
 }
 
 // Make authenticated request to Printful API
@@ -722,7 +733,9 @@ async function handleOrderFailed(data: {
 export async function getPrintfulStatus(): Promise<{
   connected: boolean
   storeName?: string
+  storeType?: string
   error?: string
+  stores?: Array<{ id: number; name: string; type: string | null }>
 }> {
   if (!isPrintfulConfigured()) {
     return { connected: false, error: 'API key not configured' }
@@ -748,10 +761,27 @@ export async function getPrintfulStatus(): Promise<{
       return { connected: false, error: 'No stores found' }
     }
 
-    // Cache the store ID for future requests
-    cachedStoreId = String(stores[0].id)
+    // Look for a Manual Order / API store
+    const platformTypes = ['shopify', 'etsy', 'woocommerce', 'bigcommerce', 'squarespace', 'wix', 'amazon', 'ebay']
+    const apiStore = stores.find((s: any) => !s.type || s.type === 'manual' || !platformTypes.includes(s.type?.toLowerCase()))
 
-    return { connected: true, storeName: stores[0].name }
+    if (apiStore) {
+      // Cache the store ID for future requests
+      cachedStoreId = String(apiStore.id)
+      return {
+        connected: true,
+        storeName: apiStore.name,
+        storeType: apiStore.type || 'API',
+        stores: stores.map((s: any) => ({ id: s.id, name: s.name, type: s.type })),
+      }
+    }
+
+    // No API store found
+    return {
+      connected: false,
+      error: 'No Manual Order/API store found. Create one in Printful to use this integration.',
+      stores: stores.map((s: any) => ({ id: s.id, name: s.name, type: s.type })),
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     return { connected: false, error: message }
