@@ -177,19 +177,23 @@ export default function BookFadeStarterBundlePage() {
         <div className="grid lg:grid-cols-2 gap-16">
           {/* Left: Bundle Preview */}
           <div className="sticky top-24 self-start space-y-6">
-            {/* Card Preview */}
+            {/* Card Preview - Front */}
             <div>
-              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Card Preview</p>
-              <div className="aspect-[1.67/1] rounded-lg shadow-2xl overflow-hidden relative bg-black p-1">
-                <div className="w-full h-full relative overflow-hidden rounded">
+              <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide">Card Front</p>
+              <div className="aspect-[1.67/1] rounded-lg shadow-2xl overflow-hidden relative bg-black p-[3px]">
+                <div className="w-full h-full relative overflow-hidden">
                   {/* Background image */}
-                  {(customBackgroundImage || !manualEntry) && (
-                    <img
-                      src={customBackgroundImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80'}
-                      alt=""
-                      className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] object-cover opacity-45"
-                    />
-                  )}
+                  <img
+                    src={customBackgroundImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80'}
+                    alt=""
+                    className="absolute object-cover opacity-[0.45]"
+                    style={{
+                      top: '-10%',
+                      left: '-10%',
+                      width: '120%',
+                      height: '120%',
+                    }}
+                  />
 
                   {/* Gradient overlay */}
                   <div
@@ -200,13 +204,20 @@ export default function BookFadeStarterBundlePage() {
                   />
 
                   {/* Card content */}
-                  <div className="relative z-10 h-full p-4 flex flex-col justify-between">
+                  <div
+                    className="relative z-10 h-full flex flex-col justify-between"
+                    style={{ padding: '18px 22px' }}
+                  >
                     {/* Top: Profile + Name */}
-                    <div className="flex items-start gap-3">
-                      {/* Profile photo */}
+                    <div className="flex items-start" style={{ gap: '14px' }}>
+                      {/* Profile photo - 58px */}
                       <div
-                        className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden"
-                        style={{ border: `2.5px solid ${themeColor}` }}
+                        className="rounded-full flex-shrink-0 overflow-hidden"
+                        style={{
+                          width: '58px',
+                          height: '58px',
+                          border: `2.5px solid ${themeColor}`,
+                        }}
                       >
                         {customProfileImage ? (
                           <img
@@ -216,7 +227,7 @@ export default function BookFadeStarterBundlePage() {
                           />
                         ) : (
                           <div
-                            className="w-full h-full flex items-center justify-center text-white font-bold"
+                            className="w-full h-full flex items-center justify-center text-white font-bold text-xl"
                             style={{ backgroundColor: themeColor }}
                           >
                             {customName ? customName.charAt(0) : '?'}
@@ -225,13 +236,16 @@ export default function BookFadeStarterBundlePage() {
                       </div>
 
                       {/* Name + Tagline */}
-                      <div className="pt-1 flex-1 min-w-0">
-                        <h3 className="text-white font-bold text-xl leading-tight">
+                      <div className="flex-1 min-w-0" style={{ paddingTop: '4px' }}>
+                        <h3
+                          className="text-white font-bold leading-tight"
+                          style={{ fontSize: '22px', letterSpacing: '-0.3px', marginBottom: '3px' }}
+                        >
                           {customName || 'Your Name'}
                         </h3>
                         <p
-                          className="text-[10px] font-semibold tracking-[2px] uppercase mt-0.5 truncate"
-                          style={{ color: themeColor }}
+                          className="font-semibold uppercase truncate"
+                          style={{ fontSize: '10px', letterSpacing: '2px', color: themeColor }}
                         >
                           {customTagline || 'Your Tagline'}
                         </p>
@@ -240,12 +254,20 @@ export default function BookFadeStarterBundlePage() {
 
                     {/* Bottom: Shop name + Book button */}
                     <div className="flex items-end justify-between">
-                      <span className="text-zinc-400 font-medium text-xs">
+                      <span
+                        className="font-medium"
+                        style={{ fontSize: '12px', color: '#a1a1aa' }}
+                      >
                         {customShopName || 'Your Barber Shop'}
                       </span>
                       <div
-                        className="px-3 py-1.5 rounded-md font-semibold text-white text-[11px]"
-                        style={{ backgroundColor: themeColor }}
+                        className="font-semibold text-white"
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          backgroundColor: themeColor,
+                        }}
                       >
                         Book Online
                       </div>
