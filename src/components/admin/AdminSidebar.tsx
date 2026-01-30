@@ -62,6 +62,7 @@ export default function AdminSidebar({ isMobile, isMobileMenuOpen, onCloseMobile
         { label: 'Portfolio', href: '/admin/services/projects/new' },
         { label: 'Inquiries', href: '/admin/inquiries' },
         { label: '3D Print Requests', href: '/admin/custom-requests' },
+        { label: 'Customer Designs', href: '/admin/designs' },
       ],
     },
     {
