@@ -171,6 +171,27 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const affiliateCode = metadata.affiliateCode || null
   const affiliatePartnerId = metadata.affiliatePartnerId || null
 
+  // Get external source data (for orders from BookFade, etc.)
+  const source = metadata.source || null
+  const sourceOrderId = metadata.sourceOrderId || null
+  let sourceData = null
+  if (metadata.sourceData) {
+    try {
+      sourceData = JSON.parse(metadata.sourceData)
+    } catch (e) {
+      sourceData = null
+    }
+  }
+  // Also include shipping address in sourceData if present
+  if (metadata.shippingAddress && !sourceData?.shippingAddress) {
+    try {
+      const shippingAddress = JSON.parse(metadata.shippingAddress)
+      sourceData = { ...sourceData, shippingAddress }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   // Create order with items
   const order = await prisma.order.create({
     data: {
@@ -190,6 +211,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       // Affiliate tracking
       affiliateCode,
       affiliatePartnerId,
+      // External source tracking
+      source,
+      sourceOrderId,
+      sourceData,
       items: {
         create: items.map(item => {
           const product = products.find(p => p.id === item.productId)

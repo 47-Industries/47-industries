@@ -390,6 +390,11 @@ model Order {
   affiliatePartner  Partner?        @relation(fields: [affiliatePartnerId], references: [id])
   affiliateLinkId   String?         // Specific link used (if tracked)
 
+  // External Order Source (for orders from partner platforms like BookFade)
+  source            String?         // "47industries", "bookfade", etc.
+  sourceOrderId     String?         // External order ID from source platform
+  sourceData        Json?           // Additional data from source (barber info, customization, etc.)
+
   // Relations
   items           OrderItem[]
   returns         ReturnRequest[]
@@ -407,6 +412,7 @@ model Order {
   @@index([stripePaymentId])
   @@index([shippingAddressId])
   @@index([affiliatePartnerId])
+  @@index([source])
 }
 
 model OrderItem {

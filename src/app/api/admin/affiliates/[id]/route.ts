@@ -49,18 +49,19 @@ export async function GET(
       affiliate: {
         id: affiliate.id,
         affiliateCode: affiliate.affiliateCode,
-        customCode: null, // Not in schema
         totalPoints: affiliate.totalPoints,
         availablePoints: affiliate.availablePoints,
-        redeemedPoints: affiliate.pointsRedeemed,
+        pointsRedeemed: affiliate.pointsRedeemed,
         totalReferrals: affiliate.totalReferrals,
         successfulReferrals,
         proConversions,
-        proDaysEarned: affiliate.proTimeEarnedDays,
+        proTimeEarnedDays: affiliate.proTimeEarnedDays,
         totalEarnings: Number(affiliate.totalEarnings),
-        tier: 'BRONZE', // Not in schema - default
-        partnerEligible: affiliate.isPartner,
+        pendingEarnings: Number(affiliate.pendingEarnings),
+        motorevProBonus: Number(affiliate.motorevProBonus),
+        retentionBonus: Number(affiliate.retentionBonus),
         isPartner: affiliate.isPartner,
+        rewardPreference: affiliate.rewardPreference,
         createdAt: affiliate.createdAt,
         user: affiliate.user,
         referrals: affiliate.referrals,
@@ -86,7 +87,6 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { totalPoints, availablePoints, isPartner } = body
 
     const affiliate = await prisma.userAffiliate.findUnique({
       where: { id },
@@ -97,9 +97,24 @@ export async function PATCH(
     }
 
     const updateData: any = {}
-    if (totalPoints !== undefined) updateData.totalPoints = parseInt(totalPoints) || 0
-    if (availablePoints !== undefined) updateData.availablePoints = parseInt(availablePoints) || 0
-    if (isPartner !== undefined) updateData.isPartner = isPartner
+
+    // Points
+    if (body.totalPoints !== undefined) updateData.totalPoints = parseInt(body.totalPoints) || 0
+    if (body.availablePoints !== undefined) updateData.availablePoints = parseInt(body.availablePoints) || 0
+    if (body.pointsRedeemed !== undefined) updateData.pointsRedeemed = parseInt(body.pointsRedeemed) || 0
+
+    // Stats
+    if (body.totalReferrals !== undefined) updateData.totalReferrals = parseInt(body.totalReferrals) || 0
+    if (body.proTimeEarnedDays !== undefined) updateData.proTimeEarnedDays = parseInt(body.proTimeEarnedDays) || 0
+    if (body.totalEarnings !== undefined) updateData.totalEarnings = parseFloat(body.totalEarnings) || 0
+    if (body.pendingEarnings !== undefined) updateData.pendingEarnings = parseFloat(body.pendingEarnings) || 0
+
+    // Commission rates
+    if (body.motorevProBonus !== undefined) updateData.motorevProBonus = parseFloat(body.motorevProBonus) || 0
+    if (body.retentionBonus !== undefined) updateData.retentionBonus = parseFloat(body.retentionBonus) || 0
+
+    // Partner status
+    if (body.isPartner !== undefined) updateData.isPartner = body.isPartner
 
     const updated = await prisma.userAffiliate.update({
       where: { id },
