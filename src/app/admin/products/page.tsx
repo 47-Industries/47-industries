@@ -35,7 +35,7 @@ interface Category {
   productType: 'PHYSICAL' | 'DIGITAL'
   parentId: string | null
   active: boolean
-  _count: {
+  _count?: {
     products: number
   }
 }
@@ -171,10 +171,16 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/admin/products')
-      const data = await res.json()
-      setProducts(data.products || [])
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data.products || [])
+      } else {
+        console.error('Failed to fetch products:', res.status)
+        setProducts([])
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error)
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -785,8 +791,9 @@ function CategoriesTab({ isMobile }: { isMobile: boolean }) {
   }
 
   const handleDelete = async (category: Category) => {
-    if (category._count.products > 0) {
-      alert(`Cannot delete category with ${category._count.products} products. Move or delete products first.`)
+    const productCount = category._count?.products || 0
+    if (productCount > 0) {
+      alert(`Cannot delete category with ${productCount} products. Move or delete products first.`)
       return
     }
 
@@ -1118,7 +1125,7 @@ function CategoryCard({ category, onEdit, onDelete }: { category: Category; onEd
         <p style={{ fontSize: '13px', color: '#71717a', margin: '8px 0 0 0' }}>{category.description}</p>
       )}
       <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #27272a' }}>
-        {category._count.products} {category._count.products === 1 ? 'product' : 'products'}
+        {category._count?.products || 0} {(category._count?.products || 0) === 1 ? 'product' : 'products'}
       </div>
     </div>
   )
