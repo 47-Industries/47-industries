@@ -26,10 +26,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Default: physical products (excluding Printful/apparel)
       where.productType = 'PHYSICAL'
-      where.OR = [
-        { fulfillmentType: 'SELF_FULFILLED' },
-        { fulfillmentType: null },
-      ]
+      where.NOT = { fulfillmentType: 'PRINTFUL' }
     }
 
     if (category) {
@@ -37,14 +34,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // Use AND to combine with existing OR clause for fulfillment type
-      where.AND = [
-        {
-          OR: [
-            { name: { contains: search } },
-            { description: { contains: search } },
-          ]
-        }
+      where.OR = [
+        { name: { contains: search } },
+        { description: { contains: search } },
       ]
     }
 

@@ -32,10 +32,7 @@ async function getProducts(searchParams: SearchParams) {
   } else {
     // Default: physical products (excluding Printful/apparel)
     where.productType = 'PHYSICAL'
-    where.OR = [
-      { fulfillmentType: 'SELF_FULFILLED' },
-      { fulfillmentType: null },
-    ]
+    where.NOT = { fulfillmentType: 'PRINTFUL' }
   }
 
   if (searchParams.category) {
@@ -43,14 +40,9 @@ async function getProducts(searchParams: SearchParams) {
   }
 
   if (searchParams.search) {
-    // Use AND to combine with existing OR clause for fulfillment type
-    where.AND = [
-      {
-        OR: [
-          { name: { contains: searchParams.search } },
-          { description: { contains: searchParams.search } },
-        ]
-      }
+    where.OR = [
+      { name: { contains: searchParams.search } },
+      { description: { contains: searchParams.search } },
     ]
   }
 
@@ -115,10 +107,7 @@ async function getProductCounts() {
       where: {
         active: true,
         productType: 'PHYSICAL',
-        OR: [
-          { fulfillmentType: 'SELF_FULFILLED' },
-          { fulfillmentType: null },
-        ]
+        NOT: { fulfillmentType: 'PRINTFUL' }
       }
     }),
     prisma.product.count({ where: { active: true, productType: 'DIGITAL' } }),
