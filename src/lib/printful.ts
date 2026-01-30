@@ -6,9 +6,47 @@ import crypto from 'crypto'
 
 const PRINTFUL_API_URL = 'https://api.printful.com'
 
+// Cached store ID
+let cachedStoreId: string | null = null
+
 // Check if Printful is configured
 export function isPrintfulConfigured(): boolean {
   return !!process.env.PRINTFUL_API_KEY
+}
+
+// Get the store ID (fetches from API if not cached)
+async function getStoreId(): Promise<string> {
+  if (cachedStoreId) {
+    return cachedStoreId
+  }
+
+  // If store ID is configured in env, use it
+  if (process.env.PRINTFUL_STORE_ID) {
+    cachedStoreId = process.env.PRINTFUL_STORE_ID
+    return cachedStoreId
+  }
+
+  // Otherwise, fetch the first store from the API
+  const response = await fetch(`${PRINTFUL_API_URL}/stores`, {
+    headers: {
+      'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || data.message || 'Failed to fetch stores')
+  }
+
+  const stores = data.result
+  if (!stores || stores.length === 0) {
+    throw new Error('No Printful stores found for this account')
+  }
+
+  cachedStoreId = String(stores[0].id)
+  return cachedStoreId
 }
 
 // Make authenticated request to Printful API
@@ -20,10 +58,13 @@ async function printfulRequest<T>(
     throw new Error('Printful API key not configured')
   }
 
+  const storeId = await getStoreId()
+
   const response = await fetch(`${PRINTFUL_API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+      'X-PF-Store-Id': storeId,
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -688,8 +729,29 @@ export async function getPrintfulStatus(): Promise<{
   }
 
   try {
-    const store = await printfulRequest<{ id: number; name: string }>('/stores')
-    return { connected: true, storeName: store.name }
+    // Fetch stores directly without the store ID header
+    const response = await fetch(`${PRINTFUL_API_URL}/stores`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || data.message || 'Failed to connect')
+    }
+
+    const stores = data.result
+    if (!stores || stores.length === 0) {
+      return { connected: false, error: 'No stores found' }
+    }
+
+    // Cache the store ID for future requests
+    cachedStoreId = String(stores[0].id)
+
+    return { connected: true, storeName: stores[0].name }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     return { connected: false, error: message }
