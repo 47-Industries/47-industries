@@ -491,8 +491,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('External order creation error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: 'Failed to create order', details: errorMessage },
       { status: 500 }
     )
   }
