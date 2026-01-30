@@ -67,7 +67,7 @@ export default function BookFadeStarterBundlePage() {
   useEffect(() => {
     if (bookfadeProfile) {
       setCustomName(bookfadeProfile.name || '')
-      setCustomTagline(bookfadeProfile.bio || '')
+      // Don't auto-fill tagline from bio - bio is a long description, tagline should be short
       setCustomShopName(bookfadeProfile.businessName || '')
       setCustomAddress(bookfadeProfile.businessAddress || '')
       setCustomCity(bookfadeProfile.businessCity || '')
@@ -252,14 +252,19 @@ export default function BookFadeStarterBundlePage() {
                       </div>
                     </div>
 
-                    {/* Bottom: Shop name + Book button */}
+                    {/* Bottom: Shop name + location + Book button */}
                     <div className="flex items-end justify-between">
-                      <span
-                        className="font-medium"
-                        style={{ fontSize: '12px', color: '#a1a1aa' }}
-                      >
-                        {customShopName || 'Your Barber Shop'}
-                      </span>
+                      <div>
+                        <p
+                          className="font-medium"
+                          style={{ fontSize: '12px', color: '#a1a1aa' }}
+                        >
+                          {customShopName || 'Your Barber Shop'}
+                        </p>
+                        <p style={{ fontSize: '10px', color: '#71717a' }}>
+                          {customCity || 'City'}, {customState || 'ST'}
+                        </p>
+                      </div>
                       <div
                         className="font-semibold text-white"
                         style={{
