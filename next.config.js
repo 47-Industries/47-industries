@@ -10,6 +10,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'files.47industries.com',
       },
+      // Unsplash for stock images
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
       // Printful CDN domains
       {
         protocol: 'https',
