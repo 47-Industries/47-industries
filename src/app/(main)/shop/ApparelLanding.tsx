@@ -41,7 +41,7 @@ const BRAND_DETAILS: Record<string, { color: string; gradient: string; tagline: 
     gradient: 'from-amber-500 to-orange-600',
     tagline: 'Build Different',
     description: 'The flagship collection. Premium apparel for builders, creators, and innovators.',
-    bgImage: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=80',
+    bgImage: 'https://files.47industries.com/brand-images/1769871675611-iey2jl7708r-47-industries-brand-photo.png',
   },
   'MOTOREV': {
     color: 'blue',
