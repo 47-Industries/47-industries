@@ -356,120 +356,105 @@ export default async function ShopPage({
           </div>
         </form>
 
-        {/* Apparel Filters - Brand, Category, and Gender */}
+        {/* Apparel Filters - Clean compact design */}
         {isApparel && (
-          <div className="space-y-4 mb-12">
-            {/* Brand Filter */}
-            {brands.length > 0 && (
-              <div>
-                <p className="text-sm text-text-secondary mb-2">Brand</p>
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/shop?type=apparel${activeCategory ? `&category=${activeCategory}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      !activeBrand
-                        ? 'bg-amber-500 text-white'
-                        : 'border border-border hover:bg-surface'
-                    }`}
-                  >
-                    All Brands ({counts.apparel})
-                  </Link>
-                  {brands.filter(b => b.productCount > 0).map((brand) => (
-                    <Link
-                      key={brand.id}
-                      href={`/shop?type=apparel&brand=${brand.slug}${activeCategory ? `&category=${activeCategory}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeBrand?.slug === brand.slug
-                          ? 'text-white'
-                          : 'border border-border hover:bg-surface'
-                      }`}
-                      style={activeBrand?.slug === brand.slug ? { backgroundColor: brand.accentColor || '#f59e0b' } : undefined}
-                    >
-                      {brand.name} ({brand.productCount})
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Category Filter */}
-            {apparelCategories.length > 0 && (
-              <div>
-                <p className="text-sm text-text-secondary mb-2">Category</p>
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      !activeCategory
-                        ? 'bg-amber-500 text-white'
-                        : 'border border-border hover:bg-surface'
-                    }`}
-                  >
-                    All Categories
-                  </Link>
+          <div className="mb-8">
+            {/* Filter Bar */}
+            <div className="flex flex-wrap items-center gap-3 p-4 bg-surface border border-border rounded-xl">
+              {/* Category Dropdown */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-text-secondary whitespace-nowrap">Category:</label>
+                <select
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 min-w-[160px]"
+                  defaultValue={activeCategory || ''}
+                  onChange={(e) => {
+                    const url = new URL(window.location.href)
+                    if (e.target.value) {
+                      url.searchParams.set('category', e.target.value)
+                    } else {
+                      url.searchParams.delete('category')
+                    }
+                    window.location.href = url.toString()
+                  }}
+                >
+                  <option value="">All Categories ({counts.apparel})</option>
                   {apparelCategories.map((cat) => (
-                    <Link
-                      key={cat.id}
-                      href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}&category=${cat.slug}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeCategory === cat.slug
-                          ? 'bg-amber-500 text-white'
-                          : 'border border-border hover:bg-surface'
-                      }`}
-                    >
+                    <option key={cat.id} value={cat.slug}>
                       {cat.name} ({cat._count.products})
-                    </Link>
+                    </option>
                   ))}
-                </div>
+                </select>
+              </div>
+
+              {/* Gender Dropdown */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-text-secondary whitespace-nowrap">Gender:</label>
+                <select
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 min-w-[120px]"
+                  defaultValue={activeGender}
+                  onChange={(e) => {
+                    const url = new URL(window.location.href)
+                    if (e.target.value && e.target.value !== 'all') {
+                      url.searchParams.set('gender', e.target.value)
+                    } else {
+                      url.searchParams.delete('gender')
+                    }
+                    window.location.href = url.toString()
+                  }}
+                >
+                  <option value="all">All ({genderCounts.all})</option>
+                  <option value="unisex">Unisex ({genderCounts.UNISEX})</option>
+                  <option value="mens">Men&apos;s ({genderCounts.MENS})</option>
+                  <option value="womens">Women&apos;s ({genderCounts.WOMENS})</option>
+                </select>
+              </div>
+
+              {/* Clear Filters */}
+              {(activeCategory || activeGender !== 'all' || activeBrand) && (
+                <Link
+                  href="/shop?type=apparel"
+                  className="ml-auto text-sm text-amber-500 hover:text-amber-400 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear filters
+                </Link>
+              )}
+            </div>
+
+            {/* Active Filters Display */}
+            {(activeCategory || activeGender !== 'all') && (
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className="text-sm text-text-secondary">Showing:</span>
+                {activeCategory && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm">
+                    {apparelCategories.find(c => c.slug === activeCategory)?.name || activeCategory}
+                    <Link
+                      href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                      className="hover:text-white"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Link>
+                  </span>
+                )}
+                {activeGender !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm">
+                    {activeGender === 'mens' ? "Men's" : activeGender === 'womens' ? "Women's" : 'Unisex'}
+                    <Link
+                      href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
+                      className="hover:text-white"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Link>
+                  </span>
+                )}
               </div>
             )}
-
-            {/* Gender Filter */}
-            <div>
-              <p className="text-sm text-text-secondary mb-2">Gender</p>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeGender === 'all'
-                      ? 'bg-amber-500 text-white'
-                      : 'border border-border hover:bg-surface'
-                  }`}
-                >
-                  All ({genderCounts.all})
-                </Link>
-                <Link
-                  href={`/shop?type=apparel&gender=unisex${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeGender === 'unisex'
-                      ? 'bg-amber-500 text-white'
-                      : 'border border-border hover:bg-surface'
-                  }`}
-                >
-                  Unisex ({genderCounts.UNISEX})
-                </Link>
-                <Link
-                  href={`/shop?type=apparel&gender=mens${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeGender === 'mens'
-                      ? 'bg-amber-500 text-white'
-                      : 'border border-border hover:bg-surface'
-                  }`}
-                >
-                  Men&apos;s ({genderCounts.MENS})
-                </Link>
-                <Link
-                  href={`/shop?type=apparel&gender=womens${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeGender === 'womens'
-                      ? 'bg-amber-500 text-white'
-                      : 'border border-border hover:bg-surface'
-                  }`}
-                >
-                  Women&apos;s ({genderCounts.WOMENS})
-                </Link>
-              </div>
-            </div>
           </div>
         )}
 

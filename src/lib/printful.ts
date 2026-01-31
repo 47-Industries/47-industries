@@ -371,26 +371,41 @@ function extractBrand(name: string): 'FORTY_SEVEN_INDUSTRIES' | 'BOOKFADE' | 'MO
 function extractGender(name: string, categorySlug?: string): 'UNISEX' | 'MENS' | 'WOMENS' {
   const nameLower = name.toLowerCase()
 
-  // Explicit gender markers
-  if (nameLower.includes("women's") || nameLower.includes('womens') ||
-      nameLower.includes('ladies') || nameLower.includes('female') ||
-      nameLower.includes('girlfriend') || nameLower.includes('girl')) {
-    return 'WOMENS'
-  }
-  if (nameLower.includes("men's") || nameLower.includes('mens') ||
-      nameLower.includes('male') || nameLower.includes(' men ') ||
-      nameLower.includes('boyfriend')) {
-    return 'MENS'
+  // Explicitly women's products
+  const womensKeywords = [
+    "women's", 'womens', 'ladies', 'female', 'girlfriend', 'girl',
+    'bikini', 'bra', 'bralette', 'legging', 'yoga pant', 'sports bra',
+    'crop top', 'halter', 'sundress', 'dress', 'skirt', 'romper',
+    'one-piece', 'one piece', 'tankini', 'sarong'
+  ]
+  for (const keyword of womensKeywords) {
+    if (nameLower.includes(keyword)) {
+      return 'WOMENS'
+    }
   }
 
-  // Product types that tend to be gendered
-  // Joggers, hoodies, tees are often unisex but fit like mens
-  // Phone cases, stickers, hats are truly unisex
-  if (categorySlug === 'phone-cases' || categorySlug === 'accessories' || categorySlug === 'hats-caps') {
+  // Explicitly men's products
+  const mensKeywords = [
+    "men's", 'mens', 'male', ' men ', 'boyfriend',
+    'swim trunk', 'trunks', 'boxer', 'briefs',
+    'athletic short', 'board short', 'cargo short',
+    'muscle shirt', 'muscle tee', 'tank top'
+  ]
+  for (const keyword of mensKeywords) {
+    if (nameLower.includes(keyword)) {
+      return 'MENS'
+    }
+  }
+
+  // Product types that are truly unisex
+  // Phone cases, stickers, hats, bags, drinkware
+  if (categorySlug === 'phone-cases' || categorySlug === 'accessories' ||
+      categorySlug === 'hats-caps' || categorySlug === 'bags' ||
+      categorySlug === 'drinkware') {
     return 'UNISEX'
   }
 
-  // Default to unisex
+  // T-shirts, hoodies, joggers default to unisex
   return 'UNISEX'
 }
 
@@ -439,10 +454,12 @@ interface ApparelCategory {
 }
 
 const APPAREL_CATEGORIES: ApparelCategory[] = [
-  { slug: 't-shirts', name: 'T-Shirts & Tees', keywords: ['tee', 't-shirt', 'tshirt', 'shirt'] },
+  { slug: 't-shirts', name: 'T-Shirts & Tees', keywords: ['tee', 't-shirt', 'tshirt', 'shirt', 'polo'] },
   { slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts', keywords: ['hoodie', 'sweatshirt', 'pullover', 'crewneck', 'crew neck'] },
   { slug: 'jackets', name: 'Jackets & Outerwear', keywords: ['jacket', 'coat', 'windbreaker', 'bomber', 'varsity'] },
-  { slug: 'joggers-pants', name: 'Joggers & Pants', keywords: ['jogger', 'pant', 'sweatpant', 'shorts', 'legging'] },
+  { slug: 'joggers-pants', name: 'Joggers & Pants', keywords: ['jogger', 'pant', 'sweatpant', 'legging'] },
+  { slug: 'shorts', name: 'Shorts', keywords: ['shorts', 'short', 'trunk', 'athletic short', 'board short'] },
+  { slug: 'swimwear', name: 'Swimwear', keywords: ['bikini', 'swimsuit', 'swim trunk', 'one-piece', 'tankini', 'bathing'] },
   { slug: 'hats-caps', name: 'Hats & Caps', keywords: ['hat', 'cap', 'beanie', 'trucker', 'snapback', 'fitted', 'visor'] },
   { slug: 'phone-cases', name: 'Phone Cases', keywords: ['case', 'iphone', 'phone', 'samsung', 'galaxy', 'pixel'] },
   { slug: 'bags', name: 'Bags & Totes', keywords: ['bag', 'tote', 'backpack', 'duffel', 'pouch', 'fanny'] },
