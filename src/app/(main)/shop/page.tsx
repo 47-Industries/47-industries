@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { isFeatureEnabled } from '@/lib/features'
 import ShopClient from './ShopClient'
 import ApparelFilters from './ApparelFilters'
+import ApparelLanding from './ApparelLanding'
 
 interface SearchParams {
   category?: string
@@ -13,6 +14,7 @@ interface SearchParams {
   type?: 'physical' | 'digital' | 'apparel'
   brand?: string    // For apparel: brand slug
   gender?: string   // For apparel: UNISEX, MENS, WOMENS
+  view?: string     // For apparel: 'all' to show product grid
 }
 
 const PRODUCTS_PER_PAGE = 20
@@ -276,6 +278,28 @@ export default async function ShopPage({
 
   const activeGender = params.gender || 'all'
 
+  // Determine if we should show the apparel landing page or the product grid
+  const hasApparelFilters = isApparel && (
+    params.brand ||
+    params.category ||
+    params.gender ||
+    params.search ||
+    params.view === 'all'
+  )
+  const showApparelLanding = isApparel && !hasApparelFilters
+
+  // Get featured products for landing page
+  const featuredProducts = showApparelLanding
+    ? products.slice(0, 10).map(p => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        price: Number(p.price),
+        images: p.images as string[],
+        category: p.category,
+      }))
+    : []
+
   return (
     <div className="min-h-screen py-20">
       <div className="container mx-auto px-6">
@@ -352,30 +376,39 @@ export default async function ShopPage({
           </div>
         </div>
 
-        {/* Search Bar */}
-        <form className="mb-8">
-          <input type="hidden" name="type" value={currentType} />
-          <div className="relative max-w-md">
-            <input
-              type="text"
-              name="search"
-              defaultValue={params.search || ''}
-              placeholder={`Search ${isDigital ? 'digital' : isApparel ? 'apparel' : 'physical'} products...`}
-              className="w-full px-4 py-3 pl-12 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
-            />
-            <svg
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </form>
+        {/* Search Bar - Hide on apparel landing */}
+        {!showApparelLanding && (
+          <form className="mb-8">
+            <input type="hidden" name="type" value={currentType} />
+            <div className="relative max-w-md">
+              <input
+                type="text"
+                name="search"
+                defaultValue={params.search || ''}
+                placeholder={`Search ${isDigital ? 'digital' : isApparel ? 'apparel' : 'physical'} products...`}
+                className="w-full px-4 py-3 pl-12 bg-surface border border-border rounded-lg focus:outline-none focus:border-accent"
+              />
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </form>
+        )}
 
-        {/* Apparel Filters */}
-        {isApparel && (
+        {/* Apparel Landing or Filters */}
+        {showApparelLanding ? (
+          <ApparelLanding
+            brands={brands}
+            categories={apparelCategories}
+            featuredProducts={featuredProducts}
+            totalCount={counts.apparel}
+          />
+        ) : isApparel ? (
           <ApparelFilters
             activeCategory={activeCategory}
             activeGender={activeGender}
@@ -385,7 +418,7 @@ export default async function ShopPage({
             totalCount={counts.apparel}
             brands={brands}
           />
-        )}
+        ) : null}
 
         {/* Category Filters - For Physical and Digital only */}
         {!isApparel && categories.length > 0 && (
@@ -420,8 +453,8 @@ export default async function ShopPage({
           </div>
         )}
 
-        {/* Product Grid */}
-        {products.length === 0 ? (
+        {/* Product Grid - Only show when not on apparel landing */}
+        {!showApparelLanding && products.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4 text-zinc-500">
               {isDigital ? (
@@ -457,7 +490,7 @@ export default async function ShopPage({
               </Link>
             )}
           </div>
-        ) : (
+        ) : !showApparelLanding ? (
           <ShopClient
             initialProducts={products.map(p => ({
               ...p,
@@ -472,9 +505,10 @@ export default async function ShopPage({
             activeCategory={activeCategory}
             searchQuery={params.search || null}
           />
-        )}
+        ) : null}
 
-        {/* CTA Section */}
+        {/* CTA Section - Hide on apparel landing */}
+        {!showApparelLanding && (
         <div className="mt-16 text-center py-12 border-t border-border">
           {isDigital ? (
             <>
@@ -576,6 +610,7 @@ export default async function ShopPage({
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   )
