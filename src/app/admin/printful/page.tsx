@@ -21,7 +21,7 @@ interface PrintfulStatus {
 export default function PrintfulDashboard() {
   const [status, setStatus] = useState<PrintfulStatus | null>(null)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing] = useState<'all' | 'new' | null>(null)
   const [syncResult, setSyncResult] = useState<{
     success: boolean
     message: string
@@ -46,12 +46,15 @@ export default function PrintfulDashboard() {
     }
   }
 
-  const handleSync = async () => {
-    setSyncing(true)
+  const handleSync = async (mode: 'all' | 'new') => {
+    setSyncing(mode)
     setSyncResult(null)
 
     try {
-      const res = await fetch('/api/admin/printful/sync', { method: 'POST' })
+      const url = mode === 'new'
+        ? '/api/admin/printful/sync?mode=new'
+        : '/api/admin/printful/sync'
+      const res = await fetch(url, { method: 'POST' })
       const data = await res.json()
 
       if (res.ok) {
@@ -74,7 +77,7 @@ export default function PrintfulDashboard() {
         message: 'Failed to sync products',
       })
     } finally {
-      setSyncing(false)
+      setSyncing(null)
     }
   }
 
@@ -168,25 +171,45 @@ export default function PrintfulDashboard() {
       <div className="bg-surface border border-border rounded-xl p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">Product Sync</h2>
         <p className="text-text-secondary mb-6">
-          Sync your Printful store products to your 47 Industries catalog. Products will be created or updated based on your Printful store.
+          Sync your Printful store products to your 47 Industries catalog.
         </p>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          {/* Sync New Products Only */}
           <button
-            onClick={handleSync}
-            disabled={syncing || !status?.connected}
+            onClick={() => handleSync('new')}
+            disabled={!!syncing || !status?.connected}
             className="px-6 py-3 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {syncing ? (
+            {syncing === 'new' ? (
               <span className="flex items-center gap-2">
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Syncing...
+                Syncing New...
               </span>
             ) : (
-              'Sync Products Now'
+              'Sync New Products'
+            )}
+          </button>
+
+          {/* Sync All Products */}
+          <button
+            onClick={() => handleSync('all')}
+            disabled={!!syncing || !status?.connected}
+            className="px-6 py-3 bg-surface border border-border text-white rounded-lg font-medium hover:bg-surface-elevated disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {syncing === 'all' ? (
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Syncing All...
+              </span>
+            ) : (
+              'Sync All Products'
             )}
           </button>
 
@@ -195,6 +218,11 @@ export default function PrintfulDashboard() {
               Last synced: {new Date(status.lastSyncedAt).toLocaleString()}
             </p>
           )}
+        </div>
+
+        <div className="text-xs text-text-muted space-y-1">
+          <p><strong>Sync New:</strong> Only adds new products from Printful. Preserves all existing descriptions and settings. Marks deleted products as inactive.</p>
+          <p><strong>Sync All:</strong> Updates all products including names, prices, and images. Custom descriptions are preserved.</p>
         </div>
 
         {/* Sync Result */}

@@ -220,6 +220,74 @@ export async function syncPrintfulProducts(): Promise<{
   return { synced, errors }
 }
 
+// Sync ONLY new products from Printful (doesn't update existing, marks deleted)
+export async function syncNewPrintfulProducts(): Promise<{
+  added: number
+  deleted: number
+  errors: string[]
+}> {
+  const errors: string[] = []
+  let added = 0
+  let deleted = 0
+
+  try {
+    const printfulProducts = await getPrintfulProducts()
+
+    // Get all existing Printful product IDs from our database
+    const existingProducts = await prisma.product.findMany({
+      where: { fulfillmentType: 'PRINTFUL' },
+      select: { id: true, printfulProductId: true, active: true },
+    })
+
+    const existingPrintfulIds = new Set(
+      existingProducts.map(p => p.printfulProductId).filter(Boolean)
+    )
+
+    // Get all current Printful product IDs
+    const currentPrintfulIds = new Set(
+      printfulProducts.filter(p => !p.is_ignored).map(p => String(p.id))
+    )
+
+    // Find products that exist in our DB but not in Printful anymore (deleted)
+    for (const existing of existingProducts) {
+      if (existing.printfulProductId && !currentPrintfulIds.has(existing.printfulProductId)) {
+        // Mark as deleted (inactive) rather than actually deleting
+        if (existing.active) {
+          await prisma.product.update({
+            where: { id: existing.id },
+            data: { active: false },
+          })
+          deleted++
+        }
+      }
+    }
+
+    // Only sync products that don't exist in our database
+    for (const product of printfulProducts) {
+      if (product.is_ignored) continue
+
+      // Skip if we already have this product
+      if (existingPrintfulIds.has(String(product.id))) {
+        continue
+      }
+
+      try {
+        const fullProduct = await getPrintfulProduct(product.id)
+        await syncSingleProduct(fullProduct)
+        added++
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        errors.push(`Failed to sync product ${product.name}: ${message}`)
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    errors.push(`Failed to fetch products: ${message}`)
+  }
+
+  return { added, deleted, errors }
+}
+
 // Sync a single Printful product to our database
 export async function syncSingleProduct(printfulData: PrintfulSyncProductResponse): Promise<void> {
   const { sync_product, sync_variants } = printfulData
