@@ -99,6 +99,7 @@ export default function AdminBusinessCardsPage() {
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
   const [company, setCompany] = useState('')
+  const [companyTagline, setCompanyTagline] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [website, setWebsite] = useState('')
@@ -135,6 +136,7 @@ export default function AdminBusinessCardsPage() {
     const defaults = BRAND_CARD_DEFAULTS[selectedBrand]
     if (defaults) {
       setCompany(defaults.company || '')
+      setCompanyTagline(defaults.companyTagline || '')
       setThemeColor(defaults.themeColor || '#3b82f6')
       setLogoImage(defaults.logoImage || '')
       setSelectedLayout(defaults.layout || 'standard')
@@ -289,6 +291,7 @@ export default function AdminBusinessCardsPage() {
     setName((data.name as string) || '')
     setTitle((data.title as string) || '')
     setCompany((data.company as string) || '')
+    setCompanyTagline((data.companyTagline as string) || '')
     setEmail((data.email as string) || '')
     setPhone((data.phone as string) || '')
     setWebsite((data.website as string) || '')
@@ -329,6 +332,7 @@ export default function AdminBusinessCardsPage() {
         name,
         title,
         company,
+        companyTagline,
         email,
         phone,
         website,
@@ -406,6 +410,7 @@ export default function AdminBusinessCardsPage() {
           name,
           title,
           company,
+          companyTagline,
           email,
           phone,
           website,
@@ -474,6 +479,7 @@ export default function AdminBusinessCardsPage() {
     setName('')
     setTitle('')
     setCompany(BRAND_CARD_DEFAULTS[selectedBrand]?.company || '')
+    setCompanyTagline(BRAND_CARD_DEFAULTS[selectedBrand]?.companyTagline || '')
     setEmail('')
     setPhone('')
     setWebsite(BRAND_CARD_DEFAULTS[selectedBrand]?.website || '')
@@ -1022,6 +1028,20 @@ export default function AdminBusinessCardsPage() {
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="47 Industries"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* Company Tagline */}
+            <div>
+              <label style={labelStyle}>
+                Company Tagline (what you do)
+              </label>
+              <input
+                type="text"
+                value={companyTagline}
+                onChange={(e) => setCompanyTagline(e.target.value)}
+                placeholder="Software & 3D Printing"
                 style={inputStyle}
               />
             </div>

@@ -26,6 +26,7 @@ export interface BusinessCardData {
   name: string
   title?: string           // "CEO", "Founder", "Professional Barber"
   company?: string         // "47 Industries", "MotoRev", shop name
+  companyTagline?: string  // "Software & 3D Printing", "Motorcycle Tracking App"
 
   // Contact (all optional)
   email?: string
@@ -52,7 +53,7 @@ export interface BusinessCardData {
 
   // Legacy fields for backward compatibility with BookFade
   slug?: string            // BookFade booking slug
-  tagline?: string         // Kept for compatibility
+  tagline?: string         // Kept for compatibility (alias for title)
   shopName?: string        // Alias for company
   address?: string
   city?: string
@@ -448,13 +449,15 @@ function generateStandardBack(data: BusinessCardData): string {
     </div>
   ` : ''
 
+  const taglineText = data.companyTagline || data.tagline || ''
+
   const body = `
     <div class="card">
       <div class="card-inner">
         <div class="left-section">
           <div class="brand-block">
             ${data.logoImage ? `<img src="${data.logoImage}" alt="Logo" class="logo-large">` : `<span class="company-name-large">${companyName || data.name}</span>`}
-            ${data.tagline ? `<span class="tagline">${data.tagline}</span>` : ''}
+            ${taglineText ? `<span class="tagline">${taglineText}</span>` : ''}
           </div>
           ${addressLine ? `<p class="address-block">${addressLine}</p>` : ''}
           ${data.website ? `<span class="website-large">${data.website}</span>` : ''}
@@ -722,6 +725,11 @@ function generateQrFocusBack(data: BusinessCardData): string {
     </div>
   ` : ''
 
+  // Build contact info
+  const contactLines = []
+  if (data.email) contactLines.push(data.email)
+  if (data.phone) contactLines.push(data.phone)
+
   const body = `
     <div class="card">
       <div class="card-inner">
@@ -729,6 +737,7 @@ function generateQrFocusBack(data: BusinessCardData): string {
           <div class="location-block">
             <h3>${companyName}</h3>
             ${addressLine ? `<p>${addressLine}</p>` : ''}
+            ${contactLines.length > 0 ? `<p style="margin-top: 6px;">${contactLines.join(' | ')}</p>` : ''}
           </div>
           ${displayUrl ? `
           <div class="booking-url">
@@ -752,6 +761,7 @@ function generateQrFocusBack(data: BusinessCardData): string {
 function generateMinimalFront(data: BusinessCardData): string {
   const themeColor = getThemeColor(data)
   const title = data.title || data.tagline || ''
+  const profileImage = data.profileImage || DEFAULT_PROFILE_IMAGE
 
   const styles = `
     ${getBaseStyles(themeColor)}
@@ -768,36 +778,51 @@ function generateMinimalFront(data: BusinessCardData): string {
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 24px;
+      padding: 20px;
+    }
+
+    .profile-photo {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid ${themeColor};
+      margin-bottom: 12px;
     }
 
     .name {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
       letter-spacing: -0.5px;
     }
 
     .title {
-      font-size: 12px;
+      font-size: 11px;
       color: ${themeColor};
       font-weight: 500;
       text-transform: uppercase;
-      letter-spacing: 3px;
+      letter-spacing: 2px;
     }
 
     .divider {
       width: 40px;
       height: 2px;
       background: ${themeColor};
-      margin: 16px 0;
+      margin: 12px 0;
     }
 
     .company {
-      font-size: 13px;
-      color: #a1a1aa;
+      font-size: 12px;
+      color: #fff;
       font-weight: 500;
+    }
+
+    .tagline {
+      font-size: 10px;
+      color: #71717a;
+      margin-top: 4px;
     }
   `
 
@@ -806,11 +831,13 @@ function generateMinimalFront(data: BusinessCardData): string {
   const body = `
     <div class="card">
       <div class="card-inner">
+        <img src="${profileImage}" alt="${data.name}" class="profile-photo">
         <h1 class="name">${data.name}</h1>
         ${title ? `<p class="title">${title}</p>` : ''}
         ${companyName ? `
         <div class="divider"></div>
         <p class="company">${companyName}</p>
+        ${data.companyTagline ? `<p class="tagline">${data.companyTagline}</p>` : ''}
         ` : ''}
       </div>
     </div>
@@ -1025,6 +1052,7 @@ function generatePhotoHeroFront(data: BusinessCardData): string {
 
 function generatePhotoHeroBack(data: BusinessCardData): string {
   const themeColor = getThemeColor(data)
+  const companyName = getCompanyName(data)
 
   const styles = `
     ${getBaseStyles(themeColor)}
@@ -1039,31 +1067,49 @@ function generatePhotoHeroBack(data: BusinessCardData): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 28px;
+      padding: 18px 24px;
     }
 
     .info-section {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .logo {
-      height: 28px;
+      height: 32px;
       object-fit: contain;
       border-radius: 6px;
     }
 
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
     .company-name {
       font-size: 16px;
-      font-weight: 600;
+      font-weight: 700;
       color: #fff;
+    }
+
+    .company-tagline {
+      font-size: 10px;
+      color: #71717a;
+      margin-top: 2px;
     }
 
     .contact-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
     .contact-item {
@@ -1075,7 +1121,6 @@ function generatePhotoHeroBack(data: BusinessCardData): string {
       font-size: 13px;
       font-weight: 600;
       color: ${themeColor};
-      margin-top: 4px;
     }
 
     .qr-section {
@@ -1107,11 +1152,9 @@ function generatePhotoHeroBack(data: BusinessCardData): string {
     }
   `
 
-  const companyName = getCompanyName(data)
   const contactItems = []
   if (data.email) contactItems.push(data.email)
   if (data.phone) contactItems.push(data.phone)
-
   const addressLine = formatAddress(data)
   if (addressLine) contactItems.push(addressLine.replace('<br>', ', '))
 
@@ -1128,7 +1171,13 @@ function generatePhotoHeroBack(data: BusinessCardData): string {
     <div class="card">
       <div class="card-inner">
         <div class="info-section">
-          ${data.logoImage ? `<img src="${data.logoImage}" alt="Logo" class="logo">` : `<span class="company-name">${companyName || data.name}</span>`}
+          <div class="brand-block">
+            ${data.logoImage ? `<img src="${data.logoImage}" alt="Logo" class="logo">` : ''}
+            <div class="brand-text">
+              <span class="company-name">${companyName || data.name}</span>
+              ${data.companyTagline ? `<span class="company-tagline">${data.companyTagline}</span>` : ''}
+            </div>
+          </div>
           <div class="contact-list">
             ${contactItems.map(item => `<span class="contact-item">${item}</span>`).join('\n            ')}
           </div>

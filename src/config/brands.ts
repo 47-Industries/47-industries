@@ -16,6 +16,7 @@ export interface BrandConfig {
 // Business card defaults per brand
 export interface BrandCardDefaults {
   company: string
+  companyTagline?: string
   themeColor: string
   logoImage?: string
   layout: CardLayout
@@ -84,6 +85,7 @@ export function isValidBrandSlug(slug: string): boolean {
 export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
   FORTY_SEVEN_INDUSTRIES: {
     company: '47 Industries',
+    companyTagline: 'Software & 3D Printing',
     themeColor: '#3b82f6',
     logoImage: 'https://47industries.com/logo.png',
     layout: 'standard',
@@ -91,6 +93,7 @@ export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
   },
   MOTOREV: {
     company: 'MotoRev',
+    companyTagline: 'Motorcycle Tracking App',
     themeColor: '#ef4444',
     logoImage: '', // No logo file yet
     layout: 'standard',
@@ -98,6 +101,7 @@ export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
   },
   BOOKFADE: {
     company: '',
+    companyTagline: 'Barber Booking Platform',
     themeColor: '#9a58fd',
     logoImage: '', // No logo file yet
     layout: 'qr-focus',
@@ -109,6 +113,7 @@ export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
   },
   CUSTOM: {
     company: '',
+    companyTagline: '',
     themeColor: '#3b82f6',
     layout: 'standard',
   },
