@@ -91,8 +91,9 @@ async function getProducts(searchParams: SearchParams, brandKeyFromSlug?: string
   }
 }
 
-async function getCategories(productType: 'PHYSICAL' | 'DIGITAL') {
-  return prisma.category.findMany({
+async function getCategories(productType: 'PHYSICAL' | 'DIGITAL', excludeApparel: boolean = false) {
+  // For Physical Products tab, we need to exclude categories that only have apparel (Printful) products
+  const categories = await prisma.category.findMany({
     where: {
       active: true,
       productType,
@@ -104,12 +105,20 @@ async function getCategories(productType: 'PHYSICAL' | 'DIGITAL') {
       productType: true,
       _count: {
         select: {
-          products: { where: { active: true } },
+          // Count only non-Printful products for Physical tab
+          products: {
+            where: excludeApparel
+              ? { active: true, NOT: { fulfillmentType: 'PRINTFUL' } }
+              : { active: true }
+          },
         },
       },
     },
     orderBy: { name: 'asc' },
   })
+
+  // Filter out categories with 0 products
+  return categories.filter(cat => cat._count.products > 0)
 }
 
 async function getProductCounts() {
@@ -127,35 +136,40 @@ async function getProductCounts() {
   return { physical, digital, apparel }
 }
 
+// Brand mappings for display
+const BRAND_INFO: Record<string, { name: string; slug: string }> = {
+  'FORTY_SEVEN_INDUSTRIES': { name: '47 Industries', slug: '47-industries' },
+  'BOOKFADE': { name: 'BookFade', slug: 'bookfade' },
+  'MOTOREV': { name: 'MotoRev', slug: 'motorev' },
+}
+
 // Get brands for apparel filtering
 async function getBrands() {
-  const brands = await prisma.brandConfig.findMany({
-    where: { active: true },
-    orderBy: { name: 'asc' },
-  })
-
-  // Get product counts for each brand
+  // Get product counts for each brand from actual product data
   const brandCounts = await prisma.product.groupBy({
     by: ['brand'],
     where: {
       active: true,
       productType: 'PHYSICAL',
       fulfillmentType: 'PRINTFUL',
+      brand: { not: null },
     },
     _count: true,
   })
 
-  const countsMap = brandCounts.reduce((acc, item) => {
-    if (item.brand) {
-      acc[item.brand] = item._count
-    }
-    return acc
-  }, {} as Record<string, number>)
+  // Convert to brand objects with counts
+  const brands = brandCounts
+    .filter(item => item.brand && BRAND_INFO[item.brand])
+    .map(item => ({
+      id: item.brand!,
+      key: item.brand!,
+      name: BRAND_INFO[item.brand!].name,
+      slug: BRAND_INFO[item.brand!].slug,
+      productCount: item._count,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  return brands.map(brand => ({
-    ...brand,
-    productCount: countsMap[brand.key] || 0,
-  }))
+  return brands
 }
 
 // Get apparel categories with counts
@@ -249,9 +263,12 @@ export default async function ShopPage({
   const brandKeyFromSlug = activeBrand?.key || null
   const activeCategory = params.category || null
 
+  // For Physical Products tab, exclude apparel-only categories
+  const excludeApparelFromCategories = !isDigital && !isApparel
+
   const [{ products, pagination }, categories, counts, genderCounts, apparelCategories] = await Promise.all([
     getProducts(params, brandKeyFromSlug),
-    getCategories(productType),
+    getCategories(productType, excludeApparelFromCategories),
     getProductCounts(),
     isApparel ? getGenderCounts(brandKeyFromSlug, activeCategory) : Promise.resolve({ UNISEX: 0, MENS: 0, WOMENS: 0, all: 0 }),
     isApparel ? getApparelCategories(brandKeyFromSlug) : Promise.resolve([]),
