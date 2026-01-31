@@ -10,6 +10,23 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'files.47industries.com',
       },
+      // Printful CDN domains
+      {
+        protocol: 'https',
+        hostname: 'files.cdn.printful.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.printful.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'printful-upload.s3-accelerate.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com',
+      },
     ],
   },
   experimental: {
