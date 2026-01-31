@@ -553,6 +553,40 @@ export default async function MotoRevProjectPage() {
         </div>
       </div>
 
+      {/* MotoRev Merch Section */}
+      <div className="py-16">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl p-8 md:p-12">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex-1 text-center md:text-left">
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3">Rep the Ride</h2>
+                  <p className="text-text-secondary mb-6">
+                    Official MotoRev apparel for riders who live the lifestyle. Premium quality gear designed for the community, by the community.
+                  </p>
+                  <Link
+                    href="/shop?type=apparel&brand=motorev"
+                    className="inline-flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    Shop MotoRev Gear
+                    <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Link>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+                    <svg className="w-16 h-16 md:w-20 md:h-20 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="py-16">
         <div className="container mx-auto px-4 md:px-6 text-center">
