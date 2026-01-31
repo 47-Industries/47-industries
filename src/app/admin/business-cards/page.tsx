@@ -261,7 +261,10 @@ export default function AdminBusinessCardsPage() {
 
   const selectTeamMember = (member: TeamMember) => {
     setName(member.name || '')
-    setEmail(member.email || '')
+    // For 47 Industries, generate company email from first name
+    const firstName = (member.name || '').split(' ')[0].toLowerCase()
+    const companyEmail = firstName ? `${firstName}@47industries.com` : ''
+    setEmail(companyEmail || member.email || '')
     setTitle(member.title || getRoleTitle(member.role))
     setProfileImage(member.image || '')
     setShowTeamResults(false)

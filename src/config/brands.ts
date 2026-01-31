@@ -85,21 +85,21 @@ export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
   FORTY_SEVEN_INDUSTRIES: {
     company: '47 Industries',
     themeColor: '#3b82f6',
-    logoImage: '/images/brands/47-logo.png',
+    logoImage: 'https://47industries.com/logo.png',
     layout: 'standard',
     website: '47industries.com',
   },
   MOTOREV: {
     company: 'MotoRev',
     themeColor: '#ef4444',
-    logoImage: '/images/brands/motorev-logo.png',
+    logoImage: '', // No logo file yet
     layout: 'standard',
     website: 'motorevapp.com',
   },
   BOOKFADE: {
     company: '',
     themeColor: '#9a58fd',
-    logoImage: '/images/brands/bookfade-logo.png',
+    logoImage: '', // No logo file yet
     layout: 'qr-focus',
     qrCode: {
       enabled: true,
