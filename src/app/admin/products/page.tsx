@@ -733,13 +733,28 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             <div
               key={product.id}
               style={{
-                background: '#18181b',
-                border: '1px solid #27272a',
+                background: selectedIds.has(product.id) ? 'rgba(245, 158, 11, 0.1)' : '#18181b',
+                border: selectedIds.has(product.id) ? '1px solid #f59e0b' : '1px solid #27272a',
                 borderRadius: '12px',
                 padding: '16px',
               }}
             >
               <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                {productTypeFilter === 'APPAREL' && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={(e) => handleSelectOne(product.id, e.target.checked)}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      cursor: 'pointer',
+                      accentColor: '#f59e0b',
+                      flexShrink: 0,
+                      marginTop: '20px'
+                    }}
+                  />
+                )}
                 {product.images && product.images[0] ? (
                   <img
                     src={product.images[0]}
@@ -829,6 +844,21 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #27272a' }}>
+                {productTypeFilter === 'APPAREL' && (
+                  <th style={{ padding: '16px', width: '48px' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size > 0 && selectedIds.size === filteredProducts.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        cursor: 'pointer',
+                        accentColor: '#f59e0b'
+                      }}
+                    />
+                  </th>
+                )}
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Product</th>
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Category</th>
                 <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase' }}>Price</th>
@@ -839,7 +869,22 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
             </thead>
             <tbody>
               {filteredProducts.map((product) => (
-                <tr key={product.id} style={{ borderBottom: '1px solid #27272a' }}>
+                <tr key={product.id} style={{ borderBottom: '1px solid #27272a', background: selectedIds.has(product.id) ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
+                  {productTypeFilter === 'APPAREL' && (
+                    <td style={{ padding: '16px', width: '48px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(product.id)}
+                        onChange={(e) => handleSelectOne(product.id, e.target.checked)}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer',
+                          accentColor: '#f59e0b'
+                        }}
+                      />
+                    </td>
+                  )}
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {product.images && product.images[0] ? (
