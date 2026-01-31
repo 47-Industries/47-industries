@@ -19,11 +19,14 @@ interface Product {
   category: {
     id: string
     name: string
+    slug?: string
   }
   sku?: string
   productType: 'PHYSICAL' | 'DIGITAL'
   fulfillmentType?: 'SELF_FULFILLED' | 'PRINTFUL' | null
   brand?: string | null
+  gender?: string | null
+  manufacturer?: string | null
 }
 
 interface Category {
@@ -164,9 +167,23 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
   const [loading, setLoading] = useState(true)
   const [productTypeFilter, setProductTypeFilter] = useState<'PHYSICAL' | 'DIGITAL' | 'APPAREL'>('PHYSICAL')
 
+  // Selection and filters for apparel
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
+  const [genderFilter, setGenderFilter] = useState<string>('')
+  const [bulkAction, setBulkAction] = useState<string>('')
+  const [bulkLoading, setBulkLoading] = useState(false)
+
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  // Clear selection when switching tabs
+  useEffect(() => {
+    setSelectedIds(new Set())
+    setCategoryFilter('')
+    setGenderFilter('')
+  }, [productTypeFilter])
 
   const fetchProducts = async () => {
     try {
@@ -228,6 +245,79 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
     }
   }
 
+  // Bulk action handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredProducts.map(p => p.id)))
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds)
+    if (checked) {
+      newSet.add(id)
+    } else {
+      newSet.delete(id)
+    }
+    setSelectedIds(newSet)
+  }
+
+  const handleBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return
+
+    const confirmed = confirm(`Are you sure you want to ${bulkAction} ${selectedIds.size} product(s)?`)
+    if (!confirmed) return
+
+    setBulkLoading(true)
+    try {
+      const ids = Array.from(selectedIds)
+
+      if (bulkAction === 'delete') {
+        for (const id of ids) {
+          await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+        }
+      } else if (bulkAction === 'activate') {
+        for (const id of ids) {
+          const product = products.find(p => p.id === id)
+          if (product) {
+            await fetch(`/api/admin/products/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...product, active: true }),
+            })
+          }
+        }
+      } else if (bulkAction === 'deactivate') {
+        for (const id of ids) {
+          const product = products.find(p => p.id === id)
+          if (product) {
+            await fetch(`/api/admin/products/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...product, active: false }),
+            })
+          }
+        }
+      }
+
+      setSelectedIds(new Set())
+      setBulkAction('')
+      fetchProducts()
+    } catch (error) {
+      console.error('Bulk action failed:', error)
+      alert('Some operations failed')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  // Get unique categories and genders for apparel filters
+  const apparelProducts = products.filter(p => (p.productType || 'PHYSICAL') === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL')
+  const apparelCategories = [...new Set(apparelProducts.map(p => p.category?.name).filter(Boolean))].sort()
+  const apparelGenders = [...new Set(apparelProducts.map(p => p.gender).filter(Boolean))].sort()
+
   // Filter products by type
   // Note: productType/fulfillmentType can be null/undefined for older products
   // Treat missing productType as PHYSICAL, missing fulfillmentType as SELF_FULFILLED
@@ -236,7 +326,16 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
     const fType = p.fulfillmentType
 
     if (productTypeFilter === 'APPAREL') {
-      return pType === 'PHYSICAL' && fType === 'PRINTFUL'
+      let match = pType === 'PHYSICAL' && fType === 'PRINTFUL'
+      // Apply category filter
+      if (match && categoryFilter) {
+        match = p.category?.name === categoryFilter
+      }
+      // Apply gender filter
+      if (match && genderFilter) {
+        match = p.gender === genderFilter
+      }
+      return match
     } else if (productTypeFilter === 'PHYSICAL') {
       // Show physical products that are NOT Printful (including null/undefined)
       return pType === 'PHYSICAL' && fType !== 'PRINTFUL'
@@ -405,6 +504,135 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
           </Link>
         )}
       </div>
+
+      {/* Apparel Filters and Bulk Actions */}
+      {productTypeFilter === 'APPAREL' && (
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '12px',
+          marginBottom: '20px',
+          padding: '16px',
+          background: '#18181b',
+          borderRadius: '12px',
+          alignItems: 'center'
+        }}>
+          {/* Category Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '14px', color: '#a1a1aa' }}>Category:</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                minWidth: '150px'
+              }}
+            >
+              <option value="">All Categories</option>
+              {apparelCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Gender Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '14px', color: '#a1a1aa' }}>Gender:</label>
+            <select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                background: '#0a0a0a',
+                border: '1px solid #3f3f46',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                minWidth: '120px'
+              }}
+            >
+              <option value="">All</option>
+              {apparelGenders.map(g => (
+                <option key={g} value={g}>{g === 'MENS' ? "Men's" : g === 'WOMENS' ? "Women's" : g}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Bulk Actions */}
+          {selectedIds.size > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '14px', color: '#f59e0b' }}>
+                {selectedIds.size} selected
+              </span>
+              <select
+                value={bulkAction}
+                onChange={(e) => setBulkAction(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#0a0a0a',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="">Bulk Actions</option>
+                <option value="activate">Activate</option>
+                <option value="deactivate">Deactivate</option>
+                <option value="delete">Delete</option>
+              </select>
+              <button
+                onClick={handleBulkAction}
+                disabled={!bulkAction || bulkLoading}
+                style={{
+                  padding: '8px 16px',
+                  background: bulkAction === 'delete' ? '#dc2626' : '#f59e0b',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: bulkAction && !bulkLoading ? 'pointer' : 'not-allowed',
+                  opacity: bulkAction && !bulkLoading ? 1 : 0.5
+                }}
+              >
+                {bulkLoading ? 'Processing...' : 'Apply'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Results Count */}
+      {productTypeFilter === 'APPAREL' && (categoryFilter || genderFilter) && (
+        <div style={{ marginBottom: '16px', fontSize: '14px', color: '#a1a1aa' }}>
+          Showing {filteredProducts.length} of {apparelCount} apparel products
+          {(categoryFilter || genderFilter) && (
+            <button
+              onClick={() => { setCategoryFilter(''); setGenderFilter(''); }}
+              style={{
+                marginLeft: '12px',
+                padding: '4px 12px',
+                background: 'transparent',
+                border: '1px solid #f59e0b',
+                borderRadius: '6px',
+                color: '#f59e0b',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      )}
 
       {filteredProducts.length === 0 ? (
         <div style={{
