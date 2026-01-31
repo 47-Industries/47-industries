@@ -250,13 +250,21 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
   const manufacturer = extractManufacturer(sync_product.name)
 
   if (product) {
-    // Update existing product - preserve the slug
+    // Update existing product - preserve the slug AND custom descriptions
+    // Only update description if it's still the default generic one
+    const isGenericDescription = product.description?.includes('Premium print-on-demand apparel') ||
+                                  !product.description ||
+                                  product.description.trim() === ''
+
     product = await prisma.product.update({
       where: { id: product.id },
       data: {
         name: sync_product.name,
         // Keep existing slug to preserve URLs
-        description: `${sync_product.name} - Premium print-on-demand apparel`,
+        // Keep existing custom description if it's been customized
+        ...(isGenericDescription && {
+          description: `${sync_product.name} - Premium print-on-demand apparel`,
+        }),
         price: basePrice,
         images: thumbnailUrl ? [thumbnailUrl] : [],
         categoryId: category.id,

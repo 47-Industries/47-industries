@@ -34,78 +34,91 @@ interface ApparelLandingProps {
   totalCount: number
 }
 
-// Brand colors and descriptions
-const BRAND_DETAILS: Record<string, { color: string; gradient: string; tagline: string; description: string }> = {
+// Brand colors, descriptions, and images
+const BRAND_DETAILS: Record<string, { color: string; gradient: string; tagline: string; description: string; bgImage?: string }> = {
   'FORTY_SEVEN_INDUSTRIES': {
     color: 'amber',
     gradient: 'from-amber-500 to-orange-600',
     tagline: 'Build Different',
     description: 'The flagship collection. Premium apparel for builders, creators, and innovators.',
+    bgImage: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=80',
   },
   'MOTOREV': {
     color: 'blue',
     gradient: 'from-blue-500 to-cyan-600',
     tagline: 'Ride in Style',
     description: 'Official MotoRev merchandise. Rep the ride with premium gear.',
+    bgImage: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&q=80',
   },
   'BOOKFADE': {
     color: 'purple',
     gradient: 'from-purple-500 to-pink-600',
     tagline: 'Fresh Cuts, Fresh Style',
     description: 'Professional barber apparel. Look sharp, cut sharp.',
+    bgImage: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80',
   },
 }
 
-// Category icons
+// Category icons - proper SVG icons matching each category
 const CATEGORY_ICONS: Record<string, JSX.Element> = {
   'Hoodies & Sweatshirts': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+      {/* Hoodie icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2L8 6v2a4 4 0 008 0V6l-4-4zM8 6H4l2 16h12l2-16h-4M12 2v4M9 11c0 1.5 1.5 3 3 3s3-1.5 3-3" />
     </svg>
   ),
   'T-Shirts & Tees': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      {/* T-shirt icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2l-4 4 3 2v14h14V8l3-2-4-4H6zM6 2c0 2 2 4 6 4s6-2 6-4" />
     </svg>
   ),
   'Phone Cases': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Phone icon */}
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
     </svg>
   ),
   'Accessories': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Sparkle/star icon for accessories */}
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
     </svg>
   ),
   'Shorts': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4h16v6l-4 8H8l-4-8V4z" />
+      {/* Shorts icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5h16v3l-3 9h-4l-1-6-1 6H7L4 8V5z" />
     </svg>
   ),
   'Swimwear': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012-2v-1a2 2 0 012-2h1.945M6 20.488V20a2 2 0 012-2h8a2 2 0 012 2v.488" />
+      {/* Wave/water icon for swimwear */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 15c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0M3 19c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0M3 11c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0" />
     </svg>
   ),
   'Hats & Caps': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      {/* Hat/cap icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5zM4 10v2c0 2 3.5 4 8 4s8-2 8-4v-2M2 14h20" />
     </svg>
   ),
   'Bags & Totes': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Shopping bag icon */}
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
     </svg>
   ),
   'Drinkware': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      {/* Mug/cup icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 8h2a2 2 0 012 2v2a2 2 0 01-2 2h-2M4 8h14v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8zM8 4h8v4H8V4z" />
     </svg>
   ),
   'Jackets & Outerwear': (
     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      {/* Jacket icon */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2l-4 6v14h8v-8h4v8h8V8l-4-6M6 2c0 2 2 4 6 4s6-2 6-4M12 6v4M8 22v-6M16 22v-6" />
     </svg>
   ),
 }
@@ -130,25 +143,41 @@ export default function ApparelLanding({
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {brands.map((brand) => {
           const details = BRAND_DETAILS[brand.key] || BRAND_DETAILS['FORTY_SEVEN_INDUSTRIES']
+          const accentColor = brand.key === 'MOTOREV' ? 'blue' : brand.key === 'BOOKFADE' ? 'purple' : 'amber'
           return (
             <Link
               key={brand.id}
               href={`/shop?type=apparel&brand=${brand.slug}`}
-              className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-amber-500/50 transition-all"
+              className="group relative overflow-hidden rounded-2xl border border-border bg-surface hover:border-amber-500/50 transition-all min-h-[280px]"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${details.gradient} opacity-5 group-hover:opacity-10 transition-opacity`} />
-              <div className="relative p-8">
-                <div className="flex items-start justify-between mb-6">
+              {/* Background Image */}
+              {details.bgImage && (
+                <div className="absolute inset-0">
+                  <Image
+                    src={details.bgImage}
+                    alt=""
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover opacity-20 group-hover:opacity-30 group-hover:scale-105 transition-all duration-500"
+                  />
+                </div>
+              )}
+              {/* Gradient Overlay */}
+              <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${details.gradient} opacity-10 group-hover:opacity-20 transition-opacity`} />
+
+              <div className="relative p-8 h-full flex flex-col justify-end">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-2xl font-bold mb-1">{brand.name}</h3>
-                    <p className="text-amber-500 text-sm font-medium">{details.tagline}</p>
+                    <h3 className="text-2xl font-bold mb-1 drop-shadow-lg">{brand.name}</h3>
+                    <p className={`text-${accentColor}-500 text-sm font-medium`}>{details.tagline}</p>
                   </div>
-                  <span className="px-3 py-1 bg-white/10 rounded-full text-sm">
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
                     {brand.productCount} items
                   </span>
                 </div>
-                <p className="text-text-secondary text-sm mb-6">{details.description}</p>
-                <div className="flex items-center text-amber-500 text-sm font-medium group-hover:gap-3 gap-2 transition-all">
+                <p className="text-white/80 text-sm mb-6">{details.description}</p>
+                <div className={`flex items-center text-${accentColor}-500 text-sm font-medium group-hover:gap-3 gap-2 transition-all`}>
                   Shop Collection
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
