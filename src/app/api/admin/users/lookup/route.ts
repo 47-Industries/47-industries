@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
-    // Find admin and super admin users (team members)
+    // Find admin and super admin users (team members) with their TeamMember data
     const users = await prisma.user.findMany({
       where: {
         AND: [
@@ -42,12 +42,36 @@ export async function GET(request: NextRequest) {
         role: true,
         image: true,
         title: true,
+        phone: true,
+        // Include TeamMember data for work email
+        teamMember: {
+          select: {
+            workEmail: true,
+            phone: true,
+            title: true,
+            profileImageUrl: true,
+          },
+        },
       },
       orderBy: { name: 'asc' },
       take: 20,
     })
 
-    return NextResponse.json({ users })
+    // Transform to include work email at top level
+    const transformedUsers = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      image: user.image || user.teamMember?.profileImageUrl,
+      title: user.title || user.teamMember?.title,
+      phone: user.phone || user.teamMember?.phone,
+      // Prioritize work email from TeamMember
+      workEmail: user.teamMember?.workEmail || null,
+    }))
+
+    return NextResponse.json({ users: transformedUsers })
   } catch (error) {
     console.error('Error looking up users:', error)
     return NextResponse.json(

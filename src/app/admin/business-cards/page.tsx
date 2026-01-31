@@ -44,6 +44,8 @@ interface TeamMember {
   role: string
   image: string | null
   title: string | null
+  phone: string | null
+  workEmail: string | null
 }
 
 interface SavedDesign {
@@ -261,10 +263,9 @@ export default function AdminBusinessCardsPage() {
 
   const selectTeamMember = (member: TeamMember) => {
     setName(member.name || '')
-    // For 47 Industries, generate company email from first name
-    const firstName = (member.name || '').split(' ')[0].toLowerCase()
-    const companyEmail = firstName ? `${firstName}@47industries.com` : ''
-    setEmail(companyEmail || member.email || '')
+    // Use work email from TeamMember, fall back to personal email
+    setEmail(member.workEmail || member.email || '')
+    setPhone(member.phone || '')
     setTitle(member.title || getRoleTitle(member.role))
     setProfileImage(member.image || '')
     setShowTeamResults(false)
