@@ -310,6 +310,7 @@ function generateStandardFront(data: BusinessCardData): string {
     .logo {
       height: 28px;
       object-fit: contain;
+      border-radius: 6px;
     }
   `
 
@@ -382,6 +383,7 @@ function generateStandardBack(data: BusinessCardData): string {
     .logo-large {
       height: 36px;
       object-fit: contain;
+      border-radius: 6px;
     }
 
     .company-name-large {
@@ -874,6 +876,7 @@ function generateMinimalBack(data: BusinessCardData): string {
     .logo {
       height: 32px;
       object-fit: contain;
+      border-radius: 6px;
     }
 
     .qr-small {
@@ -1048,6 +1051,7 @@ function generatePhotoHeroBack(data: BusinessCardData): string {
     .logo {
       height: 28px;
       object-fit: contain;
+      border-radius: 6px;
     }
 
     .company-name {
