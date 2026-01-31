@@ -578,6 +578,9 @@ model OrderItem {
   // Custom product customization data (for BookFade products, etc.)
   customization Json?
 
+  // Additional metadata (pricing info, source-specific data)
+  metadata Json?
+
   // Digital downloads
   digitalDownloads DigitalDownload[]
 
