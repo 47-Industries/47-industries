@@ -257,33 +257,45 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
     || sync_variants[0]?.product.image
     || sync_product.thumbnail_url
 
-  const productData = {
-    name: sync_product.name,
-    slug: generateSlug(sync_product.name),
-    description: `${sync_product.name} - Premium print-on-demand apparel`,
-    price: basePrice,
-    images: thumbnailUrl ? [thumbnailUrl] : [],
-    categoryId: category.id,
-    stock: 999, // POD products are always in stock
-    productType: 'PHYSICAL' as const,
-    fulfillmentType: 'PRINTFUL' as const,
-    printfulProductId: String(sync_product.id),
-    printfulSyncedAt: new Date(),
-    active: !sync_product.is_ignored,
-    requiresShipping: true,
-  }
-
   if (product) {
-    // Update existing product
+    // Update existing product - preserve the slug
     product = await prisma.product.update({
       where: { id: product.id },
-      data: productData,
+      data: {
+        name: sync_product.name,
+        // Keep existing slug to preserve URLs
+        description: `${sync_product.name} - Premium print-on-demand apparel`,
+        price: basePrice,
+        images: thumbnailUrl ? [thumbnailUrl] : [],
+        categoryId: category.id,
+        stock: 999,
+        productType: 'PHYSICAL' as const,
+        fulfillmentType: 'PRINTFUL' as const,
+        printfulProductId: String(sync_product.id),
+        printfulSyncedAt: new Date(),
+        active: !sync_product.is_ignored,
+        requiresShipping: true,
+      },
       include: { variants: true },
     })
   } else {
-    // Create new product
+    // Create new product with unique slug
     product = await prisma.product.create({
-      data: productData,
+      data: {
+        name: sync_product.name,
+        slug: generateSlug(sync_product.name),
+        description: `${sync_product.name} - Premium print-on-demand apparel`,
+        price: basePrice,
+        images: thumbnailUrl ? [thumbnailUrl] : [],
+        categoryId: category.id,
+        stock: 999,
+        productType: 'PHYSICAL' as const,
+        fulfillmentType: 'PRINTFUL' as const,
+        printfulProductId: String(sync_product.id),
+        printfulSyncedAt: new Date(),
+        active: !sync_product.is_ignored,
+        requiresShipping: true,
+      },
       include: { variants: true },
     })
   }
