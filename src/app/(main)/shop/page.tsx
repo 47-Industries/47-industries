@@ -563,6 +563,9 @@ export default async function ShopPage({
   )
 }
 
+// Force dynamic rendering to ensure filters work correctly
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Shop - 47 Industries',
   description: 'Browse our catalog of 3D printed products and digital downloads.',
