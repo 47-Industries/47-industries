@@ -366,6 +366,7 @@ export default async function ShopPage({
             apparelCategories={apparelCategories}
             genderCounts={genderCounts}
             totalCount={counts.apparel}
+            brands={brands}
           />
         )}
 

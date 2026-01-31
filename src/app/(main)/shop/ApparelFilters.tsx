@@ -3,13 +3,22 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+interface Brand {
+  id: string
+  name: string
+  slug: string
+  key: string
+  productCount: number
+}
+
 interface ApparelFiltersProps {
   activeCategory: string | null
   activeGender: string
-  activeBrand: { slug: string } | null
+  activeBrand: Brand | null
   apparelCategories: Array<{ id: string; name: string; slug: string; _count: { products: number } }>
   genderCounts: { all: number; UNISEX: number; MENS: number; WOMENS: number }
   totalCount: number
+  brands: Brand[]
 }
 
 export default function ApparelFilters({
@@ -19,20 +28,21 @@ export default function ApparelFilters({
   apparelCategories,
   genderCounts,
   totalCount,
+  brands,
 }: ApparelFiltersProps) {
   const router = useRouter()
 
-  const buildUrl = (params: { category?: string | null; gender?: string | null }) => {
+  const buildUrl = (params: { category?: string | null; gender?: string | null; brand?: string | null }) => {
     const url = new URL('/shop', window.location.origin)
     url.searchParams.set('type', 'apparel')
 
-    if (activeBrand) {
-      url.searchParams.set('brand', activeBrand.slug)
-    }
-
+    const brand = params.brand !== undefined ? params.brand : activeBrand?.slug
     const category = params.category !== undefined ? params.category : activeCategory
     const gender = params.gender !== undefined ? params.gender : activeGender
 
+    if (brand) {
+      url.searchParams.set('brand', brand)
+    }
     if (category) {
       url.searchParams.set('category', category)
     }
@@ -47,6 +57,25 @@ export default function ApparelFilters({
     <div className="mb-8">
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-surface border border-border rounded-xl">
+        {/* Brand Dropdown */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-text-secondary whitespace-nowrap">Brand:</label>
+          <select
+            className="bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 min-w-[140px]"
+            value={activeBrand?.slug || ''}
+            onChange={(e) => {
+              router.push(buildUrl({ brand: e.target.value || null }))
+            }}
+          >
+            <option value="">All Brands ({totalCount})</option>
+            {brands.map((brand) => (
+              <option key={brand.id} value={brand.slug}>
+                {brand.name} ({brand.productCount})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Category Dropdown */}
         <div className="flex items-center gap-2">
           <label className="text-sm text-text-secondary whitespace-nowrap">Category:</label>
@@ -57,7 +86,7 @@ export default function ApparelFilters({
               router.push(buildUrl({ category: e.target.value || null }))
             }}
           >
-            <option value="">All Categories ({totalCount})</option>
+            <option value="">All Categories</option>
             {apparelCategories.map((cat) => (
               <option key={cat.id} value={cat.slug}>
                 {cat.name} ({cat._count.products})
@@ -98,9 +127,22 @@ export default function ApparelFilters({
       </div>
 
       {/* Active Filters Display */}
-      {(activeCategory || activeGender !== 'all') && (
+      {(activeBrand || activeCategory || activeGender !== 'all') && (
         <div className="flex flex-wrap items-center gap-2 mt-3">
           <span className="text-sm text-text-secondary">Showing:</span>
+          {activeBrand && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm">
+              {activeBrand.name}
+              <Link
+                href={buildUrl({ brand: null })}
+                className="hover:text-white"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Link>
+            </span>
+          )}
           {activeCategory && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm">
               {apparelCategories.find(c => c.slug === activeCategory)?.name || activeCategory}
