@@ -90,20 +90,30 @@ export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
     logoImage: 'https://47industries.com/logo.png',
     layout: 'standard',
     website: '47industries.com',
+    qrCode: {
+      enabled: true,
+      url: 'https://47industries.com',
+      label: 'Scan to Visit',
+    },
   },
   MOTOREV: {
     company: 'MotoRev',
     companyTagline: 'Motorcycle Tracking App',
     themeColor: '#ef4444',
-    logoImage: '', // No logo file yet
+    logoImage: 'https://motorevapp.com/images/logo-white.png',
     layout: 'standard',
     website: 'motorevapp.com',
+    qrCode: {
+      enabled: true,
+      url: 'https://motorevapp.com',
+      label: 'Scan to Download',
+    },
   },
   BOOKFADE: {
     company: '',
     companyTagline: 'Barber Booking Platform',
     themeColor: '#9a58fd',
-    logoImage: '', // No logo file yet
+    logoImage: '', // Logo comes from barber's shop
     layout: 'qr-focus',
     qrCode: {
       enabled: true,
