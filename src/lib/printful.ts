@@ -159,9 +159,29 @@ interface PrintfulSyncProductResponse {
   sync_variants: PrintfulSyncVariant[]
 }
 
-// Get all sync products from Printful store
+// Get all sync products from Printful store (handles pagination)
 export async function getPrintfulProducts(): Promise<PrintfulProduct[]> {
-  return printfulRequest<PrintfulProduct[]>('/store/products')
+  const allProducts: PrintfulProduct[] = []
+  const limit = 100 // Max per page
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const response = await printfulRequest<PrintfulProduct[]>(
+      `/store/products?limit=${limit}&offset=${offset}`
+    )
+
+    if (response && response.length > 0) {
+      allProducts.push(...response)
+      offset += response.length
+      // If we got fewer than the limit, we've reached the end
+      hasMore = response.length === limit
+    } else {
+      hasMore = false
+    }
+  }
+
+  return allProducts
 }
 
 // Get single sync product with variants
