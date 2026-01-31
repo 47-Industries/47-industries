@@ -257,6 +257,7 @@ model Product {
 
   // Brand & Fulfillment (for print on demand apparel)
   brand               Brand?
+  gender              String?          // UNISEX, MENS, WOMENS
   fulfillmentType     FulfillmentType  @default(SELF_FULFILLED)
 
   // Printful Integration

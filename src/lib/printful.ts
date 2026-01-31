@@ -257,6 +257,10 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
     || sync_variants[0]?.product.image
     || sync_product.thumbnail_url
 
+  // Extract brand and gender from product name
+  const brand = extractBrand(sync_product.name)
+  const gender = extractGender(sync_product.name)
+
   if (product) {
     // Update existing product - preserve the slug
     product = await prisma.product.update({
@@ -275,6 +279,8 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
         printfulSyncedAt: new Date(),
         active: !sync_product.is_ignored,
         requiresShipping: true,
+        brand: brand,
+        gender: gender,
       },
       include: { variants: true },
     })
@@ -295,6 +301,8 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
         printfulSyncedAt: new Date(),
         active: !sync_product.is_ignored,
         requiresShipping: true,
+        brand: brand,
+        gender: gender,
       },
       include: { variants: true },
     })
@@ -344,6 +352,44 @@ function generateSlug(name: string): string {
     .replace(/^-|-$/g, '')
 
   return `printful-${baseSlug}-${Date.now().toString(36)}`
+}
+
+// Extract brand from product name
+function extractBrand(name: string): 'FORTY_SEVEN_INDUSTRIES' | 'BOOKFADE' | 'MOTOREV' | null {
+  const nameLower = name.toLowerCase()
+
+  if (nameLower.includes('bookfade') || nameLower.includes('book fade')) {
+    return 'BOOKFADE'
+  }
+  if (nameLower.includes('motorev') || nameLower.includes('moto rev')) {
+    return 'MOTOREV'
+  }
+  // Check for 47 Industries variants
+  if (nameLower.includes('47 industries') || nameLower.includes('47industries') ||
+      nameLower.startsWith('47 |') || nameLower.startsWith('47|') ||
+      nameLower.includes('| 47') || nameLower.includes('forty seven') ||
+      nameLower.includes('fortyseven')) {
+    return 'FORTY_SEVEN_INDUSTRIES'
+  }
+
+  return null
+}
+
+// Extract gender from product name
+function extractGender(name: string): 'UNISEX' | 'MENS' | 'WOMENS' {
+  const nameLower = name.toLowerCase()
+
+  if (nameLower.includes("women's") || nameLower.includes('womens') ||
+      nameLower.includes('ladies') || nameLower.includes('female')) {
+    return 'WOMENS'
+  }
+  if (nameLower.includes("men's") || nameLower.includes('mens') ||
+      nameLower.includes('male') || nameLower.includes(' men ')) {
+    return 'MENS'
+  }
+
+  // Default to unisex
+  return 'UNISEX'
 }
 
 // ============================================

@@ -10,11 +10,13 @@ interface SearchParams {
   search?: string
   page?: string
   type?: 'physical' | 'digital' | 'apparel'
+  brand?: string    // For apparel: brand slug
+  gender?: string   // For apparel: UNISEX, MENS, WOMENS
 }
 
 const PRODUCTS_PER_PAGE = 20
 
-async function getProducts(searchParams: SearchParams) {
+async function getProducts(searchParams: SearchParams, brandKeyFromSlug?: string | null) {
   const page = parseInt(searchParams.page || '1')
   const limit = PRODUCTS_PER_PAGE
   const skip = (page - 1) * limit
@@ -29,6 +31,14 @@ async function getProducts(searchParams: SearchParams) {
   } else if (searchParams.type === 'apparel') {
     where.productType = 'PHYSICAL'
     where.fulfillmentType = 'PRINTFUL'
+
+    // Apparel-specific filters
+    if (brandKeyFromSlug) {
+      where.brand = brandKeyFromSlug
+    }
+    if (searchParams.gender && searchParams.gender !== 'all') {
+      where.gender = searchParams.gender.toUpperCase()
+    }
   } else {
     // Default: physical products (excluding Printful/apparel)
     where.productType = 'PHYSICAL'
@@ -116,6 +126,62 @@ async function getProductCounts() {
   return { physical, digital, apparel }
 }
 
+// Get brands for apparel filtering
+async function getBrands() {
+  const brands = await prisma.brandConfig.findMany({
+    where: { active: true },
+    orderBy: { name: 'asc' },
+  })
+
+  // Get product counts for each brand
+  const brandCounts = await prisma.product.groupBy({
+    by: ['brand'],
+    where: {
+      active: true,
+      productType: 'PHYSICAL',
+      fulfillmentType: 'PRINTFUL',
+    },
+    _count: true,
+  })
+
+  const countsMap = brandCounts.reduce((acc, item) => {
+    if (item.brand) {
+      acc[item.brand] = item._count
+    }
+    return acc
+  }, {} as Record<string, number>)
+
+  return brands.map(brand => ({
+    ...brand,
+    productCount: countsMap[brand.key] || 0,
+  }))
+}
+
+// Get gender counts for apparel
+async function getGenderCounts(brandKey?: string | null) {
+  const where: any = {
+    active: true,
+    productType: 'PHYSICAL',
+    fulfillmentType: 'PRINTFUL',
+  }
+  if (brandKey) {
+    where.brand = brandKey
+  }
+
+  const genderCounts = await prisma.product.groupBy({
+    by: ['gender'],
+    where,
+    _count: true,
+  })
+
+  return {
+    UNISEX: genderCounts.find(g => g.gender === 'UNISEX')?._count || 0,
+    MENS: genderCounts.find(g => g.gender === 'MENS')?._count || 0,
+    WOMENS: genderCounts.find(g => g.gender === 'WOMENS')?._count || 0,
+    all: genderCounts.reduce((sum, g) => sum + g._count, 0),
+  }
+}
+
 export default async function ShopPage({
   searchParams,
 }: {
@@ -133,13 +199,24 @@ export default async function ShopPage({
   const isApparel = currentType === 'apparel'
   const productType = isDigital ? 'DIGITAL' : 'PHYSICAL'
 
-  const [{ products, pagination }, categories, counts] = await Promise.all([
-    getProducts(params),
+  // Get brands for apparel filtering
+  const brands = isApparel ? await getBrands() : []
+
+  // Find brand key from slug for filtering
+  const activeBrand = params.brand
+    ? brands.find(b => b.slug === params.brand)
+    : null
+  const brandKeyFromSlug = activeBrand?.key || null
+
+  const [{ products, pagination }, categories, counts, genderCounts] = await Promise.all([
+    getProducts(params, brandKeyFromSlug),
     getCategories(productType),
     getProductCounts(),
+    isApparel ? getGenderCounts(brandKeyFromSlug) : Promise.resolve({ UNISEX: 0, MENS: 0, WOMENS: 0, all: 0 }),
   ])
 
   const activeCategory = params.category || null
+  const activeGender = params.gender || 'all'
 
   return (
     <div className="min-h-screen py-20">
@@ -239,8 +316,93 @@ export default async function ShopPage({
           </div>
         </form>
 
-        {/* Category Filters */}
-        {categories.length > 0 && (
+        {/* Apparel Filters - Brand and Gender */}
+        {isApparel && (
+          <div className="space-y-4 mb-12">
+            {/* Brand Filter */}
+            {brands.length > 0 && (
+              <div>
+                <p className="text-sm text-text-secondary mb-2">Brand</p>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/shop?type=apparel${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      !activeBrand
+                        ? 'bg-amber-500 text-white'
+                        : 'border border-border hover:bg-surface'
+                    }`}
+                  >
+                    All Brands ({counts.apparel})
+                  </Link>
+                  {brands.filter(b => b.productCount > 0).map((brand) => (
+                    <Link
+                      key={brand.id}
+                      href={`/shop?type=apparel&brand=${brand.slug}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeBrand?.slug === brand.slug
+                          ? 'text-white'
+                          : 'border border-border hover:bg-surface'
+                      }`}
+                      style={activeBrand?.slug === brand.slug ? { backgroundColor: brand.accentColor || '#f59e0b' } : undefined}
+                    >
+                      {brand.name} ({brand.productCount})
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gender Filter */}
+            <div>
+              <p className="text-sm text-text-secondary mb-2">Gender</p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeGender === 'all'
+                      ? 'bg-amber-500 text-white'
+                      : 'border border-border hover:bg-surface'
+                  }`}
+                >
+                  All ({genderCounts.all})
+                </Link>
+                <Link
+                  href={`/shop?type=apparel&gender=unisex${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeGender === 'unisex'
+                      ? 'bg-amber-500 text-white'
+                      : 'border border-border hover:bg-surface'
+                  }`}
+                >
+                  Unisex ({genderCounts.UNISEX})
+                </Link>
+                <Link
+                  href={`/shop?type=apparel&gender=mens${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeGender === 'mens'
+                      ? 'bg-amber-500 text-white'
+                      : 'border border-border hover:bg-surface'
+                  }`}
+                >
+                  Men&apos;s ({genderCounts.MENS})
+                </Link>
+                <Link
+                  href={`/shop?type=apparel&gender=womens${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeGender === 'womens'
+                      ? 'bg-amber-500 text-white'
+                      : 'border border-border hover:bg-surface'
+                  }`}
+                >
+                  Women&apos;s ({genderCounts.WOMENS})
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Filters - For Physical and Digital only */}
+        {!isApparel && categories.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-12">
             <Link
               href={`/shop?type=${currentType}`}
@@ -248,13 +410,11 @@ export default async function ShopPage({
                 !activeCategory
                   ? isDigital
                     ? 'bg-violet-500 text-white'
-                    : isApparel
-                    ? 'bg-amber-500 text-white'
                     : 'bg-emerald-500 text-white'
                   : 'border border-border hover:bg-surface'
               }`}
             >
-              All {isDigital ? 'Digital' : isApparel ? 'Apparel' : 'Physical'}
+              All {isDigital ? 'Digital' : 'Physical'}
             </Link>
             {categories.map((category) => (
               <Link
@@ -264,8 +424,6 @@ export default async function ShopPage({
                   activeCategory === category.slug
                     ? isDigital
                       ? 'bg-violet-500 text-white'
-                      : isApparel
-                      ? 'bg-amber-500 text-white'
                       : 'bg-emerald-500 text-white'
                     : 'border border-border hover:bg-surface'
                 }`}
