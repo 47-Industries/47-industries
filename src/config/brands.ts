@@ -1,5 +1,7 @@
-// Brand configuration for print-on-demand apparel
+// Brand configuration for print-on-demand apparel and business cards
 // Used for brand-specific shop pages (/shop/brands/bookfade, /shop/brands/motorev, /shop/brands/47)
+
+import type { BusinessCardData, CardLayout } from '@/lib/business-card-generator'
 
 export interface BrandConfig {
   slug: string
@@ -9,6 +11,20 @@ export interface BrandConfig {
   accentColor: string
   projectSlug: string | null
   logo?: string
+}
+
+// Business card defaults per brand
+export interface BrandCardDefaults {
+  company: string
+  themeColor: string
+  logoImage?: string
+  layout: CardLayout
+  website?: string
+  qrCode?: {
+    enabled: boolean
+    url: string
+    label: string
+  }
 }
 
 export const BRANDS: Record<string, BrandConfig> = {
@@ -62,4 +78,43 @@ export function getAllBrandSlugs(): string[] {
 // Validate if a slug is a valid brand
 export function isValidBrandSlug(slug: string): boolean {
   return slug.toLowerCase() in BRAND_SLUG_MAP
+}
+
+// Business card defaults per brand
+export const BRAND_CARD_DEFAULTS: Record<string, BrandCardDefaults> = {
+  FORTY_SEVEN_INDUSTRIES: {
+    company: '47 Industries',
+    themeColor: '#3b82f6',
+    logoImage: '/images/brands/47-logo.png',
+    layout: 'standard',
+    website: '47industries.com',
+  },
+  MOTOREV: {
+    company: 'MotoRev',
+    themeColor: '#ef4444',
+    logoImage: '/images/brands/motorev-logo.png',
+    layout: 'standard',
+    website: 'motorevapp.com',
+  },
+  BOOKFADE: {
+    company: '',
+    themeColor: '#9a58fd',
+    logoImage: '/images/brands/bookfade-logo.png',
+    layout: 'qr-focus',
+    qrCode: {
+      enabled: true,
+      url: '',
+      label: 'Scan to Book',
+    },
+  },
+  CUSTOM: {
+    company: '',
+    themeColor: '#3b82f6',
+    layout: 'standard',
+  },
+}
+
+// Get brand card defaults by brand key
+export function getBrandCardDefaults(brandKey: string): BrandCardDefaults | null {
+  return BRAND_CARD_DEFAULTS[brandKey] || null
 }

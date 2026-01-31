@@ -1374,6 +1374,24 @@ model Media {
 }
 
 // ============================================
+// BUSINESS CARDS
+// ============================================
+
+model BusinessCardDesign {
+  id          String    @id @default(cuid())
+  name        String    // Display name: "Kyle Rivers - 47 Industries"
+  brand       Brand?    // Optional brand association
+  cardData    Json      // Full BusinessCardData JSON
+  createdBy   String    // Admin user ID who created the design
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([brand])
+  @@index([createdBy])
+}
+
+// ============================================
 // SETTINGS
 // ============================================
 
