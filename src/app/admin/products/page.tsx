@@ -170,7 +170,8 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/admin/products')
+      // Fetch all products (high limit to get everything)
+      const res = await fetch('/api/admin/products?limit=1000')
       if (res.ok) {
         const data = await res.json()
         setProducts(data.products || [])
@@ -228,18 +229,24 @@ function ProductsTab({ isMobile }: { isMobile: boolean }) {
   }
 
   // Filter products by type
+  // Note: productType/fulfillmentType can be null/undefined for older products
+  // Treat missing productType as PHYSICAL, missing fulfillmentType as SELF_FULFILLED
   const filteredProducts = products.filter(p => {
+    const pType = p.productType || 'PHYSICAL'
+    const fType = p.fulfillmentType
+
     if (productTypeFilter === 'APPAREL') {
-      return p.productType === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL'
+      return pType === 'PHYSICAL' && fType === 'PRINTFUL'
     } else if (productTypeFilter === 'PHYSICAL') {
-      return p.productType === 'PHYSICAL' && p.fulfillmentType !== 'PRINTFUL'
+      // Show physical products that are NOT Printful (including null/undefined)
+      return pType === 'PHYSICAL' && fType !== 'PRINTFUL'
     } else {
-      return p.productType === 'DIGITAL'
+      return pType === 'DIGITAL'
     }
   })
-  const physicalCount = products.filter(p => p.productType === 'PHYSICAL' && p.fulfillmentType !== 'PRINTFUL').length
+  const physicalCount = products.filter(p => (p.productType || 'PHYSICAL') === 'PHYSICAL' && p.fulfillmentType !== 'PRINTFUL').length
   const digitalCount = products.filter(p => p.productType === 'DIGITAL').length
-  const apparelCount = products.filter(p => p.productType === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL').length
+  const apparelCount = products.filter(p => (p.productType || 'PHYSICAL') === 'PHYSICAL' && p.fulfillmentType === 'PRINTFUL').length
 
   if (loading) {
     return (
