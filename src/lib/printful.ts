@@ -230,22 +230,9 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
     include: { variants: true },
   })
 
-  // Get or create an Apparel category for Printful products
-  let category = await prisma.category.findFirst({
-    where: { slug: 'apparel' },
-  })
-
-  if (!category) {
-    category = await prisma.category.create({
-      data: {
-        name: 'Apparel',
-        slug: 'apparel',
-        description: 'Print-on-demand apparel and merchandise',
-        productType: 'PHYSICAL',
-        active: true,
-      },
-    })
-  }
+  // Detect category from product name (T-Shirts, Hoodies, Hats, etc.)
+  const detectedCategory = detectApparelCategory(sync_product.name)
+  const category = await getOrCreateApparelCategory(detectedCategory)
 
   // Calculate base price from variants (lowest price)
   const basePrice = Math.min(
@@ -257,9 +244,10 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
     || sync_variants[0]?.product.image
     || sync_product.thumbnail_url
 
-  // Extract brand and gender from product name
+  // Extract brand, gender, and manufacturer from product name
   const brand = extractBrand(sync_product.name)
-  const gender = extractGender(sync_product.name)
+  const gender = extractGender(sync_product.name, detectedCategory.slug)
+  const manufacturer = extractManufacturer(sync_product.name)
 
   if (product) {
     // Update existing product - preserve the slug
@@ -281,6 +269,7 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
         requiresShipping: true,
         brand: brand,
         gender: gender,
+        manufacturer: manufacturer,
       },
       include: { variants: true },
     })
@@ -303,6 +292,7 @@ export async function syncSingleProduct(printfulData: PrintfulSyncProductRespons
         requiresShipping: true,
         brand: brand,
         gender: gender,
+        manufacturer: manufacturer,
       },
       include: { variants: true },
     })
@@ -364,32 +354,136 @@ function extractBrand(name: string): 'FORTY_SEVEN_INDUSTRIES' | 'BOOKFADE' | 'MO
   if (nameLower.includes('motorev') || nameLower.includes('moto rev')) {
     return 'MOTOREV'
   }
-  // Check for 47 Industries variants
+  // Check for 47 Industries variants - be more inclusive
   if (nameLower.includes('47 industries') || nameLower.includes('47industries') ||
       nameLower.startsWith('47 |') || nameLower.startsWith('47|') ||
-      nameLower.includes('| 47') || nameLower.includes('forty seven') ||
-      nameLower.includes('fortyseven')) {
+      nameLower.startsWith('47 ') || nameLower.includes('| 47') ||
+      nameLower.includes('forty seven') || nameLower.includes('fortyseven') ||
+      nameLower.includes('mindset')) {  // MINDSET is a 47 Industries line
     return 'FORTY_SEVEN_INDUSTRIES'
+  }
+
+  // Default to 47 Industries for now since that's the main brand
+  return 'FORTY_SEVEN_INDUSTRIES'
+}
+
+// Extract gender from product name and product type
+function extractGender(name: string, categorySlug?: string): 'UNISEX' | 'MENS' | 'WOMENS' {
+  const nameLower = name.toLowerCase()
+
+  // Explicit gender markers
+  if (nameLower.includes("women's") || nameLower.includes('womens') ||
+      nameLower.includes('ladies') || nameLower.includes('female') ||
+      nameLower.includes('girlfriend') || nameLower.includes('girl')) {
+    return 'WOMENS'
+  }
+  if (nameLower.includes("men's") || nameLower.includes('mens') ||
+      nameLower.includes('male') || nameLower.includes(' men ') ||
+      nameLower.includes('boyfriend')) {
+    return 'MENS'
+  }
+
+  // Product types that tend to be gendered
+  // Joggers, hoodies, tees are often unisex but fit like mens
+  // Phone cases, stickers, hats are truly unisex
+  if (categorySlug === 'phone-cases' || categorySlug === 'accessories' || categorySlug === 'hats-caps') {
+    return 'UNISEX'
+  }
+
+  // Default to unisex
+  return 'UNISEX'
+}
+
+// Extract manufacturer/blank brand from product name
+function extractManufacturer(name: string): string | null {
+  const nameLower = name.toLowerCase()
+
+  const manufacturers = [
+    { pattern: 'champion', name: 'Champion' },
+    { pattern: 'hanes', name: 'Hanes' },
+    { pattern: 'gildan', name: 'Gildan' },
+    { pattern: 'bella canvas', name: 'Bella+Canvas' },
+    { pattern: 'bella+canvas', name: 'Bella+Canvas' },
+    { pattern: 'next level', name: 'Next Level' },
+    { pattern: 'comfort colors', name: 'Comfort Colors' },
+    { pattern: 'american apparel', name: 'American Apparel' },
+    { pattern: 'district', name: 'District' },
+    { pattern: 'port authority', name: 'Port Authority' },
+    { pattern: 'sport-tek', name: 'Sport-Tek' },
+    { pattern: 'new era', name: 'New Era' },
+    { pattern: 'yupoong', name: 'Yupoong' },
+    { pattern: 'flexfit', name: 'Flexfit' },
+    { pattern: 'richardson', name: 'Richardson' },
+    { pattern: 'carhartt', name: 'Carhartt' },
+    { pattern: 'nike', name: 'Nike' },
+    { pattern: 'adidas', name: 'Adidas' },
+    { pattern: 'under armour', name: 'Under Armour' },
+    { pattern: 'stanley', name: 'Stanley' },
+    { pattern: 'otterbox', name: 'OtterBox' },
+  ]
+
+  for (const mfr of manufacturers) {
+    if (nameLower.includes(mfr.pattern)) {
+      return mfr.name
+    }
   }
 
   return null
 }
 
-// Extract gender from product name
-function extractGender(name: string): 'UNISEX' | 'MENS' | 'WOMENS' {
+// Detect apparel category from product name
+interface ApparelCategory {
+  slug: string
+  name: string
+  keywords: string[]
+}
+
+const APPAREL_CATEGORIES: ApparelCategory[] = [
+  { slug: 't-shirts', name: 'T-Shirts & Tees', keywords: ['tee', 't-shirt', 'tshirt', 'shirt'] },
+  { slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts', keywords: ['hoodie', 'sweatshirt', 'pullover', 'crewneck', 'crew neck'] },
+  { slug: 'jackets', name: 'Jackets & Outerwear', keywords: ['jacket', 'coat', 'windbreaker', 'bomber', 'varsity'] },
+  { slug: 'joggers-pants', name: 'Joggers & Pants', keywords: ['jogger', 'pant', 'sweatpant', 'shorts', 'legging'] },
+  { slug: 'hats-caps', name: 'Hats & Caps', keywords: ['hat', 'cap', 'beanie', 'trucker', 'snapback', 'fitted', 'visor'] },
+  { slug: 'phone-cases', name: 'Phone Cases', keywords: ['case', 'iphone', 'phone', 'samsung', 'galaxy', 'pixel'] },
+  { slug: 'bags', name: 'Bags & Totes', keywords: ['bag', 'tote', 'backpack', 'duffel', 'pouch', 'fanny'] },
+  { slug: 'accessories', name: 'Accessories', keywords: ['sticker', 'patch', 'pin', 'keychain', 'lanyard', 'wristband', 'socks', 'mask'] },
+  { slug: 'drinkware', name: 'Drinkware', keywords: ['mug', 'tumbler', 'bottle', 'cup', 'glass', 'can cooler', 'koozie'] },
+]
+
+function detectApparelCategory(name: string): ApparelCategory {
   const nameLower = name.toLowerCase()
 
-  if (nameLower.includes("women's") || nameLower.includes('womens') ||
-      nameLower.includes('ladies') || nameLower.includes('female')) {
-    return 'WOMENS'
-  }
-  if (nameLower.includes("men's") || nameLower.includes('mens') ||
-      nameLower.includes('male') || nameLower.includes(' men ')) {
-    return 'MENS'
+  for (const category of APPAREL_CATEGORIES) {
+    for (const keyword of category.keywords) {
+      if (nameLower.includes(keyword)) {
+        return category
+      }
+    }
   }
 
-  // Default to unisex
-  return 'UNISEX'
+  // Default to accessories if we can't detect
+  return { slug: 'accessories', name: 'Accessories', keywords: [] }
+}
+
+// Get or create apparel category
+async function getOrCreateApparelCategory(categoryInfo: ApparelCategory): Promise<{ id: string }> {
+  let category = await prisma.category.findFirst({
+    where: { slug: categoryInfo.slug },
+  })
+
+  if (!category) {
+    category = await prisma.category.create({
+      data: {
+        name: categoryInfo.name,
+        slug: categoryInfo.slug,
+        description: `${categoryInfo.name} - Print-on-demand apparel`,
+        productType: 'PHYSICAL',
+        active: true,
+      },
+    })
+  }
+
+  return { id: category.id }
 }
 
 // ============================================

@@ -157,8 +157,8 @@ async function getBrands() {
   }))
 }
 
-// Get gender counts for apparel
-async function getGenderCounts(brandKey?: string | null) {
+// Get apparel categories with counts
+async function getApparelCategories(brandKey?: string | null) {
   const where: any = {
     active: true,
     productType: 'PHYSICAL',
@@ -166,6 +166,45 @@ async function getGenderCounts(brandKey?: string | null) {
   }
   if (brandKey) {
     where.brand = brandKey
+  }
+
+  // Get categories that have apparel products
+  const categories = await prisma.category.findMany({
+    where: {
+      active: true,
+      productType: 'PHYSICAL',
+      products: {
+        some: where,
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      _count: {
+        select: {
+          products: { where },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+  })
+
+  return categories
+}
+
+// Get gender counts for apparel
+async function getGenderCounts(brandKey?: string | null, categorySlug?: string | null) {
+  const where: any = {
+    active: true,
+    productType: 'PHYSICAL',
+    fulfillmentType: 'PRINTFUL',
+  }
+  if (brandKey) {
+    where.brand = brandKey
+  }
+  if (categorySlug) {
+    where.category = { slug: categorySlug }
   }
 
   const genderCounts = await prisma.product.groupBy({
@@ -207,15 +246,16 @@ export default async function ShopPage({
     ? brands.find(b => b.slug === params.brand)
     : null
   const brandKeyFromSlug = activeBrand?.key || null
+  const activeCategory = params.category || null
 
-  const [{ products, pagination }, categories, counts, genderCounts] = await Promise.all([
+  const [{ products, pagination }, categories, counts, genderCounts, apparelCategories] = await Promise.all([
     getProducts(params, brandKeyFromSlug),
     getCategories(productType),
     getProductCounts(),
-    isApparel ? getGenderCounts(brandKeyFromSlug) : Promise.resolve({ UNISEX: 0, MENS: 0, WOMENS: 0, all: 0 }),
+    isApparel ? getGenderCounts(brandKeyFromSlug, activeCategory) : Promise.resolve({ UNISEX: 0, MENS: 0, WOMENS: 0, all: 0 }),
+    isApparel ? getApparelCategories(brandKeyFromSlug) : Promise.resolve([]),
   ])
 
-  const activeCategory = params.category || null
   const activeGender = params.gender || 'all'
 
   return (
@@ -316,7 +356,7 @@ export default async function ShopPage({
           </div>
         </form>
 
-        {/* Apparel Filters - Brand and Gender */}
+        {/* Apparel Filters - Brand, Category, and Gender */}
         {isApparel && (
           <div className="space-y-4 mb-12">
             {/* Brand Filter */}
@@ -325,7 +365,7 @@ export default async function ShopPage({
                 <p className="text-sm text-text-secondary mb-2">Brand</p>
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href={`/shop?type=apparel${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                    href={`/shop?type=apparel${activeCategory ? `&category=${activeCategory}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       !activeBrand
                         ? 'bg-amber-500 text-white'
@@ -337,7 +377,7 @@ export default async function ShopPage({
                   {brands.filter(b => b.productCount > 0).map((brand) => (
                     <Link
                       key={brand.id}
-                      href={`/shop?type=apparel&brand=${brand.slug}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                      href={`/shop?type=apparel&brand=${brand.slug}${activeCategory ? `&category=${activeCategory}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         activeBrand?.slug === brand.slug
                           ? 'text-white'
@@ -352,12 +392,44 @@ export default async function ShopPage({
               </div>
             )}
 
+            {/* Category Filter */}
+            {apparelCategories.length > 0 && (
+              <div>
+                <p className="text-sm text-text-secondary mb-2">Category</p>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      !activeCategory
+                        ? 'bg-amber-500 text-white'
+                        : 'border border-border hover:bg-surface'
+                    }`}
+                  >
+                    All Categories
+                  </Link>
+                  {apparelCategories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}&category=${cat.slug}${activeGender !== 'all' ? `&gender=${activeGender}` : ''}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeCategory === cat.slug
+                          ? 'bg-amber-500 text-white'
+                          : 'border border-border hover:bg-surface'
+                      }`}
+                    >
+                      {cat.name} ({cat._count.products})
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Gender Filter */}
             <div>
               <p className="text-sm text-text-secondary mb-2">Gender</p>
               <div className="flex flex-wrap gap-2">
                 <Link
-                  href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  href={`/shop?type=apparel${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeGender === 'all'
                       ? 'bg-amber-500 text-white'
@@ -367,7 +439,7 @@ export default async function ShopPage({
                   All ({genderCounts.all})
                 </Link>
                 <Link
-                  href={`/shop?type=apparel&gender=unisex${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  href={`/shop?type=apparel&gender=unisex${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeGender === 'unisex'
                       ? 'bg-amber-500 text-white'
@@ -377,7 +449,7 @@ export default async function ShopPage({
                   Unisex ({genderCounts.UNISEX})
                 </Link>
                 <Link
-                  href={`/shop?type=apparel&gender=mens${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  href={`/shop?type=apparel&gender=mens${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeGender === 'mens'
                       ? 'bg-amber-500 text-white'
@@ -387,7 +459,7 @@ export default async function ShopPage({
                   Men&apos;s ({genderCounts.MENS})
                 </Link>
                 <Link
-                  href={`/shop?type=apparel&gender=womens${activeBrand ? `&brand=${activeBrand.slug}` : ''}`}
+                  href={`/shop?type=apparel&gender=womens${activeBrand ? `&brand=${activeBrand.slug}` : ''}${activeCategory ? `&category=${activeCategory}` : ''}`}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     activeGender === 'womens'
                       ? 'bg-amber-500 text-white'
